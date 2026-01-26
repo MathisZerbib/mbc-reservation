@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Table {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique // e.g. "1", "10", "BAR-40"
+  capacity  Int
+  type      TableType @default(RECTANGULAR)
+  x         Float?    // Coordinate for visual map (optional, can be hardcoded in frontend too)
+  y         Float?
+  bookings  Booking[]
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  guestName String
+  guestPhone String
+  guestEmail String
+  size      Int
+  startTime DateTime
+  endTime   DateTime
+  status    BookingStatus @default(CONFIRMED)
+  tableId   Int
+  table     Table    @relation(fields: [tableId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TableType {
+  RECTANGULAR
+  OCTAGONAL
+  CAPSULE
+  ROUND
+  BAR
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
