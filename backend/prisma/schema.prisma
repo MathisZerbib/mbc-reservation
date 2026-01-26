@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -14,7 +15,7 @@ model Table {
   type      TableType @default(RECTANGULAR)
   x         Float?    // Coordinate for visual map (optional, can be hardcoded in frontend too)
   y         Float?
-  bookings  Booking[]
+  bookings  Booking[] @relation("BookingTables")
 }
 
 model Booking {
@@ -26,8 +27,7 @@ model Booking {
   startTime DateTime
   endTime   DateTime
   status    BookingStatus @default(CONFIRMED)
-  tableId   Int
-  table     Table    @relation(fields: [tableId], references: [id])
+  tables    Table[]  @relation("BookingTables")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

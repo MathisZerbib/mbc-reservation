@@ -3,13 +3,12 @@ import dayjs from 'dayjs';
 
 interface Booking {
   id: string;
-  tableId: number;
+  tables: { name: string }[];
   startTime: string;
   endTime: string;
   guestName: string;
   size: number;
   guestPhone: string;
-  table: { name: string };
 }
 
 export const Agenda: React.FC = () => {
@@ -60,8 +59,16 @@ export const Agenda: React.FC = () => {
                     </div>
                     <div className="text-xs text-slate-400 mt-1">{b.guestPhone}</div>
                  </div>
-                 <div className="text-right">
-                     <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded block mb-2">Table {b.table?.name}</span>
+                  <div className="text-right">
+                     {b.tables.length > 0 ? (
+                       <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded block mb-2">
+                          {b.tables.map(t => t.name).join(' + ')}
+                       </span>
+                     ) : (
+                       <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded block mb-2 border border-red-100">
+                          Unassigned
+                       </span>
+                     )}
                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                             className="p-1.5 rounded hover:bg-green-100 text-green-600 transition-colors"

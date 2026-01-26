@@ -63,25 +63,47 @@ export const BookingWidget: React.FC = () => {
   const renderStep1 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wider">{t.step1}</label>
-      <div className="grid grid-cols-4 gap-3">
-        {[2, 4, 5, 6, 7, 8, 10].map(s => (
-          <button
-            key={s}
-            onClick={() => { setFormData({...formData, size: s}); setStep(2); }}
-            className={clsx(
-              "p-4 rounded-xl flex items-center justify-center border-2 transition-all duration-200 text-lg font-bold shadow-sm hover:shadow-md",
-              formData.size === s 
-                ? "bg-slate-900 text-white border-slate-900 scale-105" 
-                : "bg-white text-slate-700 border-slate-200 hover:border-slate-900 hover:text-slate-900"
-            )}
-          >
-            {s}
-          </button>
-        ))}
+      
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+            <input 
+                type="number"
+                min="1"
+                max="60"
+                value={formData.size}
+                onChange={e => setFormData({...formData, size: parseInt(e.target.value) || 1})}
+                className="flex-1 border-2 border-slate-200 rounded-xl p-4 text-2xl font-bold text-center focus:border-slate-900 focus:ring-0 transition-all outline-none"
+            />
+            <button 
+                onClick={() => setStep(2)}
+                className="bg-slate-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 transition-all shadow-lg shadow-slate-900/20"
+                disabled={formData.size < 1 || formData.size > 60}
+            >
+                Confirm
+            </button>
+        </div>
+        
+        <div className="grid grid-cols-4 gap-2">
+            {[2, 4, 6, 8, 10, 12, 15, 20].map(s => (
+                <button
+                    key={s}
+                    onClick={() => { setFormData({...formData, size: s}); setStep(2); }}
+                    className={clsx(
+                        "p-2 rounded-lg border text-sm font-bold transition-all",
+                        formData.size === s 
+                            ? "bg-slate-900 text-white border-slate-900" 
+                            : "bg-white text-slate-500 border-slate-100 hover:border-slate-300"
+                    )}
+                >
+                    {s}
+                </button>
+            ))}
+        </div>
       </div>
+
       <div className="text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center gap-2">
         <span className="text-xl">ℹ️</span>
-        Groups 6+ get 3 hours. Standard is 2 hours.
+        Groups 6+ get 3 hours. Max 60 people via widget.
       </div>
     </div>
   );
@@ -106,7 +128,7 @@ export const BookingWidget: React.FC = () => {
                onChange={e => setFormData({...formData, time: e.target.value})}
                className="block w-full border-slate-200 rounded-xl shadow-sm p-3 bg-slate-50 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-all font-medium appearance-none"
              >
-               {['17:00','17:30','18:00','18:30','19:00','19:30','20:00','20:30','21:00'].map(time => (
+               {['17:00','17:30','18:00','18:30','19:00','19:30','20:00','20:30','21:00', '21:30', '22:00', '22:30'].map(time => (
                  <option key={time} value={time}>{time}</option>
                ))}
              </select>

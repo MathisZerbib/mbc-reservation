@@ -2,7 +2,8 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { PrismaClient, TableType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { ADJACENCY_MAP } from './utils/adjacency';
 
 const app = express();
 const server = http.createServer(app);
@@ -31,124 +32,110 @@ const getDuration = (guestSize: number) => (guestSize >= 6 ? 180 : 120);
 // Helper: Add minutes to date
 const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60000);
 
+// Helper: Find available tables for a slot
+async function getAvailableTables(requestedStart: Date, requestedEnd: Date) {
+    const buffer = 15;
+    const allTables = await prisma.table.findMany();
+    const availableTables = [];
+
+    for (const table of allTables) {
+        const collisions = await prisma.booking.findMany({
+            where: {
+                tables: { some: { id: table.id } },
+                status: { not: 'CANCELLED' },
+                AND: [
+                    { startTime: { lt: addMinutes(requestedEnd, buffer) } },
+                    { endTime: { gt: addMinutes(requestedStart, -buffer) } }
+                ]
+            } as any
+        });
+        if (collisions.length === 0) {
+            availableTables.push(table);
+        }
+    }
+    return availableTables;
+}
+
+// Algorithm: Find set of adjacent tables for group size
+function findTableCombination(size: number, availableTables: any[]) {
+    // 1. Try single table first (best fit)
+    const single = availableTables
+        .filter(t => t.capacity >= size)
+        .sort((a, b) => a.capacity - b.capacity)[0];
+
+    if (single) return [single];
+
+    // 2. Greedy search for adjacent tables
+    const tableMap = new Map(availableTables.map(t => [t.name, t]));
+
+    for (const seed of availableTables) {
+        let result: any[] = [seed];
+        let currentCapacity = seed.capacity;
+
+        const queue = [...(ADJACENCY_MAP[seed.name] || [])];
+        const visited = new Set([seed.name]);
+
+        while (queue.length > 0 && currentCapacity < size) {
+            const nextName = queue.shift();
+            if (!nextName || visited.has(nextName)) continue;
+            visited.add(nextName);
+
+            const neighbor = tableMap.get(nextName);
+            if (neighbor) {
+                result.push(neighbor);
+                currentCapacity += neighbor.capacity;
+                queue.push(...(ADJACENCY_MAP[nextName] || []));
+            }
+        }
+
+        if (currentCapacity >= size) {
+            return result;
+        }
+    }
+
+    return null;
+}
+
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
-// API: Check Availability
 app.get('/api/availability', async (req, res) => {
     try {
         const { date, time, size } = req.query;
-
-        if (!date || !time || !size) {
-            return res.status(400).json({ error: 'Missing parameters' });
-        }
+        if (!date || !time || !size) return res.status(400).json({ error: 'Missing parameters' });
 
         const guestSize = parseInt(size as string);
         const requestedStart = new Date(`${date}T${time}`);
-        // Check if invalid date
-        if (isNaN(requestedStart.getTime())) {
-            return res.status(400).json({ error: 'Invalid date/time format' });
-        }
+        if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
         const duration = getDuration(guestSize);
         const requestedEnd = addMinutes(requestedStart, duration);
 
-        // Buffer time (15 mins)
-        const buffer = 15;
+        const available = await getAvailableTables(requestedStart, requestedEnd);
+        const combination = findTableCombination(guestSize, available);
 
-        // Find tables with enough capacity
-        const candidateTables = await prisma.table.findMany({
-            where: { capacity: { gte: guestSize } },
+        res.json({
+            available: !!combination,
+            tables: combination || []
         });
-
-        const availableTables = [];
-
-        for (const table of candidateTables) {
-            // Check for overlapping bookings
-            // Overlap logic:
-            // (StartA < EndB) and (EndA > StartB)
-            // New Booking: S_new, E_new. Buffered range: [S_new - 15, E_new + 15]
-            // Existing Booking: S_old, E_old. Buffered range: [S_old - 15, E_old + 15] -- Actually buffer is usually applied to the END of a booking for cleaning.
-            // "Automatically add 15 minutes between bookings for table cleaning."
-            // This means a booking effectively occupies [Start, End + 15].
-            // So NewBooking needs [Start, End + 15] to be free.
-            // So Collision if:
-            // Existing.Start < New.End + 15 AND Existing.End + 15 > New.Start
-
-            const collisions = await prisma.booking.findMany({
-                where: {
-                    tableId: table.id,
-                    status: { not: 'CANCELLED' },
-                    AND: [
-                        { startTime: { lt: addMinutes(requestedEnd, buffer) } },
-                        { endTime: { gt: addMinutes(requestedStart, -buffer) } }
-                    ]
-                }
-            });
-
-            if (collisions.length === 0) {
-                availableTables.push(table);
-            }
-        }
-
-        res.json({ available: availableTables.length > 0, tables: availableTables });
-    } catch (error) {
-        console.error(error);
+    } catch (e) {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// API: Create Booking
 app.post('/api/bookings', async (req, res) => {
     try {
         const { name, phone, email, size, date, time } = req.body;
-
-        // Basic validation
-        if (!name || !phone || !size || !date || !time) {
-            return res.status(400).json({ error: 'Missing fields' });
-        }
+        if (!name || !phone || !size || !date || !time) return res.status(400).json({ error: 'Missing fields' });
 
         const guestSize = parseInt(size);
         const requestedStart = new Date(`${date}T${time}`);
-        if (isNaN(requestedStart.getTime())) {
-            return res.status(400).json({ error: 'Invalid date/time format' });
-        }
+        if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
         const duration = getDuration(guestSize);
         const requestedEnd = addMinutes(requestedStart, duration);
-        const buffer = 15;
 
-        const candidateTables = await prisma.table.findMany({
-            where: { capacity: { gte: guestSize } },
-            orderBy: { capacity: 'asc' }
-        });
-
-        let assignedTable = null;
-
-        for (const table of candidateTables) {
-            const collisions = await prisma.booking.findMany({
-                where: {
-                    tableId: table.id,
-                    status: { not: 'CANCELLED' },
-                    AND: [
-                        { startTime: { lt: addMinutes(requestedEnd, buffer) } },
-                        { endTime: { gt: addMinutes(requestedStart, -buffer) } }
-                    ]
-                }
-            });
-
-            if (collisions.length === 0) {
-                assignedTable = table;
-                break;
-            }
-        }
-
-        if (!assignedTable) {
-            return res.status(409).json({ error: 'No table available' });
-        }
-
-        // Create Booking
         const newBooking = await prisma.booking.create({
             data: {
                 guestName: name,
@@ -157,13 +144,14 @@ app.post('/api/bookings', async (req, res) => {
                 size: guestSize,
                 startTime: requestedStart,
                 endTime: requestedEnd,
-                tableId: assignedTable.id,
-            }
+                tables: {
+                    connect: [] // Manager will assign tables manually
+                }
+            } as any,
+            include: { tables: true } as any
         });
 
-        // Validated - Notify Admin via Socket
         io.emit('booking-update', { type: 'new', booking: newBooking });
-
         res.json(newBooking);
 
     } catch (error) {
@@ -173,23 +161,42 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 app.get('/api/bookings', async (req, res) => {
-    // For Admin to get all bookings
     const bookings = await prisma.booking.findMany({
-        include: { table: true }
+        include: { tables: true } as any
     });
     res.json(bookings);
 });
 
+// Update table assignments manually
+app.patch('/api/bookings/:id/tables', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tableNames } = req.body; // Array of table names like ["22", "25"]
+
+        const tables = await prisma.table.findMany({
+            where: { name: { in: tableNames } }
+        });
+
+        const updatedBooking = await prisma.booking.update({
+            where: { id },
+            data: {
+                tables: {
+                    set: [], // Clear existing
+                    connect: tables.map(t => ({ id: t.id }))
+                }
+            } as any,
+            include: { tables: true } as any
+        });
+
+        io.emit('booking-update', { type: 'update', booking: updatedBooking });
+        res.json(updatedBooking);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update assignment' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 
-async function main() {
-    server.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-}
-
-main()
-    .catch((e) => {
-        console.error(e);
-        process.exit(1);
-    });
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});

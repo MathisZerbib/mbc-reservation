@@ -51,8 +51,8 @@ export const FloorPlan: React.FC = () => {
   }, []);
 
   const getTableStatus = (tableId: string) => {
-    // Filter bookings for this table
-    const tableBookings = bookings.filter((b: any) => b.table.name === tableId);
+    // Filter bookings for this table, checking if it's included in the tables list
+    const tableBookings = bookings.filter((b: any) => b.tables?.some((t: any) => t.name === tableId));
     
     // Check status
     // Priority: Red (Occupied) -> Orange (Overstay) -> Yellow (Reserved soon) -> Green
@@ -66,21 +66,17 @@ export const FloorPlan: React.FC = () => {
       const start = dayjs(booking.startTime);
       const end = dayjs(booking.endTime);
 
-      // RED: Occupied (Start <= Now <= End)
-      if (now.isAfter(start) && now.isBefore(end)) {
+      // RED: Occupied (Start <= Now <= End - 30m)
+      if (now.isAfter(start) && now.isBefore(end.subtract(30, 'minute'))) {
         return 'RED';
       }
       
-      // ORANGE: Overstaying (Now > End) - Assuming we track "active" bookings.
-      // If a booking ended 5 mins ago, is it overstaying? Yes.
-      // If it ended 5 hours ago? Probably not relevant.
-      // Let's say if End < Now < End + 30 mins, it's Orange.
-      if (now.isAfter(end) && now.diff(end, 'minute') < 30) {
-        return 'ORANGE';
+      // BLUE: Soon Available (End - 30m <= Now <= End)
+      if (now.isAfter(end.subtract(30, 'minute')) && now.isBefore(end)) {
+        return 'BLUE';
       }
 
       // YELLOW: Reserved (Starts within 30 mins)
-      // Start > Now && Start - Now < 30
       if (start.isAfter(now) && start.diff(now, 'minute') < 30) {
         return 'YELLOW';
       }
@@ -123,7 +119,7 @@ export const FloorPlan: React.FC = () => {
   const getColor = (status: string) => {
     switch (status) {
       case 'RED': return '#ef4444'; // Red-500
-      case 'ORANGE': return '#f97316'; // Orange-500
+      case 'BLUE': return '#3b82f6'; // Blue-500
       case 'YELLOW': return '#eab308'; // Yellow-500
       case 'GREEN': return '#22c55e'; // Green-500
       default: return '#e5e7eb'; // Gray-200
@@ -139,7 +135,7 @@ export const FloorPlan: React.FC = () => {
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></div> AVAILABLE</div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-400 shadow-sm shadow-yellow-400/50"></div> RES (30m)</div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></div> OCCUPIED</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-orange-500 shadow-sm shadow-orange-500/50"></div> OVERSTAY</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></div> SOON AVAILABLE</div>
         </div>
       </div>
       
