@@ -1,6 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0f172a;
+  --color-primary-light: #334155;
+  --font-sans: "Inter", "system-ui", sans-serif;
+}
 
 :root {
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
