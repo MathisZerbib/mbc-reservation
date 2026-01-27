@@ -1,23 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import dayjs from 'dayjs';
+import { useBookings } from '../hooks/useBookings';
 
-export const Analytics: React.FC = () => {
-  const [stats, setStats] = useState({
-    totalBookings: 0,
-    busySlot: '19:00',
-    turnover: '0.0'
-  });
+interface AnalyticsProps {
+  date: string;
+}
 
-  useEffect(() => {
-    fetch('http://localhost:3000/api/bookings')
-      .then(res => res.json())
-      .then((data: any[]) => {
-        setStats({
-          totalBookings: data.length,
-          busySlot: '20:00',
-          turnover: (data.length / 48).toFixed(1)
-        });
-      });
-  }, []);
+export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
+  const { bookings: allBookings } = useBookings();
+  
+  const bookingsForDay = allBookings.filter((b: any) => 
+    dayjs(b.startTime).format('YYYY-MM-DD') === date
+  );
+
+  const totalBookings = bookingsForDay.length;
+  const turnover = (totalBookings / 48).toFixed(1); // Rough occupancy metric
+  const busySlot = '20:00'; // Placeholder logic
 
   const Card = ({ label, value, sub }: { label: string, value: string | number, sub?: string }) => (
     <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 flex flex-col items-center justify-center hover:scale-105 transition-transform">
@@ -29,9 +27,9 @@ export const Analytics: React.FC = () => {
 
   return (
     <div className="grid grid-cols-3 gap-4 mb-8">
-       <Card label="Total Bookings" value={stats.totalBookings} sub="+12% vs yesterday" />
-       <Card label="Est. Turnover" value={stats.turnover} />
-       <Card label="Peak Hour" value={stats.busySlot} />
+       <Card label="Total Bookings" value={totalBookings} sub="+12% vs yesterday" />
+       <Card label="Est. Turnover" value={turnover} />
+       <Card label="Peak Hour" value={busySlot} />
     </div>
   );
 };

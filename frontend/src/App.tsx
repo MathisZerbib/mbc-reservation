@@ -30,7 +30,7 @@ function AdminDashboard() {
             </header>
             
             <div className="flex-none">
-                 <Analytics />
+                 <Analytics date={selectedDate} />
             </div>
 
             <div className="flex-1 min-h-0">

@@ -26,6 +26,10 @@ export const TableAssignmentPage: React.FC = () => {
 
     const filteredBookings = bookings.filter(b => dayjs(b.startTime).format('YYYY-MM-DD') === date);
     
+    const isReservedAnyTimeToday = (tableId: string) => {
+        return filteredBookings.some(b => b.tables.some(t => t.name === tableId));
+    };
+
     const isOccupiedByOthers = (tableId: string) => {
         if (!selectedBooking) return false;
         const buffer = 15;
@@ -55,6 +59,7 @@ export const TableAssignmentPage: React.FC = () => {
         try {
             await api.updateAssignment(selectedBookingId, tempTables);
             refresh();
+            setSelectedBookingId(null);
         } catch (e) {
             alert('Failed to save assignment');
         } finally {
@@ -162,17 +167,6 @@ export const TableAssignmentPage: React.FC = () => {
 
             {/* Main View: Interactive Floor Plan */}
             <div className="flex-1 flex flex-col relative">
-                {!selectedBooking && (
-                    <div className="absolute inset-0 z-20 bg-slate-900/10 backdrop-blur-[2px] flex items-center justify-center">
-                        <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 text-center max-w-sm animate-in zoom-in duration-300">
-                            <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Users className="w-8 h-8" />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Select a Reservation</h3>
-                            <p className="text-slate-500 text-sm">Choose a booking from the sidebar to start assigning tables.</p>
-                        </div>
-                    </div>
-                )}
 
                 <div className="p-8 pb-4 flex justify-between items-center">
                     <div>
@@ -200,7 +194,9 @@ export const TableAssignmentPage: React.FC = () => {
                             <rect width="100%" height="100%" fill="url(#dots)" />
 
                             {FLOOR_PLAN_DATA.map((table) => {
-                                const occupiedByOthers = isOccupiedByOthers(table.id);
+                                const occupiedByOthers = selectedBooking 
+                                    ? isOccupiedByOthers(table.id) 
+                                    : isReservedAnyTimeToday(table.id);
                                 const isSelected = tempTables.includes(table.id);
                                 
                                 return (
