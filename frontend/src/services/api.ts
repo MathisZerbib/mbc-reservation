@@ -9,6 +9,12 @@ export const api = {
         return res.json();
     },
 
+    async getAnalytics(date: string): Promise<any> {
+        const res = await fetch(`${API_BASE_URL}/analytics?date=${date}`);
+        if (!res.ok) throw new Error('Failed to fetch analytics');
+        return res.json();
+    },
+
     async checkAvailability(date: string, time: string, size: number): Promise<AvailabilityResponse> {
         const res = await fetch(`${API_BASE_URL}/availability?date=${date}&time=${time}&size=${size}`);
         if (!res.ok) throw new Error('Failed to check availability');

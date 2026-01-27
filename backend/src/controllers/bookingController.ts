@@ -158,5 +158,59 @@ export const bookingController = (io: Server) => ({
         } catch (error) {
             res.status(500).json({ error: 'Failed to update assignment' });
         }
+    },
+
+    getAnalytics: async (req: Request, res: Response) => {
+        try {
+            const { date } = req.query;
+            if (!date) return res.status(400).json({ error: 'Missing date' });
+
+            const startOfDay = new Date(`${date}T00:00:00`);
+            const endOfDay = new Date(`${date}T23:59:59`);
+
+            const bookings = await prisma.booking.findMany({
+                where: {
+                    startTime: { gte: startOfDay, lte: endOfDay },
+                    status: { not: 'CANCELLED' }
+                }
+            });
+
+            const totalBookings = bookings.length;
+            const totalGuests = bookings.reduce((sum, b) => sum + b.size, 0);
+            const turnover = totalGuests * 55; // Assuming avg 55€ per guest
+
+            // Calculate Peak Hour
+            const slots = [];
+            for (let h = 17; h <= 22; h++) {
+                slots.push(`${h}:00`, `${h}:30`);
+            }
+
+            let peakHour = '19:00';
+            let maxOverlaps = -1;
+
+            slots.forEach(slot => {
+                const slotTime = new Date(`${date}T${slot.length === 4 ? '0' + slot : slot}`);
+                const overlaps = bookings.filter(b => {
+                    const start = new Date(b.startTime);
+                    const end = new Date(b.endTime);
+                    return slotTime >= start && slotTime < end;
+                }).length;
+
+                if (overlaps > maxOverlaps) {
+                    maxOverlaps = overlaps;
+                    peakHour = slot;
+                }
+            });
+
+            res.json({
+                totalBookings,
+                turnover,
+                peakHour,
+                growth: "+12%" // Placeholder for now
+            });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
     }
 });

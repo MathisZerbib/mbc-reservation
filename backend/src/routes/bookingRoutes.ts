@@ -6,6 +6,7 @@ export const bookingRoutes = (io: Server) => {
     const router = Router();
     const controller = bookingController(io);
 
+    router.get('/analytics', controller.getAnalytics);
     router.get('/availability', controller.checkAvailability);
     router.post('/bookings', controller.createBooking);
     router.get('/bookings', controller.getAllBookings);
