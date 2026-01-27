@@ -1,0 +1,162 @@
+import { Request, Response } from 'express';
+import { prisma } from '../lib/prisma';
+import { getAvailableTables, findTableCombination, addMinutes } from '../services/bookingService';
+import { Server } from 'socket.io';
+import { emailService } from '../services/emailService';
+
+const getDuration = (guestSize: number) => (guestSize >= 6 ? 180 : 120);
+
+export const bookingController = (io: Server) => ({
+    checkAvailability: async (req: Request, res: Response) => {
+        try {
+            const { date, time, size } = req.query;
+            if (!date || !time || !size) return res.status(400).json({ error: 'Missing parameters' });
+
+            const guestSize = parseInt(size as string);
+            const requestedStart = new Date(`${date}T${time}`);
+            if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
+
+            const duration = getDuration(guestSize);
+            const requestedEnd = addMinutes(requestedStart, duration);
+
+            const available = await getAvailableTables(requestedStart, requestedEnd);
+            const combination = findTableCombination(guestSize, available);
+
+            res.json({
+                available: !!combination,
+                tables: combination || []
+            });
+        } catch (e) {
+            console.error('Availability error:', e);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+
+    createBooking: async (req: Request, res: Response) => {
+        try {
+            const { name, phone, email, size, date, time } = req.body;
+            if (!name || !phone || !size || !date || !time) return res.status(400).json({ error: 'Missing fields' });
+
+            const guestSize = parseInt(size);
+            const requestedStart = new Date(`${date}T${time}`);
+            if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
+
+            const duration = getDuration(guestSize);
+            const requestedEnd = addMinutes(requestedStart, duration);
+
+            const newBooking = await prisma.booking.create({
+                data: {
+                    guestName: name,
+                    guestPhone: phone,
+                    guestEmail: email || '',
+                    size: guestSize,
+                    startTime: requestedStart,
+                    endTime: requestedEnd,
+                    tables: {
+                        connect: [] // Manager will assign tables manually
+                    }
+                }
+            } as any);
+
+            // Send confirmation email
+            if (newBooking.guestEmail) {
+                emailService.sendConfirmationEmail(newBooking);
+            }
+
+            io.emit('booking-update', { type: 'new', booking: newBooking });
+            res.json(newBooking);
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+
+    checkIn: async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const updatedBooking = await prisma.booking.update({
+                where: { id: id as string },
+                data: { status: 'COMPLETED' }
+            } as any);
+
+            // Send feedback email after visit
+            if (updatedBooking.guestEmail) {
+                emailService.sendFeedbackEmail(updatedBooking);
+            }
+
+            const completeBooking = await prisma.booking.findUnique({
+                where: { id: id as string },
+                include: { tables: true } as any
+            });
+
+            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            res.json(completeBooking);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Failed to check-in' });
+        }
+    },
+
+    cancelBooking: async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const updatedBooking = await prisma.booking.update({
+                where: { id: id as string },
+                data: { status: 'CANCELLED' }
+            } as any);
+
+            const completeBooking = await prisma.booking.findUnique({
+                where: { id: id as string },
+                include: { tables: true } as any
+            });
+
+            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            res.json(completeBooking);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to cancel booking' });
+        }
+    },
+
+    getAllBookings: async (req: Request, res: Response) => {
+        try {
+            const bookings = await prisma.booking.findMany({
+                include: { tables: true } as any
+            });
+            res.json(bookings);
+        } catch (error) {
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+
+    updateAssignment: async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const { tableNames } = req.body;
+
+            const tables = await prisma.table.findMany({
+                where: { name: { in: tableNames } }
+            });
+
+            await prisma.booking.update({
+                where: { id: id as string },
+                data: {
+                    tables: {
+                        set: [],
+                        connect: tables.map(t => ({ id: t.id }))
+                    }
+                }
+            } as any);
+
+            const completeBooking = await prisma.booking.findUnique({
+                where: { id: id as string },
+                include: { tables: true } as any
+            });
+
+            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            res.json(completeBooking);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to update assignment' });
+        }
+    }
+});

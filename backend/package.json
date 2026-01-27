@@ -16,14 +16,17 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "cors": "^2.8.6",
+    "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "nodemailer": "^7.0.12",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.10",
+    "@types/nodemailer": "^7.0.5",
     "nodemon": "^3.1.11",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",

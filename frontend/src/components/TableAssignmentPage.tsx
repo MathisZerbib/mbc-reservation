@@ -1,46 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
 import dayjs from 'dayjs';
 import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
 import { ChevronLeft, Save, Users, Clock } from 'lucide-react';
 import clsx from 'clsx';
-
-const socket = io('http://localhost:3000');
-
-interface Table {
-    id: number;
-    name: string;
-}
-
-interface Booking {
-    id: string;
-    guestName: string;
-    guestPhone: string;
-    guestEmail: string;
-    size: number;
-    startTime: string;
-    endTime: string;
-    tables: Table[];
-}
+import { useBookings } from '../hooks/useBookings';
+import { api } from '../services/api';
+import { DatePicker } from './ui/date-picker';
 
 export const TableAssignmentPage: React.FC = () => {
-    const [bookings, setBookings] = useState<Booking[]>([]);
+    const { bookings, refresh } = useBookings();
     const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
     const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
     const [loading, setLoading] = useState(false);
     const [tempTables, setTempTables] = useState<string[]>([]);
-
-    const fetchBookings = () => {
-        fetch('http://localhost:3000/api/bookings')
-            .then(res => res.json())
-            .then(data => setBookings(data));
-    };
-
-    useEffect(() => {
-        fetchBookings();
-        socket.on('booking-update', fetchBookings);
-        return () => { socket.off('booking-update'); };
-    }, []);
 
     const selectedBooking = bookings.find(b => b.id === selectedBookingId);
 
@@ -81,14 +53,10 @@ export const TableAssignmentPage: React.FC = () => {
         if (!selectedBookingId) return;
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:3000/api/bookings/${selectedBookingId}/tables`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tableNames: tempTables })
-            });
-            if (res.ok) {
-                // Success
-            }
+            await api.updateAssignment(selectedBookingId, tempTables);
+            refresh();
+        } catch (e) {
+            alert('Failed to save assignment');
         } finally {
             setLoading(false);
         }
@@ -127,11 +95,10 @@ export const TableAssignmentPage: React.FC = () => {
                         </a>
                         <h1 className="text-xl font-bold tracking-tight">Table Assignments</h1>
                     </div>
-                    <input 
-                        type="date" 
-                        value={date} 
-                        onChange={e => setDate(e.target.value)}
-                        className="w-full bg-slate-800 border-none rounded-xl p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                    <DatePicker 
+                        date={dayjs(date).toDate()} 
+                        setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
+                        className="bg-slate-800 border-none text-white focus:ring-2 focus:ring-indigo-500 h-10 text-xs"
                     />
                 </div>
 
@@ -144,7 +111,7 @@ export const TableAssignmentPage: React.FC = () => {
                                 key={b.id}
                                 onClick={() => setSelectedBookingId(b.id)}
                                 className={clsx(
-                                    "w-full text-left p-4 rounded-2xl border transition-all duration-200 group relative",
+                                    "w-full text-left p-4 rounded-2xl border transition-all duration-200 group relative cursor-pointer",
                                     selectedBookingId === b.id 
                                         ? "bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20" 
                                         : "bg-white border-slate-100 hover:border-slate-300 hover:shadow-md"
@@ -175,7 +142,7 @@ export const TableAssignmentPage: React.FC = () => {
                             <button 
                                 onClick={handleSave}
                                 disabled={loading}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                             >
                                 <Save className="w-4 h-4" /> {loading ? 'Saving...' : 'Save'}
                             </button>
@@ -242,8 +209,8 @@ export const TableAssignmentPage: React.FC = () => {
                                         transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width/2}, ${table.height/2})`}
                                         onClick={() => toggleTable(table.id)}
                                         className={clsx(
-                                            "transition-all duration-300 select-none",
-                                            occupiedByOthers ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-105 active:scale-95"
+                                            "transition-all duration-300 select-none group",
+                                            occupiedByOthers ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
                                         )}
                                         style={{ filter: 'url(#tableShadow)' }}
                                     >
@@ -252,7 +219,10 @@ export const TableAssignmentPage: React.FC = () => {
                                             fill={isSelected ? '#4f46e5' : occupiedByOthers ? '#94a3b8' : 'white'} 
                                             stroke={isSelected ? '#3730a3' : '#e2e8f0'} 
                                             strokeWidth={isSelected ? '3' : '2'}
-                                            className="transition-colors duration-200"
+                                            className={clsx(
+                                                "transition-colors duration-200",
+                                                !occupiedByOthers && !isSelected && "group-hover:fill-emerald-50 group-hover:stroke-emerald-500"
+                                            )}
                                         />
                                         {occupiedByOthers && (
                                             <path 
@@ -272,7 +242,10 @@ export const TableAssignmentPage: React.FC = () => {
                                             fontSize="14" 
                                             fontWeight="800"
                                             pointerEvents="none"
-                                            className="transition-colors duration-200"
+                                            className={clsx(
+                                                "transition-colors duration-200",
+                                                !occupiedByOthers && !isSelected && "group-hover:fill-emerald-600"
+                                            )}
                                         >
                                             {table.id}
                                         </text>

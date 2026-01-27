@@ -8,9 +8,9 @@ export const BookingPage = () => {
                     <h1 className="text-4xl font-black text-white tracking-tight mb-2">MBC <span className="text-slate-400">Reservation</span></h1>
                     <p className="text-slate-400 font-medium">Réservez votre table en quelques clics</p>
                 </div>
-                <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-4 border border-white/10 shadow-2xl">
+                {/* <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-4 border border-white/10 shadow-2xl"> */}
                     <BookingWidget />
-                </div>
+                {/* </div> */}
             </div>
         </div>
     );
