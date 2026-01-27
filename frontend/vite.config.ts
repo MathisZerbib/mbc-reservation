@@ -8,4 +8,15 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-utils': ['dayjs', 'clsx', 'framer-motion', 'lucide-react'],
+          'vendor-ui': ['date-fns', 'react-day-picker'],
+        }
+      }
+    }
+  }
 })

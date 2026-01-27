@@ -12,21 +12,24 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import dayjs from 'dayjs';
+import 'dayjs/locale/fr';
+import 'dayjs/locale/en';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { api } from '../services/api';
-import { TRANSLATIONS, type Lang } from '../i18n/translations';
+import { useLanguage } from '../i18n/LanguageContext';
 import { DatePicker } from './ui/date-picker';
 
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
 const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];
 
 export const BookingWidget: React.FC = () => {
+    const { lang, setLang, t } = useLanguage();
+    dayjs.locale(lang);
+    
     const getFirstAvailableTime = (date: string) => {
         const now = dayjs();
-        return TIME_SLOTS.find(t => dayjs(`${date} ${t}`).isAfter(now)) || null;
+        return TIME_SLOTS.find(slot => dayjs(`${date} ${slot}`).isAfter(now)) || null;
     };
-  const [lang, setLang] = useState<Lang>('fr');
-  const t = TRANSLATIONS[lang];
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
   const [formData, setFormData] = useState({
@@ -221,7 +224,7 @@ export const BookingWidget: React.FC = () => {
                   <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50 flex items-start gap-2.5">
                     <div className="p-1.5 bg-white rounded-lg shadow-sm shrink-0"><Clock className="w-3 h-3 text-indigo-600" /></div>
                     <p className="text-[10px] font-medium text-indigo-900/60 leading-relaxed">
-                        Groups of 6+ get 3h allocation. Fine dining, redefined.
+                       {t.booking_info}
                     </p>
                   </div>
                 </motion.div>
@@ -261,11 +264,11 @@ export const BookingWidget: React.FC = () => {
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">{t.time}</label>
                         {!getFirstAvailableTime(formData.date) && dayjs(formData.date).isSame(dayjs(), 'day') ? (
                             <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl text-center">
-                                <p className="text-xs font-bold text-red-600">No more slots available for today</p>
+                                <p className="text-xs font-bold text-red-600">{t.no_slots}</p>
                             </div>
                         ) : dayjs(formData.date).isBefore(dayjs(), 'day') ? (
                             <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl text-center">
-                                <p className="text-xs font-bold text-red-600">This date has already passed</p>
+                                <p className="text-xs font-bold text-red-600">{t.date_passed}</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-3 gap-2">
@@ -305,16 +308,16 @@ export const BookingWidget: React.FC = () => {
                   <div className="flex gap-3 pt-2">
                     <button 
                         onClick={() => prevStep(1)} 
-                        className="flex-1 bg-slate-100 text-slate-600 p-4 rounded-2xl font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5 text-xs group"
+                        className="flex-1 bg-slate-100 text-slate-600 p-4 rounded-2xl font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5 text-xs group cursor-pointer"
                     >
                         <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> {t.back}
                     </button>
                     <button 
                         onClick={handleCheckAvailability}
                         disabled={loading || !formData.time || dayjs(`${formData.date} ${formData.time}`).isBefore(dayjs())}
-                        className="flex-[2] bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 text-xs"
+                        className="flex-[2] bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 text-xs cursor-pointer"
                     >
-                        {loading ? <div className="loading-dots italic">Checking</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}
+                        {loading ? <div className="loading-dots italic">{t.checking}</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}
                     </button>
                   </div>
                 </motion.div>
@@ -332,7 +335,7 @@ export const BookingWidget: React.FC = () => {
                   className="space-y-4"
                 >
                   <div className="space-y-3">
-                    <div className="space-y-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Personal Details</div>
+                    <div className="space-y-2 text-[10px] font-black uppercase tracking-widest text-slate-400">{t.step3}</div>
                     <div className="space-y-2">
                         <input 
                             type="text" 
@@ -375,7 +378,7 @@ export const BookingWidget: React.FC = () => {
                         disabled={loading || !formData.name || !formData.phone || !token}
                         className="flex-[2] bg-emerald-600 text-white p-4 rounded-2xl font-black hover:bg-emerald-500 disabled:opacity-50 transition-all shadow-md text-xs flex items-center justify-center gap-2 cursor-pointer"
                     >
-                        {loading ? 'Processing...' : <>{t.book} <Check className="w-4 h-4" /></>}
+                        {loading ? `${t.processing}...` : <>{t.book} <Check className="w-4 h-4" /></>}
                     </button>
                   </div>
                 </motion.div>
@@ -451,9 +454,7 @@ export const BookingWidget: React.FC = () => {
                     transition={{ delay: 0.5 }}
                     className="mx-auto max-w-[280px] bg-slate-50/80 backdrop-blur-sm rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden"
                   >
-                      <div className="absolute top-0 right-0 p-2 opacity-5">
-                        <Sparkles className="w-12 h-12 text-indigo-600" />
-                      </div>
+                      
 
                       <div className="space-y-4">
                           <div className="flex items-center gap-4">
@@ -461,8 +462,8 @@ export const BookingWidget: React.FC = () => {
                                 <CalendarIcon className="w-5 h-5 text-indigo-600" />
                             </div>
                             <div className="text-left">
-                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Reservation Info</p>
-                                <p className="text-sm font-black text-slate-800">
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">{t.res_info}</p>
+                                <p className="capitalize text-sm font-black text-slate-800">
                                     {dayjs(formData.date).format('dddd, DD MMM')}
                                 </p>
                                 <p className="text-xs font-bold text-indigo-600">{formData.time}</p>
@@ -476,8 +477,8 @@ export const BookingWidget: React.FC = () => {
                                 <Users className="w-5 h-5 text-emerald-600" />
                             </div>
                             <div className="text-left">
-                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Guests</p>
-                                <p className="text-sm font-black text-slate-800">{formData.size} Persons</p>
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">{t.guests}</p>
+                                <p className="text-sm font-black text-slate-800">{formData.size} {t.persons}</p>
                             </div>
                           </div>
                       </div>
@@ -490,7 +491,7 @@ export const BookingWidget: React.FC = () => {
                     onClick={() => { setStep(1); setFormData({...formData, name: '', phone: '', email: ''}); setToken(null); }}
                     className="inline-flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors font-black text-[10px] uppercase tracking-[0.2em] cursor-pointer"
                   >
-                    New Reservation <ArrowRight className="w-3 h-3" />
+                    {t.new_res} <ArrowRight className="w-3 h-3" />
                   </motion.button>
                 </motion.div>
               )}
@@ -499,7 +500,7 @@ export const BookingWidget: React.FC = () => {
 
           <div className="px-6 pb-6 text-center">
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.25em] flex items-center justify-center gap-1.5 leading-none">
-                <ShieldCheck className="w-3 h-3 translate-y-[-1px]" /> Secure Booking
+                <ShieldCheck className="w-3 h-3 translate-y-[-1px]" /> {t.secure_booking}
             </span>
           </div>
         </div>

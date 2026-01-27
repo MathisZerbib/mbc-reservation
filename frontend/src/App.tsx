@@ -6,6 +6,7 @@ import { Agenda } from './components/Agenda';
 import { Analytics } from './components/Analytics';
 import { BookingPage } from './components/BookingPage';
 import { TableAssignmentPage } from './components/TableAssignmentPage';
+import { LanguageProvider } from './i18n/LanguageContext';
 
 function AdminDashboard() {
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
@@ -55,13 +56,15 @@ function AdminDashboard() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<AdminDashboard />} />
-        <Route path="/book" element={<BookingPage />} />
-        <Route path="/assign" element={<TableAssignmentPage />} />
-      </Routes>
-    </BrowserRouter>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<AdminDashboard />} />
+          <Route path="/book" element={<BookingPage />} />
+          <Route path="/assign" element={<TableAssignmentPage />} />
+        </Routes>
+      </BrowserRouter>
+    </LanguageProvider>
   )
 }
 
