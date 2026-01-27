@@ -129,21 +129,25 @@ export const BookingWidget: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none">{t.title}</h2>
             </div>
             
-            <div className="flex bg-slate-100 p-0.5 rounded-full border border-slate-200 shadow-inner scale-90">
+            <div className="flex bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner scale-90 sm:scale-100">
                 <button 
                   onClick={() => setLang('en')} 
                   className={clsx(
-                    "w-7 h-7 rounded-full text-[9px] font-black transition-all flex items-center justify-center cursor-pointer", 
+                    "px-3 h-8 rounded-full text-[10px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer", 
                     lang === 'en' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
                   )}
-                >EN</button>
+                >
+                  <span className="text-xs">🇬🇧</span> EN
+                </button>
                 <button 
                   onClick={() => setLang('fr')} 
                   className={clsx(
-                    "w-7 h-7 rounded-full text-[9px] font-black transition-all flex items-center justify-center cursor-pointer", 
+                    "px-3 h-8 rounded-full text-[10px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer", 
                     lang === 'fr' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
                   )}
-                >FR</button>
+                >
+                  <span className="text-xs">🇫🇷</span> FR
+                </button>
             </div>
           </div>
 
@@ -161,7 +165,7 @@ export const BookingWidget: React.FC = () => {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 p-6 pt-4 relative overflow-hidden min-h-[440px]">
+          <div className="flex-1 p-5 sm:p-6 pt-4 relative overflow-hidden min-h-[400px] sm:min-h-[440px]">
             <AnimatePresence mode="wait" custom={direction}>
               {step === 1 && (
                 <motion.div
@@ -184,7 +188,7 @@ export const BookingWidget: React.FC = () => {
                                 max="60"
                                 value={formData.size}
                                 onChange={e => setFormData({...formData, size: parseInt(e.target.value) || 1})}
-                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-4xl font-black text-center text-slate-900 focus:border-indigo-500/50 focus:bg-white transition-all outline-none"
+                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-3xl sm:text-4xl font-black text-center text-slate-900 focus:border-indigo-500/50 focus:bg-white transition-all outline-none"
                             />
                         </div>
                         <button 
@@ -353,7 +357,7 @@ export const BookingWidget: React.FC = () => {
                         />
                     </div>
 
-                    <div className="pt-1 scale-[0.85] origin-left">
+                    <div className="pt-2 flex justify-center scale-[0.85] sm:scale-100 origin-center sm:origin-left">
                         <Turnstile 
                             siteKey={TURNSTILE_SITE_KEY} 
                             onSuccess={setToken} 
@@ -380,61 +384,122 @@ export const BookingWidget: React.FC = () => {
               {step === 4 && (
                 <motion.div
                   key="step4"
-                  initial={{ scale: 0.8, opacity: 0 }}
+                  initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", damping: 15 }}
-                  className="text-center space-y-6 py-2"
+                  transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                  className="text-center space-y-8 py-6"
                 >
                   <div className="relative inline-block">
-                    <div className="absolute inset-0 bg-emerald-500 blur-xl opacity-10 animate-pulse"></div>
-                    <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 border-2 border-emerald-500/10">
+                    {/* Concentric rings animation */}
+                    <motion.div 
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1.5, opacity: 0 }}
+                        transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }}
+                        className="absolute inset-0 bg-emerald-500/20 rounded-full"
+                    />
+                    <motion.div 
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 2, opacity: 0 }}
+                        transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 0.5 }}
+                        className="absolute inset-0 bg-emerald-400/10 rounded-full"
+                    />
+                    
+                    <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.3)] border-4 border-white">
                         <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: 0.2, type: "spring" }}
+                            initial={{ scale: 0, rotate: -20 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ 
+                                delay: 0.2, 
+                                type: "spring",
+                                stiffness: 500,
+                                damping: 15
+                            }}
                         >
-                            <Check className="h-8 w-8 text-emerald-600 stroke-[3]" />
+                            <Check className="h-10 w-10 text-white stroke-[4]" />
                         </motion.div>
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tighter">{t.success_title}</h3>
-                    <p className="text-xs text-slate-500 font-medium px-4">{t.success_msg}</p>
+                  <div className="space-y-3 px-6">
+                    <motion.h3 
+                        initial={{ y: 10, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-3xl font-black text-slate-900 tracking-tighter"
+                    >
+                        {t.success_title}
+                    </motion.h3>
+                    <motion.div
+                        initial={{ y: 10, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="space-y-1"
+                    >
+                        <p className="text-sm text-slate-600 font-bold leading-tight">
+                            {t.success_msg.split('!')[0]}!
+                        </p>
+                        <p className="text-[11px] text-slate-400 font-medium flex items-center justify-center gap-1.5">
+                            <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                            {t.success_msg.split('!')[1]}
+                        </p>
+                    </motion.div>
                   </div>
 
-                  <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3 max-w-[220px] mx-auto shadow-sm">
-                      <div className="flex justify-center items-center gap-2">
-                        <div className="p-1.5 bg-indigo-50 rounded-lg"><CalendarIcon className="w-4 h-4 text-indigo-600" /></div>
-                        <div className="text-left font-black text-slate-800 leading-tight">
-                            <div className="text-[8px] text-slate-400 uppercase tracking-widest">Date & Time</div>
-                            <span className="text-xs">{dayjs(formData.date).format('DD MMM')} @ {formData.time}</span>
-                        </div>
-                      </div>
-                      <div className="h-px bg-slate-200/40 mx-2"></div>
-                      <div className="flex justify-center items-center gap-2">
-                        <div className="p-1.5 bg-emerald-50 rounded-lg"><Users className="w-4 h-4 text-emerald-600" /></div>
-                        <div className="text-left font-black text-slate-800 leading-tight">
-                            <div className="text-[8px] text-slate-400 uppercase tracking-widest">Guest Count</div>
-                            <span className="text-xs">{formData.size} Persons</span>
-                        </div>
-                      </div>
-                  </div>
-                  
-                  <button 
-                    onClick={() => { setStep(1); setFormData({...formData, name: '', phone: '', email: ''}); setToken(null); }}
-                    className="text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:text-indigo-700 pt-2 block w-full cursor-pointer"
+                  <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="mx-auto max-w-[280px] bg-slate-50/80 backdrop-blur-sm rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden"
                   >
-                    New Reservation
-                  </button>
+                      <div className="absolute top-0 right-0 p-2 opacity-5">
+                        <Sparkles className="w-12 h-12 text-indigo-600" />
+                      </div>
+
+                      <div className="space-y-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100 italic">
+                                <CalendarIcon className="w-5 h-5 text-indigo-600" />
+                            </div>
+                            <div className="text-left">
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Reservation Info</p>
+                                <p className="text-sm font-black text-slate-800">
+                                    {dayjs(formData.date).format('dddd, DD MMM')}
+                                </p>
+                                <p className="text-xs font-bold text-indigo-600">{formData.time}</p>
+                            </div>
+                          </div>
+
+                          <div className="h-px bg-slate-200/50"></div>
+
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100 italic">
+                                <Users className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div className="text-left">
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Guests</p>
+                                <p className="text-sm font-black text-slate-800">{formData.size} Persons</p>
+                            </div>
+                          </div>
+                      </div>
+                  </motion.div>
+                  
+                  <motion.button 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                    onClick={() => { setStep(1); setFormData({...formData, name: '', phone: '', email: ''}); setToken(null); }}
+                    className="inline-flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors font-black text-[10px] uppercase tracking-[0.2em] cursor-pointer"
+                  >
+                    New Reservation <ArrowRight className="w-3 h-3" />
+                  </motion.button>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          <div className="px-6 pb-4 text-center">
-            <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.25em] flex items-center justify-center gap-1.5">
-                <ShieldCheck className="w-2.5 h-2.5" /> Secure Booking
+          <div className="px-6 pb-6 text-center">
+            <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.25em] flex items-center justify-center gap-1.5 leading-none">
+                <ShieldCheck className="w-3 h-3 translate-y-[-1px]" /> Secure Booking
             </span>
           </div>
         </div>

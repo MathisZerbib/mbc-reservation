@@ -35,10 +35,10 @@ function Calendar({
         weekdays: "flex justify-between mb-4",
         weekday: "text-slate-400 rounded-md w-9 font-black text-[9px] uppercase tracking-[0.2em] text-center",
         week: "flex w-full mt-2 justify-between",
-        day: "h-9 w-9 p-0 flex items-center justify-center relative",
+        day: "h-10 w-10 p-0 flex items-center justify-center relative",
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-bold transition-all hover:bg-indigo-50 hover:text-indigo-600 rounded-xl text-sm"
+          "h-10 w-10 p-0 font-bold transition-all hover:bg-indigo-50 hover:text-indigo-600 rounded-xl text-sm"
         ),
         range_start: "day-range-start",
         range_end: "day-range-end",
