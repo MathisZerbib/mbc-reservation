@@ -202,13 +202,17 @@ export const TableAssignmentPage: React.FC = () => {
                                 return (
                                     <g 
                                         key={table.id} 
-                                        transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width/2}, ${table.height/2})`}
+                                        transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width/2}, ${table.height/2}) scale(${isSelected ? 1.05 : 1})`}
                                         onClick={() => toggleTable(table.id)}
                                         className={clsx(
-                                            "transition-all duration-300 select-none group",
+                                            "transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] select-none group",
                                             occupiedByOthers ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
                                         )}
-                                        style={{ filter: 'url(#tableShadow)' }}
+                                        style={{ 
+                                          filter: 'url(#tableShadow)',
+                                          transformBox: 'fill-box',
+                                          transformOrigin: 'center'
+                                        }}
                                     >
                                         <path 
                                             d={getShapePath(table)} 

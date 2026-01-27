@@ -18,8 +18,13 @@ import { TRANSLATIONS, type Lang } from '../i18n/translations';
 import { DatePicker } from './ui/date-picker';
 
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
+const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];
 
 export const BookingWidget: React.FC = () => {
+    const getFirstAvailableTime = (date: string) => {
+        const now = dayjs();
+        return TIME_SLOTS.find(t => dayjs(`${date} ${t}`).isAfter(now)) || null;
+    };
   const [lang, setLang] = useState<Lang>('fr');
   const t = TRANSLATIONS[lang];
   const [step, setStep] = useState(1);
@@ -27,7 +32,7 @@ export const BookingWidget: React.FC = () => {
   const [formData, setFormData] = useState({
     size: 2,
     date: dayjs().format('YYYY-MM-DD'),
-    time: '19:00',
+    time: getFirstAvailableTime(dayjs().format('YYYY-MM-DD')),
     name: '',
     phone: '',
     email: ''
@@ -50,7 +55,7 @@ export const BookingWidget: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await api.checkAvailability(formData.date, formData.time, formData.size);
+      const data = await api.checkAvailability(formData.date, formData.time || '', formData.size);
       if (data.available) {
         nextStep(3);
       } else {
@@ -235,7 +240,14 @@ export const BookingWidget: React.FC = () => {
                         <div className="relative">
                             <DatePicker 
                                 date={dayjs(formData.date).toDate()} 
-                                setDate={d => setFormData({...formData, date: dayjs(d).format('YYYY-MM-DD')})}
+                                setDate={d => {
+                                    const nextDate = dayjs(d).format('YYYY-MM-DD');
+                                    const nextTime = dayjs(`${nextDate} ${formData.time}`).isBefore(dayjs()) 
+                                        ? getFirstAvailableTime(nextDate)
+                                        : formData.time;
+                                    setFormData({...formData, date: nextDate, time: nextTime || ''});
+                                }}
+                                disabled={(date) => dayjs(date).isBefore(dayjs(), 'day')}
                                 className="pl-10"
                             />
                         </div>
@@ -243,22 +255,39 @@ export const BookingWidget: React.FC = () => {
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">{t.time}</label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {['17:00','18:30','19:00','20:00','21:00','22:00'].map(t => (
-                                <button
-                                    key={t}
-                                    onClick={() => setFormData({...formData, time: t})}
-                                    className={clsx(
-                                        "py-2.5 rounded-xl border-2 font-black transition-all text-sm cursor-pointer",
-                                        formData.time === t 
-                                            ? "bg-indigo-600 border-indigo-600 text-white" 
-                                            : "bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100"
-                                    )}
-                                >
-                                    {t}
-                                </button>
-                            ))}
-                        </div>
+                        {!getFirstAvailableTime(formData.date) && dayjs(formData.date).isSame(dayjs(), 'day') ? (
+                            <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl text-center">
+                                <p className="text-xs font-bold text-red-600">No more slots available for today</p>
+                            </div>
+                        ) : dayjs(formData.date).isBefore(dayjs(), 'day') ? (
+                            <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl text-center">
+                                <p className="text-xs font-bold text-red-600">This date has already passed</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-2">
+                                {TIME_SLOTS.map(t => {
+                                    const isPassed = dayjs(`${formData.date} ${t}`).isBefore(dayjs());
+                                    return (
+                                        <button
+                                            key={t}
+                                            type="button"
+                                            disabled={isPassed}
+                                            onClick={() => setFormData({...formData, time: t})}
+                                            className={clsx(
+                                                "py-2.5 rounded-xl border-2 font-black transition-all text-sm cursor-pointer",
+                                                formData.time === t 
+                                                    ? "bg-indigo-600 border-indigo-600 text-white" 
+                                                    : isPassed
+                                                        ? "bg-slate-50 border-transparent text-slate-300 opacity-40 cursor-not-allowed"
+                                                        : "bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100"
+                                            )}
+                                        >
+                                            {t}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                   </div>
 
@@ -278,7 +307,7 @@ export const BookingWidget: React.FC = () => {
                     </button>
                     <button 
                         onClick={handleCheckAvailability}
-                        disabled={loading}
+                        disabled={loading || !formData.time || dayjs(`${formData.date} ${formData.time}`).isBefore(dayjs())}
                         className="flex-[2] bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 text-xs"
                     >
                         {loading ? <div className="loading-dots italic">Checking</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}

@@ -66,8 +66,8 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                 onMouseEnter={() => setHoveredBookingId(b.id)}
                 onMouseLeave={() => setHoveredBookingId(null)}
                 className={clsx(
-                  "group bg-white border rounded-xl p-4 hover:shadow-md transition-shadow relative overflow-hidden",
-                  b.status === 'CANCELLED' ? "opacity-50 grayscale border-slate-100" : "border-slate-100"
+                  "group bg-white border rounded-xl p-4 hover:shadow-xl transition-all duration-300 relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
+                  b.status === 'CANCELLED' ? "opacity-50 grayscale border-slate-100" : "border-slate-100 hover:border-indigo-200"
                 )}
             >
                <div className={clsx(

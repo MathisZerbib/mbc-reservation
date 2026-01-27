@@ -102,7 +102,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ hoveredBookingId, selected
       </div>
       
       <div 
-        className="flex-1 bg-white rounded-3xl shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden relative"
+        className="flex-1 bg-white rounded-3xl shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden relative group/floorplan"
         onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -116,6 +116,10 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ hoveredBookingId, selected
              <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
                <feDropShadow dx="2" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity="0.1" />
              </filter>
+             <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+               <feGaussianBlur stdDeviation="6" result="blur" />
+               <feComposite in="SourceGraphic" in2="blur" operator="over" />
+             </filter>
            </defs>
            <rect width="100%" height="100%" fill="url(#grid)" />
 
@@ -123,22 +127,27 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ hoveredBookingId, selected
              const status = getTableStatus(table.id);
              const tableBookings = bookings.filter((b: any) => b.tables?.some((t: any) => t.name === table.id));
              const isHighlighted = hoveredBookingId && tableBookings.some((b: any) => b.id === hoveredBookingId);
+             const isHovered = hoveredTable === table.id;
 
              return (
                <g 
                  key={table.id} 
-                 transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width/2}, ${table.height/2})`}
+                 transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width/2}, ${table.height/2}) scale(${isHovered || isHighlighted ? 1.05 : 1})`}
                  onMouseEnter={() => setHoveredTable(table.id)}
                  onMouseLeave={() => setHoveredTable(null)}
-                 className="cursor-pointer transition-all duration-300"
-                 style={{ filter: isHighlighted ? 'drop-shadow(0 0 12px rgba(79, 70, 229, 0.8))' : 'url(#shadow)' }}
+                 className="cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]"
+                 style={{ 
+                   filter: isHighlighted ? 'drop-shadow(0 0 15px rgba(79, 70, 229, 0.6))' : 'url(#shadow)',
+                   transformBox: 'fill-box',
+                   transformOrigin: 'center'
+                 }}
                >
                  <path 
                    d={getShapePath(table)} 
                    fill={getColor(status)} 
                    stroke={isHighlighted ? "#4f46e5" : "white"} 
                    strokeWidth={isHighlighted ? "4" : "3"}
-                   className="transition-all duration-500"
+                   className="transition-all duration-300"
                  />
                  <text 
                    x={table.width / 2} 
@@ -149,6 +158,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ hoveredBookingId, selected
                    fontSize="14" 
                    fontWeight="800"
                    pointerEvents="none"
+                   className="transition-all duration-300"
                    style={{ textShadow: '0px 1px 2px rgba(0,0,0,0.3)' }}
                  >
                    {table.id}
@@ -160,21 +170,23 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ hoveredBookingId, selected
         
         {hoveredTable && (
             <div 
-                className="absolute z-50 pointer-events-none bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-white/10 animate-in fade-in zoom-in duration-200 min-w-[220px]"
+                className="absolute top-0 left-0 z-50 pointer-events-none bg-slate-900/90 backdrop-blur-xl text-white p-5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/20 min-w-[240px] transition-opacity duration-300"
                 style={{ 
-                    left: `${mousePos.x + 20}px`, 
-                    top: `${mousePos.y + 20}px`,
-                    transform: mousePos.x > 750 ? 'translateX(-110%)' : 'none'
+                    transform: `translate3d(${mousePos.x + 20}px, ${mousePos.y + 20}px, 0) ${mousePos.x > 750 ? 'translateX(-110%)' : ''}`,
+                    opacity: hoveredTable ? 1 : 0
                 }}
             >
-                <div className="flex justify-between items-center mb-3">
-                    <span className="text-lg font-black tracking-tight">Table {hoveredTable}</span>
-                    <span className="text-[9px] bg-indigo-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Live info</span>
+                <div className="flex justify-between items-center mb-4">
+                    <span className="text-xl font-black tracking-tight">Table {hoveredTable}</span>
+                    <span className="text-[10px] bg-indigo-500/30 text-indigo-300 border border-indigo-500/50 px-2.5 py-1 rounded-full font-black uppercase tracking-wider">Live View</span>
                 </div>
                 
-                <div className="space-y-2">
+                <div className="space-y-3">
                     {bookings.filter((b: any) => b.tables?.some((t: any) => t.name === hoveredTable)).length === 0 ? (
-                        <p className="text-xs text-slate-400 font-medium italic">No reservations today</p>
+                        <div className="py-4 text-center">
+                            <p className="text-sm text-slate-400 font-bold italic">No reservations</p>
+                            <p className="text-[10px] text-slate-500 font-medium mt-1">Available all day</p>
+                        </div>
                     ) : (
                         bookings
                             .filter((b: any) => b.tables?.some((t: any) => t.name === hoveredTable))
@@ -183,18 +195,23 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ hoveredBookingId, selected
                                 const isCurrent = dayjs().isBetween(dayjs(b.startTime), dayjs(b.endTime));
                                 return (
                                     <div key={b.id} className={cn(
-                                        "p-2.5 rounded-xl border transition-colors",
-                                        isCurrent ? "bg-indigo-600 border-indigo-400 text-white" : "bg-white/5 border-white/10 text-slate-200"
+                                        "p-3 rounded-2xl border transition-all duration-300",
+                                        isCurrent 
+                                          ? "bg-indigo-600 border-indigo-400 shadow-[0_0_20px_rgba(79,70,229,0.4)] text-white scale-[1.02]" 
+                                          : "bg-white/5 border-white/10 text-slate-200"
                                     )}>
-                                        <div className="flex justify-between items-start mb-1">
-                                            <span className="text-xs font-bold leading-tight">{b.guestName}</span>
+                                        <div className="flex justify-between items-start mb-1.5">
+                                            <span className="text-sm font-black leading-tight tracking-tight">{b.guestName}</span>
                                             <span className={cn("text-[10px] font-black", isCurrent ? "text-indigo-100" : "text-slate-500")}>
                                                 {dayjs(b.startTime).format('HH:mm')}
                                             </span>
                                         </div>
-                                        <div className={cn("text-[10px] font-medium flex justify-between", isCurrent ? "text-indigo-200" : "text-slate-400")}>
-                                            <span>{b.size} guests</span>
-                                            <span>{dayjs(b.endTime).format('HH:mm')} end</span>
+                                        <div className={cn("text-[11px] font-bold flex justify-between", isCurrent ? "text-indigo-200/80" : "text-slate-400")}>
+                                            <span className="flex items-center gap-1">
+                                                <span className="w-1 h-1 rounded-full bg-current opacity-50"></span>
+                                                {b.size} guests
+                                            </span>
+                                            <span>ends {dayjs(b.endTime).format('HH:mm')}</span>
                                         </div>
                                     </div>
                                 );
@@ -205,8 +222,8 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ hoveredBookingId, selected
         )}
 
         <div className="absolute bottom-6 right-6 flex flex-col gap-2">
-            <button className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold">+</button>
-            <button className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold">-</button>
+            <button className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold transition-all active:scale-95">+</button>
+            <button className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold transition-all active:scale-95">-</button>
         </div>
       </div>
     </div>
