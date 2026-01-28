@@ -18,21 +18,9 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { api } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import { DatePicker } from './ui/date-picker';
-import type { Lang } from '../i18n/translations';
 
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
 const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];
-
-
-interface BookingFormData {
-  size: number;
-  date: string;
-  time: string | null;
-  name: string;
-  phone: string;
-  email: string;
-  language: Lang;
-}
 
 export const BookingWidget: React.FC = () => {
     const { lang, setLang, t } = useLanguage();
@@ -44,7 +32,7 @@ export const BookingWidget: React.FC = () => {
     };
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
-  const [formData, setFormData] = useState<BookingFormData>({
+  const [formData, setFormData] = useState({
     size: 2,
     date: dayjs().format('YYYY-MM-DD'),
     time: getFirstAvailableTime(dayjs().format('YYYY-MM-DD')),
@@ -145,27 +133,25 @@ export const BookingWidget: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none">{t.title}</h2>
             </div>
             
-            <div className="w-full overflow-x-auto scrollbar-none">
-              <div className="flex flex-nowrap gap-2 bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner scale-90 sm:scale-100 min-w-85 sm:min-w-0 justify-center">
-                {[
-                  { code: 'fr', flag: '🇫🇷', label: 'Français' },
-                  { code: 'en', flag: '🇬🇧', label: 'English' },
-                  { code: 'it', flag: '🇮🇹', label: 'Italiano' },
-                  { code: 'es', flag: '🇪🇸', label: 'Español' },
-                  { code: 'ru', flag: '🇷🇺', label: 'Русский' },
-                ].map(l => (
-                  <button
-                    key={l.code}
-                    onClick={() => setLang(l.code as Lang)}
-                    className={clsx(
-                      "px-3 h-8 rounded-full text-[13px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap border-2",
-                      lang === l.code ? "bg-white text-slate-900 shadow-sm border-indigo-500" : "text-slate-400 hover:text-slate-600 border-transparent"
-                    )}
-                  >
-                    <span className="text-base">{l.flag}</span> {l.label}
-                  </button>
-                ))}
-              </div>
+            <div className="flex bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner scale-90 sm:scale-100">
+                <button 
+                  onClick={() => setLang('en')} 
+                  className={clsx(
+                    "px-3 h-8 rounded-full text-[10px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer", 
+                    lang === 'en' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  <span className="text-xs">🇬🇧</span> EN
+                </button>
+                <button 
+                  onClick={() => setLang('fr')} 
+                  className={clsx(
+                    "px-3 h-8 rounded-full text-[10px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer", 
+                    lang === 'fr' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  <span className="text-xs">🇫🇷</span> FR
+                </button>
             </div>
           </div>
 
@@ -378,8 +364,8 @@ export const BookingWidget: React.FC = () => {
                             { code: 'fr', flag: '🇫🇷', label: 'Français' },
                             { code: 'en', flag: '🇬🇧', label: 'English' },
                             { code: 'it', flag: '🇮🇹', label: 'Italiano' },
-                            { code: 'es', flag: '🇪🇸', label: 'Español' },
-                            { code: 'ru', flag: '🇷🇺', label: 'Русский' },
+                            // { code: 'es', flag: '🇪🇸', label: 'Español' },
+                            // { code: 'ru', flag: '🇷🇺', label: 'Русский' },
                           ].map(l => (
                             <button
                               key={l.code}
@@ -388,7 +374,7 @@ export const BookingWidget: React.FC = () => {
                                 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1',
                                 formData.language === l.code ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
                               )}
-                              onClick={() => setFormData({ ...formData, language: l.code as Lang })}
+                              onClick={() => setFormData({ ...formData, language: l.code })}
                             >
                               <span>{l.flag}</span> {l.label}
                             </button>

@@ -17,7 +17,7 @@ function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-4rem)]">
+      <div className="max-w-400 mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-4rem)]">
         {/* Left Column: Floor Plan + Analytics */}
         <div className="lg:col-span-8 flex flex-col gap-8 h-full">
             <header className="flex justify-between items-end">
@@ -28,7 +28,7 @@ function AdminDashboard() {
                 <div className="flex gap-3">
                     <button 
                         onClick={() => setIsQuickResOpen(true)}
-                        className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                        className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2 cursor-pointer"
                     >
                         <span className="text-lg">+</span> Quick Res
                     </button>
