@@ -8,9 +8,12 @@ import { BookingPage } from './components/BookingPage';
 import { TableAssignmentPage } from './components/TableAssignmentPage';
 import { LanguageProvider } from './i18n/LanguageContext';
 
+import { AdminQuickReservation } from './components/AdminQuickReservation';
+
 function AdminDashboard() {
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [isQuickResOpen, setIsQuickResOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
@@ -22,12 +25,20 @@ function AdminDashboard() {
                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">MBC <span className="text-slate-400">Manager</span></h1>
                    <p className="text-slate-500 font-medium">{dayjs(selectedDate).format('dddd, D MMM YYYY')}</p>
                 </div>
-                <Link 
-                    to="/assign" 
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
-                >
-                    Assign Tables
-                </Link>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setIsQuickResOpen(true)}
+                        className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                    >
+                        <span className="text-lg">+</span> Quick Res
+                    </button>
+                    <Link 
+                        to="/assign" 
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+                    >
+                        Assign Tables
+                    </Link>
+                </div>
             </header>
             
             <div className="flex-none">
@@ -50,6 +61,16 @@ function AdminDashboard() {
             </div>
         </div>
       </div>
+
+      <AdminQuickReservation 
+        isOpen={isQuickResOpen} 
+        onClose={() => setIsQuickResOpen(false)} 
+        selectedDate={selectedDate}
+        onSuccess={() => {
+            // Force refresh of floor plan and agenda if needed
+            window.location.reload(); // Simple way for now, or use a context/refetch
+        }}
+      />
     </div>
   );
 }

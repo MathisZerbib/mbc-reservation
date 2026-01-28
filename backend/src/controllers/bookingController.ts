@@ -35,7 +35,7 @@ export const bookingController = (io: Server) => ({
     createBooking: async (req: Request, res: Response) => {
         try {
             const { name, phone, email, size, date, time } = req.body;
-            if (!name || !phone || !size || !date || !time) return res.status(400).json({ error: 'Missing fields' });
+            if (!name || !size || !date || !time) return res.status(400).json({ error: 'Missing fields' });
 
             const guestSize = parseInt(size);
             const requestedStart = new Date(`${date}T${time}`);
@@ -47,8 +47,8 @@ export const bookingController = (io: Server) => ({
             const newBooking = await prisma.booking.create({
                 data: {
                     guestName: name,
-                    guestPhone: phone,
-                    guestEmail: email || '',
+                    guestPhone: phone || null,
+                    guestEmail: email || null,
                     size: guestSize,
                     startTime: requestedStart,
                     endTime: requestedEnd,

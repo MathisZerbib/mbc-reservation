@@ -9,8 +9,8 @@ export interface Table {
 export interface Booking {
     id: string;
     guestName: string;
-    guestPhone: string;
-    guestEmail: string;
+    guestPhone?: string;
+    guestEmail?: string;
     size: number;
     startTime: string;
     endTime: string;

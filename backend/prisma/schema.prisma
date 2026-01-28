@@ -21,8 +21,8 @@ model Table {
 model Booking {
   id        String   @id @default(uuid())
   guestName String
-  guestPhone String
-  guestEmail String
+  guestPhone String?
+  guestEmail String?
   size      Int
   startTime DateTime
   endTime   DateTime
