@@ -21,9 +21,9 @@ export const FLOOR_PLAN_DATA: TableConfig[] = [
     // 8
     { id: '8', x: 220, y: 50, width: 60, height: 80, shape: 'RECTANGULAR' },
     // 7
-    { id: '7', x: 290, y: 50, width: 60, height: 80, shape: 'RECTANGULAR' },
+    { id: '7', x: 290, y: 50, width: 80, height: 80, shape: 'RECTANGULAR' },
     // 6
-    { id: '6', x: 360, y: 50, width: 60, height: 80, shape: 'RECTANGULAR' },
+    { id: '6', x: 380, y: 50, width: 60, height: 80, shape: 'RECTANGULAR' },
     // 5
     { id: '5', x: 450, y: 50, width: 60, height: 80, shape: 'RECTANGULAR' }, // Gap for fold?
     // 4

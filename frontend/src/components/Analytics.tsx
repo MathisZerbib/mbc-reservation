@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:3000');
 
 interface AnalyticsProps {
   date: string;
@@ -14,19 +17,25 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    try {
+      const result = await api.getAnalytics(date);
+      setData(result);
+    } catch (e) {
+      console.error('Failed to fetch analytics', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      setLoading(true);
-      try {
-        const result = await api.getAnalytics(date);
-        setData(result);
-      } catch (e) {
-        console.error('Failed to fetch analytics', e);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchAnalytics();
+
+    socket.on('booking-update', fetchAnalytics);
+    return () => {
+      socket.off('booking-update', fetchAnalytics);
+    };
   }, [date]);
 
   const Card = ({ label, value, sub, loading }: { label: string, value: string | number, sub?: string, loading?: boolean }) => (

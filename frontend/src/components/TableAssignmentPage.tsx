@@ -24,7 +24,10 @@ export const TableAssignmentPage: React.FC = () => {
         }
     }, [selectedBookingId, bookings]);
 
-    const filteredBookings = bookings.filter(b => dayjs(b.startTime).format('YYYY-MM-DD') === date);
+    const filteredBookings = bookings.filter(b => 
+        dayjs(b.startTime).format('YYYY-MM-DD') === date && 
+        b.status !== 'CANCELLED'
+    );
     
     const isReservedAnyTimeToday = (tableId: string) => {
         return filteredBookings.some(b => b.tables.some(t => t.name === tableId));
@@ -37,7 +40,7 @@ export const TableAssignmentPage: React.FC = () => {
         const requestedEnd = dayjs(selectedBooking.endTime);
 
         return bookings.some(b => {
-            if (b.id === selectedBooking.id) return false;
+            if (b.id === selectedBooking.id || b.status === 'CANCELLED') return false;
             const bStart = dayjs(b.startTime);
             const bEnd = dayjs(b.endTime);
             const overlaps = bStart.isBefore(requestedEnd.add(buffer, 'minute')) && 
