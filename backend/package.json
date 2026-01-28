@@ -14,7 +14,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^7.3.0",
+    "@prisma/config": "^7.3.0",
     "cors": "^2.8.6",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
@@ -29,7 +30,7 @@
     "@types/node": "^25.0.10",
     "@types/nodemailer": "^7.0.9",
     "nodemon": "^3.1.11",
-    "prisma": "^5.22.0",
+    "prisma": "^7.3.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

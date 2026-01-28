@@ -22,7 +22,8 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
         name: '',
         phone: '',
         size: 2,
-        time: '19:00'
+        time: '19:00',
+        language: 'fr',
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -34,7 +35,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
             await api.createBooking({
                 ...formData,
                 date: selectedDate,
-                email: '' 
+                email: '',
             } as any);
             if (onSuccess) onSuccess();
             onClose();
@@ -43,7 +44,8 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 name: '',
                 phone: '',
                 size: 2,
-                time: '19:00'
+                time: '19:00',
+                language: 'fr',
             });
         } catch (err: any) {
             setError(err.message || 'Failed to create reservation');
@@ -112,6 +114,28 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                                 onChange={e => setFormData({...formData, phone: e.target.value})}
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
                                             />
+                                        </div>
+                                        <div className="flex gap-2 mt-2">
+                                          {[
+                                            { code: 'fr', flag: '🇫🇷', label: 'Français' },
+                                            { code: 'en', flag: '🇬🇧', label: 'English' },
+                                            { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+                                            { code: 'es', flag: '🇪🇸', label: 'Español' },
+                                            { code: 'ru', flag: '🇷🇺', label: 'Русский' },
+                                          ].map(l => (
+                                            <button
+                                              key={l.code}
+                                              type="button"
+                                              className={
+                                                formData.language === l.code
+                                                  ? 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-indigo-50 border-indigo-600 text-indigo-700'
+                                                  : 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                              }
+                                              onClick={() => setFormData({ ...formData, language: l.code })}
+                                            >
+                                              <span>{l.flag}</span> {l.label}
+                                            </button>
+                                          ))}
                                         </div>
                                     </div>
                                 </div>

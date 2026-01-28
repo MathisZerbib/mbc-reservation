@@ -18,9 +18,21 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { api } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import { DatePicker } from './ui/date-picker';
+import type { Lang } from '../i18n/translations';
 
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
 const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];
+
+
+interface BookingFormData {
+  size: number;
+  date: string;
+  time: string | null;
+  name: string;
+  phone: string;
+  email: string;
+  language: Lang;
+}
 
 export const BookingWidget: React.FC = () => {
     const { lang, setLang, t } = useLanguage();
@@ -32,13 +44,14 @@ export const BookingWidget: React.FC = () => {
     };
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<BookingFormData>({
     size: 2,
     date: dayjs().format('YYYY-MM-DD'),
     time: getFirstAvailableTime(dayjs().format('YYYY-MM-DD')),
     name: '',
     phone: '',
-    email: ''
+    email: '',
+    language: lang || 'fr',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,7 +77,7 @@ export const BookingWidget: React.FC = () => {
       } else {
         setError(t.no_tables);
       }
-    } catch (e) {
+    } catch {
       setError(t.error);
     } finally {
       setLoading(false);
@@ -114,9 +127,9 @@ export const BookingWidget: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="relative group box-glow"
       >
-        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-[2rem] blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
+        <div className="absolute -inset-1 bg-linear-to-r from-indigo-500 to-emerald-500 rounded-4xl blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
         
-        <div className="relative bg-white/95 backdrop-blur-xl rounded-[1.5rem] shadow-2xl border border-white/50 overflow-hidden flex flex-col">
+        <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden flex flex-col">
           
           {/* Header */}
           <div className="p-6 pb-2 flex justify-between items-start">
@@ -132,25 +145,27 @@ export const BookingWidget: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none">{t.title}</h2>
             </div>
             
-            <div className="flex bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner scale-90 sm:scale-100">
-                <button 
-                  onClick={() => setLang('en')} 
-                  className={clsx(
-                    "px-3 h-8 rounded-full text-[10px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer", 
-                    lang === 'en' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                  )}
-                >
-                  <span className="text-xs">🇬🇧</span> EN
-                </button>
-                <button 
-                  onClick={() => setLang('fr')} 
-                  className={clsx(
-                    "px-3 h-8 rounded-full text-[10px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer", 
-                    lang === 'fr' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                  )}
-                >
-                  <span className="text-xs">🇫🇷</span> FR
-                </button>
+            <div className="w-full overflow-x-auto scrollbar-none">
+              <div className="flex flex-nowrap gap-2 bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner scale-90 sm:scale-100 min-w-85 sm:min-w-0 justify-center">
+                {[
+                  { code: 'fr', flag: '🇫🇷', label: 'Français' },
+                  { code: 'en', flag: '🇬🇧', label: 'English' },
+                  { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+                  { code: 'es', flag: '🇪🇸', label: 'Español' },
+                  { code: 'ru', flag: '🇷🇺', label: 'Русский' },
+                ].map(l => (
+                  <button
+                    key={l.code}
+                    onClick={() => setLang(l.code as Lang)}
+                    className={clsx(
+                      "px-3 h-8 rounded-full text-[13px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap border-2",
+                      lang === l.code ? "bg-white text-slate-900 shadow-sm border-indigo-500" : "text-slate-400 hover:text-slate-600 border-transparent"
+                    )}
+                  >
+                    <span className="text-base">{l.flag}</span> {l.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -168,7 +183,7 @@ export const BookingWidget: React.FC = () => {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 p-5 sm:p-6 pt-4 relative overflow-hidden min-h-[400px] sm:min-h-[440px]">
+          <div className="flex-1 p-5 sm:p-6 pt-4 relative overflow-hidden min-h-100 sm:min-h-110">
             <AnimatePresence mode="wait" custom={direction}>
               {step === 1 && (
                 <motion.div
@@ -197,7 +212,7 @@ export const BookingWidget: React.FC = () => {
                         <button 
                             onClick={() => nextStep(2)}
                             disabled={formData.size < 1 || formData.size > 60}
-                            className="bg-slate-900 text-white p-5 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-30 transition-all shadow-lg hover:shadow-indigo-500/20 group/btn h-[72px] aspect-square flex items-center justify-center cursor-pointer"
+                            className="bg-slate-900 text-white p-5 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-30 transition-all shadow-lg hover:shadow-indigo-500/20 group/btn h-18 aspect-square flex items-center justify-center cursor-pointer"
                         >
                             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                         </button>
@@ -315,7 +330,7 @@ export const BookingWidget: React.FC = () => {
                     <button 
                         onClick={handleCheckAvailability}
                         disabled={loading || !formData.time || dayjs(`${formData.date} ${formData.time}`).isBefore(dayjs())}
-                        className="flex-[2] bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 text-xs cursor-pointer"
+                        className="flex-2 bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 text-xs cursor-pointer"
                     >
                         {loading ? <div className="loading-dots italic">{t.checking}</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}
                     </button>
@@ -358,6 +373,27 @@ export const BookingWidget: React.FC = () => {
                             placeholder={t.email}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3.5 text-slate-900 font-bold focus:border-indigo-500/50 transition-all outline-none text-sm"
                         />
+                        <div className="flex gap-2 mt-2">
+                          {[
+                            { code: 'fr', flag: '🇫🇷', label: 'Français' },
+                            { code: 'en', flag: '🇬🇧', label: 'English' },
+                            { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+                            { code: 'es', flag: '🇪🇸', label: 'Español' },
+                            { code: 'ru', flag: '🇷🇺', label: 'Русский' },
+                          ].map(l => (
+                            <button
+                              key={l.code}
+                              type="button"
+                              className={clsx(
+                                'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1',
+                                formData.language === l.code ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                              )}
+                              onClick={() => setFormData({ ...formData, language: l.code as Lang })}
+                            >
+                              <span>{l.flag}</span> {l.label}
+                            </button>
+                          ))}
+                        </div>
                     </div>
 
                     <div className="pt-2 flex justify-center scale-[0.85] sm:scale-100 origin-center sm:origin-left">
@@ -376,7 +412,7 @@ export const BookingWidget: React.FC = () => {
                     <button 
                         onClick={handleBook}
                         disabled={loading || !formData.name || !formData.phone || !token}
-                        className="flex-[2] bg-emerald-600 text-white p-4 rounded-2xl font-black hover:bg-emerald-500 disabled:opacity-50 transition-all shadow-md text-xs flex items-center justify-center gap-2 cursor-pointer"
+                        className="flex-2 bg-emerald-600 text-white p-4 rounded-2xl font-black hover:bg-emerald-500 disabled:opacity-50 transition-all shadow-md text-xs flex items-center justify-center gap-2 cursor-pointer"
                     >
                         {loading ? `${t.processing}...` : <>{t.book} <Check className="w-4 h-4" /></>}
                     </button>
@@ -418,7 +454,7 @@ export const BookingWidget: React.FC = () => {
                                 damping: 15
                             }}
                         >
-                            <Check className="h-10 w-10 text-white stroke-[4]" />
+                            <Check className="h-10 w-10 text-white stroke-4" />
                         </motion.div>
                     </div>
                   </div>
@@ -452,12 +488,37 @@ export const BookingWidget: React.FC = () => {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.5 }}
-                    className="mx-auto max-w-[280px] bg-slate-50/80 backdrop-blur-sm rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden"
+                    className="mx-auto max-w-[320px] bg-slate-50/80 backdrop-blur-sm rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden"
                   >
-                      
-
                       <div className="space-y-4">
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-4 justify-center">
+                            <div className="h-10 w-10 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100 italic text-2xl">
+                                {(() => {
+                                  const l = formData.language;
+                                  if (l === 'fr') return '🇫🇷';
+                                  if (l === 'en') return '🇬🇧';
+                                  if (l === 'it') return '🇮🇹';
+                                  if (l === 'es') return '🇪🇸';
+                                  if (l === 'ru') return '🇷🇺';
+                                  return '🏳️';
+                                })()}
+                            </div>
+                            <div className="text-left">
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Language</p>
+                                <p className="capitalize text-sm font-black text-slate-800">
+                                    {(() => {
+                                      const l = formData.language;
+                                      if (l === 'fr') return 'Français';
+                                      if (l === 'en') return 'English';
+                                      if (l === 'it') return 'Italiano';
+                                      if (l === 'es') return 'Español';
+                                      if (l === 'ru') return 'Русский';
+                                      return l;
+                                    })()}
+                                </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 mt-2">
                             <div className="h-10 w-10 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100 italic">
                                 <CalendarIcon className="w-5 h-5 text-indigo-600" />
                             </div>
@@ -469,9 +530,7 @@ export const BookingWidget: React.FC = () => {
                                 <p className="text-xs font-bold text-indigo-600">{formData.time}</p>
                             </div>
                           </div>
-
                           <div className="h-px bg-slate-200/50"></div>
-
                           <div className="flex items-center gap-4">
                             <div className="h-10 w-10 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100 italic">
                                 <Users className="w-5 h-5 text-emerald-600" />
@@ -500,7 +559,7 @@ export const BookingWidget: React.FC = () => {
 
           <div className="px-6 pb-6 text-center">
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.25em] flex items-center justify-center gap-1.5 leading-none">
-                <ShieldCheck className="w-3 h-3 translate-y-[-1px]" /> {t.secure_booking}
+                <ShieldCheck className="w-3 h-3 -translate-y-px" /> {t.secure_booking}
             </span>
           </div>
         </div>

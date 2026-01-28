@@ -34,7 +34,7 @@ export const bookingController = (io: Server) => ({
 
     createBooking: async (req: Request, res: Response) => {
         try {
-            const { name, phone, email, size, date, time } = req.body;
+            const { name, phone, email, size, date, time, language } = req.body;
             if (!name || !size || !date || !time) return res.status(400).json({ error: 'Missing fields' });
 
             const guestSize = parseInt(size);
@@ -49,6 +49,7 @@ export const bookingController = (io: Server) => ({
                     guestName: name,
                     guestPhone: phone || null,
                     guestEmail: email || null,
+                    language: language || null,
                     size: guestSize,
                     startTime: requestedStart,
                     endTime: requestedEnd,

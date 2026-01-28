@@ -11,6 +11,7 @@ export interface Booking {
     guestName: string;
     guestPhone?: string;
     guestEmail?: string;
+    language?: string; // e.g. 'fr', 'en', 'it', 'es', 'ru', etc.
     size: number;
     startTime: string;
     endTime: string;
