@@ -18,6 +18,7 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { api } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import { DatePicker } from './ui/date-picker';
+import type { Lang } from '../i18n/translations';
 
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
 const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];
@@ -35,11 +36,11 @@ export const BookingWidget: React.FC = () => {
   const [formData, setFormData] = useState({
     size: 2,
     date: dayjs().format('YYYY-MM-DD'),
-    time: getFirstAvailableTime(dayjs().format('YYYY-MM-DD')),
+    startTime: getFirstAvailableTime(dayjs().format('YYYY-MM-DD')),
+    language: lang || 'fr',
     name: '',
     phone: '',
     email: '',
-    language: lang || 'fr',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -59,7 +60,7 @@ export const BookingWidget: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await api.checkAvailability(formData.date, formData.time || '', formData.size);
+      const data = await api.checkAvailability(formData.date, formData.startTime || '', formData.size);
       if (data.available) {
         nextStep(3);
       } else {
@@ -79,10 +80,20 @@ export const BookingWidget: React.FC = () => {
     }
     setLoading(true);
     try {
-      await api.createBooking(formData);
+      const startTime = formData.startTime
+        ? dayjs(`${formData.date} ${formData.startTime}`).toISOString()
+        : '';
+      await api.createBooking({
+        ...formData,
+        startTime,
+      });
       nextStep(4);
-    } catch (e: any) {
-      setError(e.message || t.error);
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'message' in e && typeof (e as { message?: unknown }).message === 'string') {
+        setError((e as { message: string }).message);
+      } else {
+        setError(t.error);
+      }
     } finally {
       setLoading(false);
     }
@@ -250,10 +261,10 @@ export const BookingWidget: React.FC = () => {
                                 date={dayjs(formData.date).toDate()} 
                                 setDate={d => {
                                     const nextDate = dayjs(d).format('YYYY-MM-DD');
-                                    const nextTime = dayjs(`${nextDate} ${formData.time}`).isBefore(dayjs()) 
+                                    const nextTime = dayjs(`${nextDate} ${formData.startTime}`).isBefore(dayjs()) 
                                         ? getFirstAvailableTime(nextDate)
-                                        : formData.time;
-                                    setFormData({...formData, date: nextDate, time: nextTime || ''});
+                                        : formData.startTime;
+                                    setFormData({...formData, date: nextDate, startTime: nextTime || ''});
                                 }}
                                 disabled={(date) => dayjs(date).isBefore(dayjs(), 'day')}
                                 className="pl-10"
@@ -280,10 +291,10 @@ export const BookingWidget: React.FC = () => {
                                             key={t}
                                             type="button"
                                             disabled={isPassed}
-                                            onClick={() => setFormData({...formData, time: t})}
+                                            onClick={() => setFormData({...formData, startTime: t})}
                                             className={clsx(
                                                 "py-2.5 rounded-xl border-2 font-black transition-all text-sm cursor-pointer",
-                                                formData.time === t 
+                                                formData.startTime === t 
                                                     ? "bg-indigo-600 border-indigo-600 text-white" 
                                                     : isPassed
                                                         ? "bg-slate-50 border-transparent text-slate-300 opacity-40 cursor-not-allowed"
@@ -315,7 +326,7 @@ export const BookingWidget: React.FC = () => {
                     </button>
                     <button 
                         onClick={handleCheckAvailability}
-                        disabled={loading || !formData.time || dayjs(`${formData.date} ${formData.time}`).isBefore(dayjs())}
+                        disabled={loading || !formData.startTime || dayjs(`${formData.date} ${formData.startTime}`).isBefore(dayjs())}
                         className="flex-2 bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 text-xs cursor-pointer"
                     >
                         {loading ? <div className="loading-dots italic">{t.checking}</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}
@@ -374,7 +385,7 @@ export const BookingWidget: React.FC = () => {
                                 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1',
                                 formData.language === l.code ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
                               )}
-                              onClick={() => setFormData({ ...formData, language: l.code })}
+                              onClick={() => setFormData({ ...formData, language: l.code as Lang })}
                             >
                               <span>{l.flag}</span> {l.label}
                             </button>
@@ -513,7 +524,7 @@ export const BookingWidget: React.FC = () => {
                                 <p className="capitalize text-sm font-black text-slate-800">
                                     {dayjs(formData.date).format('dddd, DD MMM')}
                                 </p>
-                                <p className="text-xs font-bold text-indigo-600">{formData.time}</p>
+                                <p className="text-xs font-bold text-indigo-600">{formData.startTime}</p>
                             </div>
                           </div>
                           <div className="h-px bg-slate-200/50"></div>

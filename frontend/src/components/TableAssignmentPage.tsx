@@ -22,7 +22,7 @@ export const TableAssignmentPage: React.FC = () => {
         } else {
             setTempTables([]);
         }
-    }, [selectedBookingId, bookings]);
+    }, [selectedBookingId, bookings, selectedBooking]);
 
     const filteredBookings = bookings.filter(b => 
         dayjs(b.startTime).format('YYYY-MM-DD') === date && 
@@ -63,7 +63,7 @@ export const TableAssignmentPage: React.FC = () => {
             await api.updateAssignment(selectedBookingId, tempTables);
             refresh();
             setSelectedBookingId(null);
-        } catch (e) {
+        } catch {
             alert('Failed to save assignment');
         } finally {
             setLoading(false);
@@ -74,15 +74,15 @@ export const TableAssignmentPage: React.FC = () => {
         const { width, height, shape } = table;
         switch (shape) {
             case 'OCTAGONAL':
-                const corner = Math.min(width, height) * 0.3;
-                return `M ${corner} 0 H ${width - corner} L ${width} ${corner} V ${height - corner} L ${width - corner} ${height} H ${corner} L 0 ${height - corner} V ${corner} Z`;
+                { const corner = Math.min(width, height) * 0.3;
+                return `M ${corner} 0 H ${width - corner} L ${width} ${corner} V ${height - corner} L ${width - corner} ${height} H ${corner} L 0 ${height - corner} V ${corner} Z`; }
             case 'ROUND':
                 return `M ${width/2}, 0 A ${width/2} ${height/2} 0 1,1 ${width/2} ${height} A ${width/2} ${height/2} 0 1,1 ${width/2} 0`;
             case 'CAPSULE':
-                const r = Math.min(width, height) / 2;
+                { const r = Math.min(width, height) / 2;
                 return width > height 
                     ? `M ${r} 0 H ${width - r} A ${r} ${r} 0 0 1 ${width - r} ${height} H ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`
-                    : `M 0 ${r} V ${height - r} A ${r} ${r} 0 0 0 ${width} ${height - r} V ${r} A ${r} ${r} 0 0 0 0 ${r} Z`;
+                    : `M 0 ${r} V ${height - r} A ${r} ${r} 0 0 0 ${width} ${height - r} V ${r} A ${r} ${r} 0 0 0 0 ${r} Z`; }
             case 'BAR':
                 return `M ${width / 2}, 0 A ${width / 2} ${width / 2} 0 1,1 ${width / 2} ${width} A ${width / 2} ${width / 2} 0 1,1 ${width / 2} 0`;
             case 'SQUARE':
@@ -126,7 +126,7 @@ export const TableAssignmentPage: React.FC = () => {
                                 )}
                             >
                                 <div className="flex justify-between items-start mb-2">
-                                    <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{b.guestName}</span>
+                                    <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{b.name}</span>
                                     <span className={clsx(
                                         "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
                                         b.tables.length > 0 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"
@@ -174,7 +174,7 @@ export const TableAssignmentPage: React.FC = () => {
                 <div className="p-8 pb-4 flex justify-between items-center">
                     <div>
                          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Interactive <span className="text-indigo-600">Assigner</span></h2>
-                         {selectedBooking && <p className="text-slate-500 font-medium">Assigning for <span className="text-slate-900 font-bold">{selectedBooking.guestName}</span> &middot; {selectedBooking.size} people</p>}
+                         {selectedBooking && <p className="text-slate-500 font-medium">Assigning for <span className="text-slate-900 font-bold">{selectedBooking.name}</span> &middot; {selectedBooking.size} people</p>}
                     </div>
                     <div className="flex gap-4">
                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-white border border-slate-300"></div> AVAILABLE</div>

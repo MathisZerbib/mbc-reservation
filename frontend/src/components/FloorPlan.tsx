@@ -201,7 +201,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ hoveredBookingId, selected
                                           : "bg-white/5 border-white/10 text-slate-200"
                                     )}>
                                         <div className="flex justify-between items-start mb-1.5">
-                                            <span className="text-sm font-black leading-tight tracking-tight">{b.guestName}</span>
+                                            <span className="text-sm font-black leading-tight tracking-tight">{b.name}</span>
                                             <span className={cn("text-[10px] font-black", isCurrent ? "text-indigo-100" : "text-slate-500")}>
                                                 {dayjs(b.startTime).format('HH:mm')}
                                             </span>

@@ -1,4 +1,4 @@
-import type { Booking, AvailabilityResponse } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload } from '../types/index';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -21,7 +21,7 @@ export const api = {
         return res.json();
     },
 
-    async createBooking(data: Partial<Booking>): Promise<Booking> {
+    async createBooking(data: Partial<CreateBookingPayload>): Promise<Booking> {
         const res = await fetch(`${API_BASE_URL}/bookings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

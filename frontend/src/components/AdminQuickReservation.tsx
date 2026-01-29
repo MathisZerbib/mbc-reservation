@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Phone, Users, Clock, Check, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
+import { DatePicker } from './ui/date-picker';
+import dayjs from 'dayjs';
 
 interface AdminQuickReservationProps {
     isOpen: boolean;
@@ -10,33 +12,50 @@ interface AdminQuickReservationProps {
     onSuccess?: () => void;
 }
 
-export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({ 
-    isOpen, 
-    onClose, 
+export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
+    isOpen,
+    onClose,
     selectedDate,
-    onSuccess 
+    onSuccess
 }) => {
+    const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];        
+        const getFirstAvailableTime = (date: string) => {
+            const now = dayjs();
+            return TIME_SLOTS.find(slot => dayjs(`${date} ${slot}`).isAfter(now)) || null;
+        };
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
         size: 2,
-        time: '19:00',
         language: 'fr',
+        date: selectedDate,
+        time: '19:00',
     });
+
+    // Keep date in sync with selectedDate prop when dialog opens
+    React.useEffect(() => {
+        if (isOpen) {
+            setFormData(f => ({ ...f, date: selectedDate }));
+        }
+    }, [isOpen, selectedDate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
-        
+
         try {
             await api.createBooking({
-                ...formData,
-                date: selectedDate,
-                email: '',
-            } as any);
+                name: formData.name,
+                phone: formData.phone, // was guestPhone
+                email: '', // was email
+                size: formData.size,
+                language: formData.language,
+                startTime: formData.date + ' ' + formData.time,
+            });
             if (onSuccess) onSuccess();
             onClose();
             // Reset form
@@ -46,9 +65,14 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 size: 2,
                 time: '19:00',
                 language: 'fr',
+                date: selectedDate,
             });
-        } catch (err: any) {
-            setError(err.message || 'Failed to create reservation');
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message || 'Failed to create reservation');
+            } else {
+                setError('Failed to create reservation');
+            }
         } finally {
             setLoading(false);
         }
@@ -58,18 +82,19 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
         <AnimatePresence>
             {isOpen && (
                 <>
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
                     />
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-4xl shadow-2xl z-51 overflow-hidden border border-slate-100"
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-4xl shadow-2xl z-51 border border-slate-100"
+                    onClick={(e) => e.stopPropagation()}
                     >
                         <div className="p-8">
                             <div className="flex justify-between items-center mb-8">
@@ -77,7 +102,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">Quick Res</h2>
                                     <p className="text-sm font-medium text-slate-400">Add reservation manually</p>
                                 </div>
-                                <button 
+                                <button
                                     onClick={onClose}
                                     className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600"
                                 >
@@ -93,13 +118,13 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
                                                 <User className="w-4 h-4" />
                                             </div>
-                                            <input 
+                                            <input
                                                 autoFocus
                                                 required
-                                                type="text" 
+                                                type="text"
                                                 placeholder="Guest Name"
                                                 value={formData.name}
-                                                onChange={e => setFormData({...formData, name: e.target.value})}
+                                                onChange={e => setFormData({ ...formData, name: e.target.value })}
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
                                             />
                                         </div>
@@ -107,37 +132,50 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
                                                 <Phone className="w-4 h-4" />
                                             </div>
-                                            <input 
-                                                type="tel" 
+                                            <input
+                                                type="tel"
                                                 placeholder="Phone Number (Optional)"
                                                 value={formData.phone}
-                                                onChange={e => setFormData({...formData, phone: e.target.value})}
+                                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
                                             />
                                         </div>
                                         <div className="flex gap-2 mt-2">
-                                          {[
-                                            { code: 'fr', flag: '🇫🇷', label: 'Français' },
-                                            { code: 'en', flag: '🇬🇧', label: 'English' },
-                                            { code: 'it', flag: '🇮🇹', label: 'Italiano' },
-                                            // { code: 'es', flag: '🇪🇸', label: 'Español' },
-                                            // { code: 'ru', flag: '🇷🇺', label: 'Русский' },
-                                          ].map(l => (
-                                            <button
-                                              key={l.code}
-                                              type="button"
-                                              className={
-                                                formData.language === l.code
-                                                  ? 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-indigo-50 border-indigo-600 text-indigo-700'
-                                                  : 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-white border-slate-100 text-slate-400 hover:border-slate-200'
-                                              }
-                                              onClick={() => setFormData({ ...formData, language: l.code })}
-                                            >
-                                              <span>{l.flag}</span> {l.label}
-                                            </button>
-                                          ))}
+                                            {[
+                                                { code: 'fr', flag: '🇫🇷', label: 'Français' },
+                                                { code: 'en', flag: '🇬🇧', label: 'English' },
+                                                { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+                                            ].map(l => (
+                                                <button
+                                                    key={l.code}
+                                                    type="button"
+                                                    className={
+                                                        formData.language === l.code
+                                                            ? 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-indigo-50 border-indigo-600 text-indigo-700'
+                                                            : 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                                    }
+                                                    onClick={() => setFormData({ ...formData, language: l.code })}
+                                                >
+                                                    <span>{l.flag}</span> {l.label}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Date</label>
+                                        <DatePicker 
+                                            date={dayjs(formData.date).toDate()} 
+                                            setDate={d => {
+                                                const nextDate = dayjs(d).format('YYYY-MM-DD');
+                                                const nextTime = dayjs(`${nextDate} ${formData.time}`).isBefore(dayjs()) 
+                                                    ? getFirstAvailableTime(nextDate)
+                                                    : formData.time;
+                                                setFormData({...formData, date: nextDate, time: nextTime || ''});
+                                            }}
+                                            disabled={(date) => dayjs(date).isBefore(dayjs(), 'day')}
+                                            className="pl-10"
+                                        />
+                                </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -147,33 +185,37 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                                                 <Users className="w-4 h-4" />
                                             </div>
-                                            <input 
-                                                type="number" 
+                                            <input
+                                                type="number"
                                                 min="1"
                                                 value={formData.size}
-                                                onChange={e => setFormData({...formData, size: parseInt(e.target.value) || 1})}
+                                                onChange={e => setFormData({ ...formData, size: parseInt(e.target.value) || 1 })}
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
                                             />
                                         </div>
                                     </div>
+
+                                    
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Time</label>
                                         <div className="relative group">
                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                                                 <Clock className="w-4 h-4" />
                                             </div>
-                                            <select 
+                                            <select
                                                 value={formData.time}
-                                                onChange={e => setFormData({...formData, time: e.target.value})}
+                                                onChange={e => setFormData({ ...formData, time: e.target.value })}
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all appearance-none"
                                             >
-                                                {['17:00','18:00','18:30','19:00','19:30','20:00','20:30','21:00','22:00'].map(t => (
+                                                {['17:00', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '22:00'].map(t => (
                                                     <option key={t} value={t}>{t}</option>
                                                 ))}
                                             </select>
                                         </div>
                                     </div>
                                 </div>
+
+                                
 
                                 {error && (
                                     <div className="p-3 bg-red-50 text-red-500 text-xs font-bold rounded-xl border border-red-100">
@@ -182,10 +224,10 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                 )}
 
                                 <div className="pt-4">
-                                    <button 
+                                    <button
                                         disabled={loading}
                                         type="submit"
-                                        className="w-full bg-slate-900 text-white rounded-2xl py-5 font-black flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-500/20 disabled:opacity-50 active:scale-[0.98]"
+                                        className="w-full bg-slate-900 text-white rounded-2xl py-5 font-black flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-500/20 disabled:opacity-50 active:scale-[0.98] cursor-pointer"
                                     >
                                         {loading ? (
                                             <Loader2 className="w-5 h-5 animate-spin" />

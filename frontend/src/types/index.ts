@@ -8,9 +8,9 @@ export interface Table {
 
 export interface Booking {
     id: string;
-    guestName: string;
-    guestPhone?: string;
-    guestEmail?: string;
+    name: string;
+    phone?: string;
+    email?: string;
     language?: string; // e.g. 'fr', 'en', 'it', 'es', 'ru', etc.
     size: number;
     startTime: string;
@@ -18,6 +18,16 @@ export interface Booking {
     status: BookingStatus;
     tables: Table[];
 }
+
+export interface CreateBookingPayload {
+    name: string;
+    phone?: string;
+    email?: string;
+    size: number;
+    language?: string;
+    startTime: string;
+}
+
 
 export interface AvailabilityResponse {
     available: boolean;

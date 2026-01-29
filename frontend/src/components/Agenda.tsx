@@ -83,7 +83,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                         <span className="font-bold text-slate-500">{dayjs(b.endTime).format('HH:mm')}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                         <span className="text-sm font-semibold text-slate-800">{b.guestName}</span>
+                         <span className="text-sm font-semibold text-slate-800">{b.name}</span>
                          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">{b.size}p</span>
                          {b.status === 'COMPLETED' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                     </div>
@@ -115,7 +115,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                             <button 
                                 className="p-1.5 rounded hover:bg-red-50 text-red-600 transition-colors flex items-center gap-1 text-[10px] font-bold"
                                 title="Cancel"
-                                onClick={() => setShowModal({ id: b.id, name: b.guestName })}
+                                onClick={() => setShowModal({ id: b.id, name: b.name })}
                                 disabled={loading}
                             >
                                 <XCircle className="w-3 h-3" /> Cancel

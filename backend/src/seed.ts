@@ -1,8 +1,5 @@
-import { PrismaClient, TableType } from '@prisma/client';
-
-export const prisma = new PrismaClient({
-  datasourceUrl: process.env.DATABASE_URL,
-});
+import { TableType } from '@prisma/client';
+import { prisma } from './lib/prisma';
 
 async function main() {
     console.log('Starting seed...');
