@@ -3,12 +3,12 @@ import dayjs from 'dayjs';
 import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
 import { ChevronLeft, Save, Users, Clock } from 'lucide-react';
 import clsx from 'clsx';
-import { useBookings } from '../hooks/useBookings';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
+import { useBookingsContext } from '../context/useBookingsContext';
 
 export const TableAssignmentPage: React.FC = () => {
-    const { bookings, refresh } = useBookings();
+    const { bookings, refresh } = useBookingsContext();
     const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
     const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
     const [loading, setLoading] = useState(false);

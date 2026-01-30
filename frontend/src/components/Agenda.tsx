@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
-import { useBookings } from '../hooks/useBookings';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
-
+import { useBookingsContext } from '../context/useBookingsContext';
 interface AgendaProps {
   setHoveredBookingId: (id: string | null) => void;
   date: string;
@@ -13,7 +12,7 @@ interface AgendaProps {
 }
 
 export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDate }) => {
-  const { bookings, refresh } = useBookings();
+  const { bookings, refresh } = useBookingsContext();
   const [showModal, setShowModal] = useState<{ id: string, name: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
