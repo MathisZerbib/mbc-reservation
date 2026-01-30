@@ -4,8 +4,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 export const api = {
     async fetchBookings(): Promise<Booking[]> {
-        const res = await fetch(`${API_BASE_URL}/bookings`);
-        if (!res.ok) throw new Error('Failed to fetch bookings');
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/bookings`, {
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        });
+        if (!res.ok) throw new Error('Unauthorized');
         return res.json();
     },
 
@@ -35,9 +41,13 @@ export const api = {
     },
 
     async updateAssignment(id: string, tableNames: string[]): Promise<Booking> {
+        const token = localStorage.getItem('token');
         const res = await fetch(`${API_BASE_URL}/bookings/${id}/tables`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
             body: JSON.stringify({ tableNames })
         });
         if (!res.ok) throw new Error('Failed to update assignment');

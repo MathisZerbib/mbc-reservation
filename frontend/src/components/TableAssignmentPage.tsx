@@ -98,7 +98,7 @@ export const TableAssignmentPage: React.FC = () => {
             <div className="w-96 bg-white border-r border-slate-200 flex flex-col shadow-xl z-10">
                 <div className="p-6 border-b border-slate-100 bg-slate-900 text-white">
                     <div className="flex items-center gap-2 mb-4">
-                        <a href="/" className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                        <a href="/admin/dashboard" className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
                             <ChevronLeft className="w-5 h-5" />
                         </a>
                         <h1 className="text-xl font-bold tracking-tight">Table Assignments</h1>
