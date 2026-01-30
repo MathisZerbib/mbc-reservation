@@ -78,6 +78,19 @@ async function seed() {
         });
     }
 
+    // Seed an user for testing
+    const email = 'mathis.zerbib@gmail.com';
+    const password = 'password123';
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (!existingUser) {
+        await prisma.user.create({
+            data: { email, password },
+        });
+        console.log(`Created user ${email} with password ${password}`);
+    } else {
+        console.log(`User ${email} already exists, skipping creation.`);
+    }
+    
     console.log('Seeding completed.');
 }
 
