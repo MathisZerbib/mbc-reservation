@@ -1,11 +1,18 @@
 import { Resend } from 'resend';
 import dayjs from 'dayjs';
+import fs from 'fs';
+import path from 'path';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const APP_NAME = 'MBC Restaurant';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 const GOOGLE_MAPS_REVIEW_URL = 'https://goo.gl/maps/example'; // TODO: Replace with actual link
+
+const logoBuffer = fs.readFileSync(
+    path.join(__dirname, '../../public/images/mbc-logo.png')
+);
+
 
 export const emailService = {
     sendConfirmationEmail: async (booking: any) => {
@@ -17,7 +24,7 @@ export const emailService = {
 
         // Language fallback
         type Lang = 'fr' | 'en' | 'it' | 'es' | 'ru';
-        const lang: Lang = (booking.language && ['fr','en','it','es','ru'].includes(booking.language)) ? booking.language : 'fr';
+        const lang: Lang = (booking.language && ['fr', 'en', 'it', 'es', 'ru'].includes(booking.language)) ? booking.language : 'fr';
         const date = dayjs(booking.startTime).locale(lang).format(lang === 'en' ? 'MMMM D, YYYY' : 'D MMMM YYYY');
         const time = dayjs(booking.startTime).format('HH:mm');
 
@@ -25,7 +32,7 @@ export const emailService = {
         const content = {
             fr: {
                 subject: 'Votre réservation est confirmée ! - Micro-brasserie de Chamonix',
-                greeting: `Bonjour ${booking.name},`,
+                greeting: `Bonjour ${booking.guestName},`,
                 intro: 'Votre réservation est <b>confirmée</b> ! Nous sommes ravis de vous accueillir à la Micro-brasserie de Chamonix.',
                 date: 'Date',
                 time: 'Heure',
@@ -41,7 +48,7 @@ export const emailService = {
             },
             en: {
                 subject: 'Your reservation is confirmed! - Micro-brasserie de Chamonix',
-                greeting: `Hello ${booking.name},`,
+                greeting: `Hello ${booking.guestName},`,
                 intro: 'Your reservation is <b>confirmed</b>! We are delighted to welcome you to Micro-brasserie de Chamonix.',
                 date: 'Date',
                 time: 'Time',
@@ -57,7 +64,7 @@ export const emailService = {
             },
             it: {
                 subject: 'La tua prenotazione è confermata! - Micro-brasserie de Chamonix',
-                greeting: `Ciao ${booking.name},`,
+                greeting: `Ciao ${booking.guestName},`,
                 intro: 'La tua prenotazione è <b>confermata</b>! Siamo lieti di accoglierti alla Micro-brasserie de Chamonix.',
                 date: 'Data',
                 time: 'Ora',
@@ -73,7 +80,7 @@ export const emailService = {
             },
             es: {
                 subject: '¡Tu reserva está confirmada! - Micro-brasserie de Chamonix',
-                greeting: `Hola ${booking.name},`,
+                greeting: `Hola ${booking.guestName},`,
                 intro: '¡Tu reserva está <b>confirmada</b>! Nos complace darte la bienvenida a Micro-brasserie de Chamonix.',
                 date: 'Fecha',
                 time: 'Hora',
@@ -89,7 +96,7 @@ export const emailService = {
             },
             ru: {
                 subject: 'Ваш столик забронирован! - Micro-brasserie de Chamonix',
-                greeting: `Здравствуйте, ${booking.name}!`,
+                greeting: `Здравствуйте, ${booking.guestName}!`,
                 intro: 'Ваш столик <b>забронирован</b>! Мы рады приветствовать вас в Micro-brasserie de Chamonix.',
                 date: 'Дата',
                 time: 'Время',
@@ -117,17 +124,17 @@ export const emailService = {
             return;
         }
 
-                try {
-                        await resend.emails.send({
-                                from: `Micro-brasserie de Chamonix <${FROM_EMAIL}>`,
-                                to: booking.email,
-                                subject: c.subject,
-                                html: `
+        try {
+            await resend.emails.send({
+                from: `Micro-brasserie de Chamonix <${FROM_EMAIL}>`,
+                to: booking.email,
+                subject: c.subject,
+                html: `
                                 <div style="font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; color: #222; padding: 0; margin: 0;">
                                     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px #0001; overflow: hidden;">
                                         <tr>
                                             <td style="background: #23272f; padding: 32px 24px 16px 24px; text-align: center;">
-                                                <img src="https://imgur.com/vozilL5" alt="MBC Logo" style="width: 80px; border-radius: 12px; margin-bottom: 12px;" />
+                                                <img src="cid:mbc-logo" alt="MBC Logo" style="width: 80px; border-radius: 12px; margin-bottom: 12px;" />
                                                 <h1 style="color: #fff; font-size: 2rem; margin: 0; letter-spacing: 1px;">Micro-brasserie de Chamonix</h1>
                                                 <p style="color: #b3b3b3; margin: 8px 0 0 0; font-size: 1.1rem;">Ambiance décontractée, burgers, snacks & musique live</p>
                                             </td>
@@ -143,7 +150,7 @@ export const emailService = {
                                                 </div>
                                                 <p style="margin: 24px 0 0 0;">${c.enjoy}</p>
                                                 <p style="margin: 0;">${c.address} : <a href="https://maps.app.goo.gl/4Qw1Qw1Qw1Qw1Qw1A" style="color: #4f46e5; text-decoration: underline;">350 Rte du Bouchet, 74400 Chamonix-Mont-Blanc</a></p>
-                                                <p style="margin: 0;">${c.phone} : <a href="tel:0450536159" style="color: #4f46e5; text-decoration: underline;">04 50 53 61 59</a></p>
+                                                <p style="margin: 0;">${c.phone} : <a href="tel:0450536159" style="color: #4f46e5;decoration: underline;">04 50 53 61 59</a></p>
                                                 <div style="margin: 24px 0 0 0;">
                                                     <table style="font-size: 0.95rem; color: #444;">
                                                         <tr><td><b>${c.hours} :</b></td><td style="padding-left: 12px;">${c.hoursValue}</td></tr>
@@ -160,7 +167,10 @@ export const emailService = {
                                     </table>
                                 </div>
                                 `,
-                        });
+                attachments: [
+                    { filename: 'mbc-logo.png', content: logoBuffer, contentId: 'mbc-logo' },
+                ],
+            });
             console.log(`Confirmation email sent to ${booking.email}`);
         } catch (error) {
             console.error('Failed to send confirmation email:', error);
@@ -182,11 +192,11 @@ export const emailService = {
 
         // Multilingual content
         type Lang = 'fr' | 'en' | 'it' | 'es' | 'ru';
-        const lang: Lang = (booking.language && ['fr','en','it','es','ru'].includes(booking.language)) ? booking.language : 'fr';
+        const lang: Lang = (booking.language && ['fr', 'en', 'it', 'es', 'ru'].includes(booking.language)) ? booking.language : 'fr';
         const content = {
             fr: {
                 subject: 'Votre avis compte pour nous ! - Micro-brasserie de Chamonix',
-                greeting: `Merci pour votre visite, ${booking.name} !`,
+                greeting: `Merci pour votre visite, ${booking.guestName} !`,
                 body: 'Nous espérons que vous avez passé un excellent moment à la Micro-brasserie de Chamonix.',
                 ask: 'Votre avis est précieux pour nous aider à nous améliorer et à offrir la meilleure expérience possible à nos clients.',
                 button: 'Laisser un avis sur Google',
@@ -195,16 +205,16 @@ export const emailService = {
             },
             en: {
                 subject: 'We value your feedback! - Micro-brasserie de Chamonix',
-                greeting: `Thank you for your visit, ${booking.name}!`,
+                greeting: `Thank you for your visit, ${booking.guestName}!`,
                 body: 'We hope you had a wonderful time at Micro-brasserie de Chamonix.',
-                ask: 'Your feedback helps us improve and provide the best experience for our guests.',
+                ask: 'Your feedback helps us improve e provide the best experience for our guests.',
                 button: 'Leave a review on Google',
                 thanks: 'A few words make a big difference for our team!',
                 bye: 'Thank you and see you soon,<br>The Micro-brasserie de Chamonix Team',
             },
             it: {
                 subject: 'La tua opinione è importante! - Micro-brasserie de Chamonix',
-                greeting: `Grazie per la tua visita, ${booking.name}!`,
+                greeting: `Grazie per la tua visita, ${booking.guestName}!`,
                 body: 'Speriamo che tu abbia trascorso un momento piacevole alla Micro-brasserie de Chamonix.',
                 ask: 'La tua opinione ci aiuta a migliorare e offrire la migliore esperienza possibile ai nostri clienti.',
                 button: 'Lascia una recensione su Google',
@@ -213,7 +223,7 @@ export const emailService = {
             },
             es: {
                 subject: '¡Tu opinión es importante! - Micro-brasserie de Chamonix',
-                greeting: `¡Gracias por tu visita, ${booking.name}!`,
+                greeting: `¡GrGr por tu visita, ${booking.guestName}!`,
                 body: 'Esperamos que hayas disfrutado en Micro-brasserie de Chamonix.',
                 ask: 'Tu opinión nos ayuda a mejorar y ofrecer la mejor experiencia posible a nuestros clientes.',
                 button: 'Deja una reseña en Google',
@@ -221,8 +231,8 @@ export const emailService = {
                 bye: '¡Gracias y hasta pronto!<br>El equipo de Micro-brasserie de Chamonix',
             },
             ru: {
-                subject: 'Ваш отзыв важен для нас! - Micro-brasserie de Chamonix',
-                greeting: `Спасибо за визит, ${booking.name}!`,
+                subject: 'Ваш отзыв важен для нас - Micro-brasserie de Chamonix',
+                greeting: `Спасибо за визит, ${booking.guestName}!`,
                 body: 'Надеемся, вам понравилось в Micro-brasserie de Chamonix.',
                 ask: 'Ваш отзыв помогает нам становиться лучше и предоставлять лучший сервис нашим гостям.',
                 button: 'Оставить отзыв на Google',
@@ -241,7 +251,7 @@ export const emailService = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px #0001; overflow: hidden;">
                     <tr>
                       <td style="background: #23272f; padding: 32px 24px 16px 24px; text-align: center;">
-                        <img src="https://imgur.com/vozilL5" alt="MBC Logo" style="width: 80px; border-radius: 12px; margin-bottom: 12px;" />
+                        <img src="cid:mbc-logo" alt="MBC Logo" style="width: 80px; border-radius: 12px; margin-bottom: 12px;" />
                         <h1 style="color: #fff; font-size: 2rem; margin: 0; letter-spacing: 1px;">Micro-brasserie de Chamonix</h1>
                       </td>
                     </tr>
@@ -260,6 +270,13 @@ export const emailService = {
                   </table>
                 </div>
                 `,
+                attachments: [
+                    {
+                        filename: 'mbc-logo.png',
+                        content: logoBuffer,
+                        contentId: 'mbc-logo',
+                    },
+                ],
             });
             console.log(`Feedback email sent to ${booking.email}`);
         } catch (error) {
