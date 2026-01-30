@@ -6,3 +6,5 @@ frontend/dist/
 backend/dist/
 .env
 backend/.env
+.env.local
+.env.production
