@@ -1,3 +1,5 @@
+import bcrypt from 'bcryptjs';
+
 enum TableType {
     OCTAGONAL = 'OCTAGONAL',
     RECTANGULAR = 'RECTANGULAR',
@@ -78,18 +80,15 @@ async function seed() {
         });
     }
 
-    // Seed an user for testing
+    // Seed a user for testing
     const email = 'mathis.zerbib@gmail.com';
     const password = 'password123';
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (!existingUser) {
-        await prisma.user.create({
-            data: { email, password },
-        });
-        console.log(`Created user ${email} with password ${password}`);
-    } else {
-        console.log(`User ${email} already exists, skipping creation.`);
-    }
+    await prisma.user.deleteMany({ where: { email } }); // Remove if exists
+    const hashed = await bcrypt.hash(password, 12);
+    await prisma.user.create({
+        data: { email, password: hashed },
+    });
+    console.log(`Created user ${email} with password ${password}`);
     
     console.log('Seeding completed.');
 }

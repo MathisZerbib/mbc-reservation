@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-
 // Extend Request to include session for admin check
 interface AdminSessionRequest extends Request {
   session?: {

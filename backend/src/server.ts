@@ -5,10 +5,11 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { bookingRoutes } from './routes/bookingRoutes';
 import tableRoutes from './routes/tableRoutes';
-
+import authRoutes from './routes/authRoutes';
 
 const app = express();
 const server = http.createServer(app);
+
 
 const allowedOrigins = [
     process.env.FRONTEND_URL,
@@ -48,6 +49,7 @@ io.on('connection', (socket) => {
 // Routes
 app.use('/api', bookingRoutes(io));
 app.use('/api', tableRoutes);
+app.use('/api/auth', authRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
