@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['MBCWEBLOGO.avif', 'favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['mbc-logo.png', 'favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,avif}'],
         runtimeCaching: [

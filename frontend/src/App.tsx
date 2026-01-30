@@ -24,7 +24,7 @@ function AdminDashboard() {
         <div className="lg:col-span-8 flex flex-col gap-8 h-full">
             <header className="flex justify-between items-end">
                 <div>
-                   <h1 className="text-3xl font-black text-slate-900 tracking-tight">MBC <span className="text-slate-400">Manager</span></h1>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">MBC <span className="text-slate-400">Manager</span></h1>
                    <p className="text-slate-500 font-medium">{dayjs(selectedDate).format('dddd, D MMM YYYY')}</p>
                 </div>
                 <div className="flex gap-3">
