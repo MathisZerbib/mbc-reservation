@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { bookingRoutes } from './routes/bookingRoutes';
 import tableRoutes from './routes/tableRoutes';
+import { seed } from './seed'; // adjust import as needed
 
 const app = express();
 const server = http.createServer(app);
@@ -50,6 +51,18 @@ app.use('/api', tableRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
+});
+
+app.post('/api/seed', async (req, res) => {
+  if (process.env.SEED_SECRET && req.headers['x-seed-secret'] !== process.env.SEED_SECRET) {
+    return res.status(403).send('Forbidden');
+  }
+  try {
+    await seed();
+    res.send('Seeded!');
+  } catch (e) {
+    res.status(500).send('Seed failed');
+  }
 });
 
 const PORT = process.env.PORT || 3000;
