@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { io } from 'socket.io-client';
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const apiUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 const socket = io(apiUrl);
 
 interface AnalyticsProps {
@@ -17,7 +17,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = React.useCallback(async () => {
     setLoading(true);
     try {
       const result = await api.getAnalytics(date);
@@ -27,7 +27,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [date]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -36,10 +36,10 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
     return () => {
       socket.off('booking-update', fetchAnalytics);
     };
-  }, [date]);
+  }, [date, fetchAnalytics]);
 
   const Card = ({ label, value, sub, loading }: { label: string, value: string | number, sub?: string, loading?: boolean }) => (
-    <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 flex flex-col items-center justify-center hover:scale-105 transition-transform min-h-[140px]">
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 flex flex-col items-center justify-center hover:scale-105 transition-transform min-h-35">
         {loading ? (
             <div className="animate-pulse flex flex-col items-center">
                 <div className="h-8 w-16 bg-slate-100 rounded mb-2"></div>

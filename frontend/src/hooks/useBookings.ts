@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import type { Booking } from '../types/index';
 import { api } from '../services/api';
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const apiUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 const socket = io(apiUrl);
 
 export const useBookings = () => {
