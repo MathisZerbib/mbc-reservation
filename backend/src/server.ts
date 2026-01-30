@@ -6,6 +6,7 @@ import cors from 'cors';
 import { bookingRoutes } from './routes/bookingRoutes';
 import tableRoutes from './routes/tableRoutes';
 import authRoutes from './routes/authRoutes';
+import protectedRoutes from './routes/protectedRoutes';
 
 const app = express();
 const server = http.createServer(app);
@@ -50,6 +51,7 @@ io.on('connection', (socket) => {
 app.use('/api', bookingRoutes(io));
 app.use('/api', tableRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api', protectedRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });

@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
 
 export function ProtectedRoutes() {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) return navigate('/admin');
-    fetch('/api/protected', {
+    if (!token) return navigate('/');
+    fetch(`${apiUrl}/protected`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
@@ -14,7 +15,7 @@ export function ProtectedRoutes() {
       })
       .catch(() => {
         localStorage.removeItem('token');
-        navigate('/admin');
+        navigate('/');
       });
   }, [navigate]);
   return <Outlet />;

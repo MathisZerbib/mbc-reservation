@@ -84,8 +84,8 @@ function App() {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/book" element={<BookingPage />} />
-          <Route path="/assign" element={<TableAssignmentPage />} />
  <Route element={<ProtectedRoutes />}>
+          <Route path="/assign" element={<TableAssignmentPage />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Route>
         </Routes>
