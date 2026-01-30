@@ -87,7 +87,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">{b.size}p</span>
                          {b.status === 'COMPLETED' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">{b.guestPhone}</div>
+                    <div className="text-xs text-slate-400 mt-1">{b.phone}</div>
                  </div>
                   <div className="text-right">
                      {b.status === 'CANCELLED' ? (

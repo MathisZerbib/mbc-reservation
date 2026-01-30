@@ -50,7 +50,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
         try {
             await api.createBooking({
                 name: formData.name,
-                phone: formData.phone, // was guestPhone
+                phone: formData.phone, // was phone
                 email: '', // was email
                 size: formData.size,
                 language: formData.language,
