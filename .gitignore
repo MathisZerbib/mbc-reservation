@@ -8,4 +8,4 @@ backend/dist/
 backend/.env
 .env.local
 .env.production
-backend/ca.pem
+backend/etc/secrets/ca.pem
