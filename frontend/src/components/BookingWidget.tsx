@@ -16,9 +16,9 @@ import 'dayjs/locale/fr';
 import 'dayjs/locale/en';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { api } from '../services/api';
-import { useLanguage } from '../i18n/LanguageContext';
 import { DatePicker } from './ui/date-picker';
 import type { Lang } from '../i18n/translations';
+import { useLanguage } from '../i18n/useLanguage';
 
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
 const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];
