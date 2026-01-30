@@ -1,4 +1,4 @@
-import type { Booking, AvailabilityResponse, CreateBookingPayload } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -9,7 +9,7 @@ export const api = {
         return res.json();
     },
 
-    async getAnalytics(date: string): Promise<any> {
+    async getAnalytics(date: string): Promise<Analytics> {
         const res = await fetch(`${API_BASE_URL}/analytics?date=${date}`);
         if (!res.ok) throw new Error('Failed to fetch analytics');
         return res.json();

@@ -22,6 +22,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
         await api.checkIn(id);
         refresh();
     } catch (e) {
+      console.error(e);
         alert('Check-in failed');
     } finally {
         setLoading(false);
@@ -36,6 +37,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
         refresh();
         setShowModal(null);
     } catch (e) {
+      console.error(e);
         alert('Cancellation failed');
     } finally {
         setLoading(false);

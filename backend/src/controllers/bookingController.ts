@@ -250,7 +250,7 @@ export const bookingController = (io: Server) => ({
                 totalBookings,
                 turnover,
                 peakHour,
-                growth: "+12%" // Placeholder for now
+                growth: "+12%"
             });
         } catch (error) {
             console.error(error);

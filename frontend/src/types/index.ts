@@ -33,3 +33,10 @@ export interface AvailabilityResponse {
     available: boolean;
     tables: Table[];
 }
+
+export interface Analytics {
+    totalBookings: number;
+    turnover: number;
+    peakHour: string;
+    growth: string; // e.g. "+12%"
+}
