@@ -5,8 +5,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { bookingRoutes } from './routes/bookingRoutes';
 import tableRoutes from './routes/tableRoutes';
-import { seed } from './seed'; // adjust import as needed
-
+import { seed } from './seed';
 const app = express();
 const server = http.createServer(app);
 

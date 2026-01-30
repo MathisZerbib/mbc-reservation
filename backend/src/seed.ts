@@ -1,7 +1,13 @@
-import { TableType } from '@prisma/client';
+enum TableType {
+    OCTAGONAL = 'OCTAGONAL',
+    RECTANGULAR = 'RECTANGULAR',
+    CAPSULE = 'CAPSULE',
+    ROUND = 'ROUND',
+    BAR = 'BAR',
+}
 import { prisma } from './lib/prisma';
 
-async function main() {
+async function seed() {
     console.log('Starting seed...');
     // Clear existing tables
     try {
@@ -75,7 +81,7 @@ async function main() {
     console.log('Seeding completed.');
 }
 
-main()
+seed()
     .catch((e) => {
         console.error(e);
         process.exit(1);
@@ -83,3 +89,5 @@ main()
     .finally(async () => {
         await prisma.$disconnect();
     });
+
+export { seed };
