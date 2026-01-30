@@ -127,7 +127,7 @@ export const emailService = {
                                     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px #0001; overflow: hidden;">
                                         <tr>
                                             <td style="background: #23272f; padding: 32px 24px 16px 24px; text-align: center;">
-                                                <img src="https://i.imgur.com/0Q9QZpT.png" alt="MBC Logo" style="width: 80px; border-radius: 12px; margin-bottom: 12px;" />
+                                                <img src="https://imgur.com/vozilL5" alt="MBC Logo" style="width: 80px; border-radius: 12px; margin-bottom: 12px;" />
                                                 <h1 style="color: #fff; font-size: 2rem; margin: 0; letter-spacing: 1px;">Micro-brasserie de Chamonix</h1>
                                                 <p style="color: #b3b3b3; margin: 8px 0 0 0; font-size: 1.1rem;">Ambiance décontractée, burgers, snacks & musique live</p>
                                             </td>
@@ -241,7 +241,7 @@ export const emailService = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px #0001; overflow: hidden;">
                     <tr>
                       <td style="background: #23272f; padding: 32px 24px 16px 24px; text-align: center;">
-                        <img src="https://i.imgur.com/0Q9QZpT.png" alt="MBC Logo" style="width: 80px; border-radius: 12px; margin-bottom: 12px;" />
+                        <img src="https://imgur.com/vozilL5" alt="MBC Logo" style="width: 80px; border-radius: 12px; margin-bottom: 12px;" />
                         <h1 style="color: #fff; font-size: 2rem; margin: 0; letter-spacing: 1px;">Micro-brasserie de Chamonix</h1>
                       </td>
                     </tr>
