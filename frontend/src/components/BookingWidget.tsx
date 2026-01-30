@@ -488,7 +488,7 @@ export const BookingWidget: React.FC = () => {
                     className="mx-auto max-w-[320px] bg-slate-50/80 backdrop-blur-sm rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden"
                   >
                       <div className="space-y-4">
-                          <div className="flex items-center gap-4 justify-center">
+                          <div className="flex items-center gap-4">
                             <div className="h-10 w-10 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100 italic text-2xl">
                                 {(() => {
                                   const l = formData.language;
