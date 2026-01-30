@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { io } from 'socket.io-client';
-
-const socket = io('http://localhost:3000');
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const socket = io(apiUrl);
 
 interface AnalyticsProps {
   date: string;
