@@ -1,4 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+
+// Extend Express Request type to include 'user'
+interface AuthenticatedRequest extends Request {
+  user?: any;
+}
 import bcrypt from 'bcryptjs';
 import { generateTokens } from '../utils/jwt';
 import {
@@ -8,6 +13,9 @@ import {
   revokeTokens,
 } from '../services/authService';
 import { findUserByEmail, createUserByEmailAndPassword, findUserById } from '../services/userService';
+import { SignJWT, jwtVerify } from 'jose';
+
+const SECRET_KEY = process.env.JWT_ACCESS_SECRET!;
 
 export const authController = {
   register: async (req: Request, res: Response, next: NextFunction) => {
@@ -85,3 +93,32 @@ export const authController = {
     }
   },
 };
+
+export async function login(req: Request, res: Response) {
+  const { email, password } = req.body;
+  const existingUser = await findUserByEmail(email);
+  if (!existingUser) return res.status(403).json({ error: 'Invalid login credentials.' });
+
+  const validPassword = await bcrypt.compare(password, existingUser.password);
+  if (!validPassword) return res.status(403).json({ error: 'Invalid login credentials.' });
+
+  const token = await new SignJWT({ email })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(new TextEncoder().encode(SECRET_KEY));
+  return res.json({ token });
+}
+
+export async function verifyToken(req: AuthenticatedRequest, res: Response, next: Function) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(403).json({ error: 'No token provided' });
+  const token = authHeader.split(' ')[1];
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(SECRET_KEY));
+    req.user = payload;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}

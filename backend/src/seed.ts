@@ -82,7 +82,7 @@ async function seed() {
 
     // Seed a user for testing
     const email = 'mathis.zerbib@gmail.com';
-    const password = 'password123';
+    const password = 'pass';
     await prisma.user.deleteMany({ where: { email } }); // Remove if exists
     const hashed = await bcrypt.hash(password, 12);
     await prisma.user.create({

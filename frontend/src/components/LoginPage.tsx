@@ -14,14 +14,14 @@ export function LoginPage() {
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // important for session cookies
         body: JSON.stringify({ email, password }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         setError(data.error || 'Login failed');
       } else {
-        window.location.href = '/admin'; // reload to show admin dashboard
+        localStorage.setItem('token', data.accessToken); // Store JWT
+        window.location.href = '/admin/dashboard';
       }
     } catch (err) {
       setError('Network error');

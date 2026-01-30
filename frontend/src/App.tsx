@@ -10,6 +10,7 @@ import { LanguageProvider } from './i18n/LanguageContext';
 
 import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
+import { ProtectedRoutes } from './components/ProtectedRoutes';
 
 function AdminDashboard() {
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
@@ -84,8 +85,9 @@ function App() {
           <Route path="/" element={<LoginPage />} />
           <Route path="/book" element={<BookingPage />} />
           <Route path="/assign" element={<TableAssignmentPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-
+ <Route element={<ProtectedRoutes />}>
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        </Route>
         </Routes>
       </BrowserRouter>
     </LanguageProvider>
