@@ -22,6 +22,7 @@ interface Booking {
     startTime: Date | string;
     endTime: Date | string;
     status?: string;
+    highTable?: boolean;
     tables?: Table[];
     // Add other properties if needed
 }
@@ -57,7 +58,7 @@ export const bookingController = (io: Server) => ({
     createBooking: async (req: Request, res: Response) => {
 
         try {
-            const { name, phone, email, size, startTime, language } = req.body;
+            const { name, phone, email, size, startTime, language, highTable } = req.body;
             const missingFields: string[] = [];
             if (!name) missingFields.push('name');
             if (!size) missingFields.push('size');
@@ -82,6 +83,7 @@ export const bookingController = (io: Server) => ({
                     size: guestSize,
                     startTime: requestedStart,
                     endTime: requestedEnd,
+                    highTable: highTable || false,
                     tables: {
                         connect: [] // Manager will assign tables manually
                     }

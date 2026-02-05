@@ -136,7 +136,10 @@ export const TableAssignmentPage: React.FC = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 font-medium">
                                     <div className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {dayjs(b.startTime).format('HH:mm')} - {dayjs(b.endTime).format('HH:mm')}</div>
-                                    <div className="flex items-center gap-1.5"><Users className="w-3 h-3" /> {b.size} guests</div>
+                                    <div className="flex items-center gap-1.5">
+                                        <Users className="w-3 h-3" /> {b.size} guests
+                                        {b.highTable && <span className="text-[9px] font-bold bg-indigo-50 text-indigo-600 px-1 rounded border border-indigo-100 ml-1">High</span>}
+                                    </div>
                                 </div>
                             </button>
                         ))

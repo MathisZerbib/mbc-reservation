@@ -48,6 +48,7 @@ model Booking {
   size      Int
   startTime DateTime
   endTime   DateTime
+  highTable Boolean @default(false)
   status    BookingStatus @default(CONFIRMED)
   tables    Table[]  @relation("BookingTables")
   createdAt DateTime @default(now())

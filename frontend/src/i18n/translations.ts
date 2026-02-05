@@ -30,6 +30,7 @@ export const TRANSLATIONS = {
         processing: 'Processing',
         error: 'Something went wrong.',
         back: 'Back',
+        high_table: 'Prefer High Table'
     },
     fr: {
         intro: 'Réservez votre table en quelques clics',
@@ -60,5 +61,6 @@ export const TRANSLATIONS = {
         processing: 'Traitement',
         error: 'Une erreur est survenue.',
         back: 'Retour',
+        high_table: 'Préférence table haute'
     }
 };

@@ -41,6 +41,7 @@ export const BookingWidget: React.FC = () => {
     name: '',
     phone: '',
     email: '',
+    highTable: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -370,6 +371,14 @@ export const BookingWidget: React.FC = () => {
                             placeholder={t.email}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3.5 text-slate-900 font-bold focus:border-indigo-500/50 transition-all outline-none text-sm"
                         />
+                        
+                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border-2 border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setFormData({...formData, highTable: !formData.highTable})}>
+                            <div className={clsx("w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all", formData.highTable ? "bg-indigo-600 border-indigo-600" : "border-slate-300 bg-white")}>
+                                {formData.highTable && <Check className="w-3 h-3 text-white stroke-4" />}
+                            </div>
+                            <span className="text-xs font-bold text-slate-600 select-none">{t.high_table}</span>
+                        </div>
+
                         <div className="flex gap-2 mt-2">
                           {[
                             { code: 'fr', flag: '🇫🇷', label: 'Français' },
@@ -544,7 +553,7 @@ export const BookingWidget: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.8 }}
-                    onClick={() => { setStep(1); setFormData({...formData, name: '', phone: '', email: ''}); setToken(null); }}
+                    onClick={() => { setStep(1); setFormData({...formData, name: '', phone: '', email: '', highTable: false}); setToken(null); }}
                     className="inline-flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors font-black text-[10px] uppercase tracking-[0.2em] cursor-pointer"
                   >
                     {t.new_res} <ArrowRight className="w-3 h-3" />
