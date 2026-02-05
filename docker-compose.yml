@@ -42,6 +42,20 @@ services:
       - /app/node_modules
     command: npm run dev -- --host
 
+  prisma-studio:
+    build: ./backend
+    ports:
+      - "5555:5555"
+    environment:
+      DATABASE_URL: "postgresql://zer:password@postgres:5432/restaurant_db"
+    depends_on:
+      - postgres
+      - backend
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npx prisma studio --port 5555 --browser none
+
 volumes:
   postgres_data:
 
