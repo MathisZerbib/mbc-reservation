@@ -7,7 +7,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const APP_NAME = 'MBC Restaurant';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-const GOOGLE_MAPS_REVIEW_URL = 'https://goo.gl/maps/example'; // TODO: Replace with actual link
+const GOOGLE_MAPS_REVIEW_URL = 'https://maps.app.goo.gl/i3thQjdrRsSruqNN9';
 
 const logoBuffer = fs.readFileSync(
     path.join(__dirname, '../../public/images/mbc-logo.png')
@@ -125,7 +125,7 @@ export const emailService = {
         }
 
         try {
-            await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: `Micro-brasserie de Chamonix <${FROM_EMAIL}>`,
                 to: booking.email,
                 subject: c.subject,
@@ -171,7 +171,12 @@ export const emailService = {
                     { filename: 'mbc-logo.png', content: logoBuffer, contentId: 'mbc-logo' },
                 ],
             });
-            console.log(`Confirmation email sent to ${booking.email}`);
+
+            if (error) {
+                console.error('Resend API returned error:', error);
+            } else {
+                console.log(`Confirmation email sent to ${booking.email}. ID: ${data?.id}`);
+            }
         } catch (error) {
             console.error('Failed to send confirmation email:', error);
         }
@@ -242,7 +247,7 @@ export const emailService = {
         };
         const c = content[lang as Lang] || content['fr'];
         try {
-            await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: `Micro-brasserie de Chamonix <${FROM_EMAIL}>`,
                 to: booking.email,
                 subject: c.subject,
@@ -278,7 +283,12 @@ export const emailService = {
                     },
                 ],
             });
-            console.log(`Feedback email sent to ${booking.email}`);
+
+            if (error) {
+                console.error('Resend API returned error:', error);
+            } else {
+                console.log(`Feedback email sent to ${booking.email}. ID: ${data?.id}`);
+            }
         } catch (error) {
             console.error('Failed to send feedback email:', error);
         }

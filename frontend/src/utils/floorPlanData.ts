@@ -74,18 +74,16 @@ export const FLOOR_PLAN_DATA: TableConfig[] = [
     { id: '19', x: 300, y: 240, width: 40, height: 40, shape: 'ROUND' },
 
     // --- CAPSULE BOOTHS (20-36) ---
-    // Top row
-    { id: '22', x: 400, y: 200, width: 120, height: 60, shape: 'CAPSULE' },
-    { id: '21', x: 400, y: 270, width: 120, height: 60, shape: 'CAPSULE' },
-    { id: '25', x: 530, y: 200, width: 120, height: 60, shape: 'CAPSULE' },
-    { id: '24', x: 530, y: 270, width: 120, height: 60, shape: 'CAPSULE' },
-    { id: '28', x: 660, y: 200, width: 120, height: 60, shape: 'CAPSULE' },
 
-    // Bottom row
     { id: '20', x: 400, y: 340, width: 120, height: 60, shape: 'CAPSULE' },
+    { id: '21', x: 400, y: 270, width: 120, height: 60, shape: 'CAPSULE' },
+    { id: '22', x: 400, y: 200, width: 120, height: 60, shape: 'CAPSULE' },
     { id: '23', x: 530, y: 340, width: 120, height: 60, shape: 'CAPSULE' },
+    { id: '24', x: 530, y: 270, width: 120, height: 60, shape: 'CAPSULE' },
+    { id: '25', x: 530, y: 200, width: 120, height: 60, shape: 'CAPSULE' },
     { id: '26', x: 660, y: 340, width: 120, height: 60, shape: 'CAPSULE' },
     { id: '27', x: 660, y: 270, width: 120, height: 60, shape: 'CAPSULE' },
+    { id: '28', x: 660, y: 200, width: 120, height: 60, shape: 'CAPSULE' },
 
     // 29
     { id: '29', x: 800, y: 270, width: 80, height: 80, shape: 'RECTANGULAR' },
