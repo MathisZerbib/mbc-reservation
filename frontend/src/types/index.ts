@@ -34,6 +34,7 @@ export interface CreateBookingPayload {
 export interface AvailabilityResponse {
     available: boolean;
     tables: Table[];
+    suggestions?: string[];
 }
 
 export interface Analytics {

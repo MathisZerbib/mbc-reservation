@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { BookingWidget } from '../components/BookingWidget';
-import userEvent from '@testing-library/user-event';
+
 import { useLanguage } from '../i18n/useLanguage';
 
 vi.mock('../i18n/useLanguage', () => ({
@@ -25,7 +25,7 @@ vi.mock('../i18n/useLanguage', () => ({
 });
 
 // Mock API calls
-global.fetch = vi.fn();
+globalThis.fetch = vi.fn();
 
 describe('BookingWidget', () => {
     it('renders the initial state correctly', () => {
@@ -36,7 +36,7 @@ describe('BookingWidget', () => {
 
     it('allows a user to select a date and see available times', async () => {
         // Mock API response for availability
-        (global.fetch as any).mockResolvedValueOnce({
+        (globalThis.fetch as any).mockResolvedValueOnce({
             ok: true,
             json: async () => ({
                 available: true,

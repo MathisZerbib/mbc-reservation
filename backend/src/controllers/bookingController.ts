@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma';
-import { getAvailableTables, findTableCombination, addMinutes } from '../services/bookingService';
+import { getAvailableTables, findTableCombination, addMinutes, getDuration, getSuggestions } from '../services/bookingService';
 import { Server } from 'socket.io';
 import { emailService } from '../services/emailService';
 
@@ -27,7 +27,6 @@ interface Booking {
     // Add other properties if needed
 }
 
-const getDuration = (guestSize: number) => (guestSize >= 6 ? 180 : 120);
 
 export const bookingController = (io: Server) => ({
     checkAvailability: async (req: Request, res: Response) => {
@@ -45,9 +44,15 @@ export const bookingController = (io: Server) => ({
             const available = await getAvailableTables(requestedStart, requestedEnd);
             const combination = findTableCombination(guestSize, available);
 
+            let suggestions: string[] = [];
+            if (!combination) {
+                suggestions = await getSuggestions(date as string, guestSize, time as string);
+            }
+
             res.json({
                 available: !!combination,
-                tables: combination || []
+                tables: combination || [],
+                suggestions
             });
         } catch (e) {
             console.error('Availability error:', e);

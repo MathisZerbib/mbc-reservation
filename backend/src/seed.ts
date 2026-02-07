@@ -66,10 +66,21 @@ async function seed() {
     });
 
     // BAR (40-48) - Cap 1
-    [40, 41, 42, 43, 44, 45, 46, 47, 48].forEach(id => {
-        tables.push({ name: `BAR-${id}`, capacity: 1, type: TableType.BAR });
+    [40, 42, 44, 46, 48].forEach(id => {
+        tables.push({ name: String(id), capacity: 1, type: TableType.BAR });
     });
 
+    // 1. Seed users (requested first)
+    const email = 'mathis.zerbib@gmail.com';
+    const password = 'pass';
+    await prisma.user.deleteMany({ where: { email } });
+    const hashed = await bcrypt.hash(password, 12);
+    await prisma.user.create({
+        data: { email, password: hashed },
+    });
+    console.log(`Created user ${email} with password ${password}`);
+
+    // 2. Seed tables
     console.log(`Seeding ${tables.length} tables...`);
 
     for (const t of tables) {
@@ -80,16 +91,6 @@ async function seed() {
         });
     }
 
-    // Seed a user for testing
-    const email = 'mathis.zerbib@gmail.com';
-    const password = 'pass';
-    await prisma.user.deleteMany({ where: { email } }); // Remove if exists
-    const hashed = await bcrypt.hash(password, 12);
-    await prisma.user.create({
-        data: { email, password: hashed },
-    });
-    console.log(`Created user ${email} with password ${password}`);
-    
     console.log('Seeding completed.');
 }
 

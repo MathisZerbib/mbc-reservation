@@ -19,7 +19,7 @@ export const TRANSLATIONS = {
         check: 'Check Availability',
         no_tables: 'No tables available for this time.',
         no_slots: 'No slots available for today',
-        date_passed: 'This date has already passed',
+        date_passed: 'This date has already passed, choose another date.',
         success_title: 'Booking Confirmed!',
         success_msg: 'We are excited to see you! A confirmation email has been sent.',
         res_info: 'Reservation Info',
@@ -30,7 +30,8 @@ export const TRANSLATIONS = {
         processing: 'Processing',
         error: 'Something went wrong.',
         back: 'Back',
-        high_table: 'Prefer High Table'
+        high_table: 'Prefer High Table',
+        suggested_slots: 'Available nearby times:'
     },
     fr: {
         intro: 'Réservez votre table en quelques clics',
@@ -50,7 +51,7 @@ export const TRANSLATIONS = {
         check: 'Vérifier disponibilité',
         no_tables: 'Aucune table disponible à cette heure.',
         no_slots: 'Aucune disponibilité pour aujourd\'hui',
-        date_passed: 'Cette date est passée',
+        date_passed: 'Cette date est passée, choisissez une autre date.',
         success_title: 'Réservation Confirmée\u00A0!',
         success_msg: 'On a hâte de vous voir\u00A0! Un email de confirmation vous a été envoyé.',
         res_info: 'Détails de réservation',
@@ -61,6 +62,7 @@ export const TRANSLATIONS = {
         processing: 'Traitement',
         error: 'Une erreur est survenue.',
         back: 'Retour',
-        high_table: 'Préférence table haute'
+        high_table: 'Préférence table haute',
+        suggested_slots: 'Horaires disponibles proches\u00A0:'
     }
 };

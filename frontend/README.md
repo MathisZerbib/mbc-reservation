@@ -71,3 +71,26 @@ export default defineConfig([
   },
 ])
 ```
+
+## Development & Testing
+
+### Simulating a Full Restaurant
+To test features like **Booking Suggestions**, you can use the `full-book` script.
+Due to port conflicts with local databases, Docker Postgres is mapped to port **5433**.
+
+#### Option 1: Run inside Docker (Recommended)
+This is the most reliable way as it uses the same network as the backend.
+```bash
+docker compose exec backend npm run full-book 2026-05-20
+```
+
+#### Option 2: Run locally
+Ensure your `backend/.env` has `DATABASE_URL` pointing to `localhost:5433`.
+```bash
+cd backend
+npm run full-book 2026-05-20
+```
+
+### Running Tests
+- Frontend: `npm run test` (Vitest + React Testing Library)
+- Backend: `npm test` (Vitest)

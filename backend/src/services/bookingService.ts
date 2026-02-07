@@ -4,6 +4,9 @@ import { ADJACENCY_MAP } from '../utils/adjacency';
 // Helper: Add minutes to date
 export const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60000);
 
+// Helper: Get duration based on guest size
+export const getDuration = (guestSize: number) => (guestSize >= 6 ? 180 : 120);
+
 export async function getAvailableTables(requestedStart: Date, requestedEnd: Date) {
     const buffer = 15;
     const allTables = await prisma.table.findMany();
@@ -125,4 +128,41 @@ export function findTableCombination(size: number, availableTables: any[]) {
     }
 
     return null;
+}
+
+export async function getSuggestions(date: string, size: number, requestedTime: string) {
+    const TIME_SLOTS = ['17:00', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
+    const suggestions: string[] = [];
+
+    // Sort slots by proximity to requested time
+    const requestedMinutes = timeToMinutes(requestedTime);
+    const sortedSlots = [...TIME_SLOTS].sort((a, b) => {
+        return Math.abs(timeToMinutes(a) - requestedMinutes) - Math.abs(timeToMinutes(b) - requestedMinutes);
+    });
+
+    for (const slot of sortedSlots) {
+        if (slot === requestedTime) continue;
+
+        const start = new Date(`${date}T${slot}`);
+        if (isNaN(start.getTime())) continue;
+
+        const duration = getDuration(size);
+        const end = addMinutes(start, duration);
+
+        const availableTables = await getAvailableTables(start, end);
+        const combination = findTableCombination(size, availableTables);
+
+        if (combination) {
+            suggestions.push(slot);
+        }
+
+        if (suggestions.length >= 4) break; // Suggest up to 4 closest slots
+    }
+
+    return suggestions.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+}
+
+function timeToMinutes(time: string) {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
 }

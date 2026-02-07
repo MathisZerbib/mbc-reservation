@@ -45,6 +45,7 @@ export const BookingWidget: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [token, setToken] = useState<string | null>(null);
 
   const nextStep = (next: number) => {
@@ -60,11 +61,13 @@ export const BookingWidget: React.FC = () => {
   const handleCheckAvailability = async () => {
     setLoading(true);
     setError('');
+    setSuggestions([]);
     try {
       const data = await api.checkAvailability(formData.date, formData.startTime || '', formData.size);
       if (data.available) {
         nextStep(3);
       } else {
+        setSuggestions(data.suggestions || []);
         setError(t.no_tables);
       }
     } catch {
@@ -312,9 +315,37 @@ export const BookingWidget: React.FC = () => {
                   </div>
 
                   {error && (
-                    <div className="bg-red-50 text-red-600 p-3 rounded-xl border border-red-100 flex items-center gap-2 text-[10px] font-bold">
-                        <ShieldCheck className="w-4 h-4 opacity-50" />
-                        {error}
+                    <div className="space-y-4">
+                        <div className="bg-red-50 text-red-600 p-3 rounded-xl border border-red-100 flex items-center gap-2 text-[10px] font-bold">
+                            <ShieldCheck className="w-4 h-4 opacity-50" />
+                            {error}
+                        </div>
+                        
+                        {suggestions.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.suggested_slots}</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {suggestions.map(s => (
+                                        <button
+                                            key={s}
+                                            onClick={() => {
+                                                setFormData({...formData, startTime: s});
+                                                setSuggestions([]);
+                                                setError('');
+                                                // Trigger check again or just set it? 
+                                                // Plan said "proceed to next step". Let's just set and maybe they hit check again?
+                                                // User prompt said "suggest a better spot ... to choose instead".
+                                                // I'll make it auto-check after clicking suggestion for better UX.
+                                                setTimeout(() => handleCheckAvailability(), 0);
+                                            }}
+                                            className="py-2.5 rounded-xl border-2 border-indigo-100 bg-white text-indigo-600 font-black text-sm hover:bg-indigo-50 transition-all cursor-pointer"
+                                        >
+                                            {s}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                   )}
 
