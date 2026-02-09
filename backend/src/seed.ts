@@ -71,8 +71,8 @@ async function seed() {
     });
 
     // 1. Seed users (requested first)
-    const email = 'mathis.zerbib@gmail.com';
-    const password = 'pass';
+    const email = 'admin@example.com';
+    const password = 'admin';
     await prisma.user.deleteMany({ where: { email } });
     const hashed = await bcrypt.hash(password, 12);
     await prisma.user.create({

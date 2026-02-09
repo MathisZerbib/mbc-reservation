@@ -53,7 +53,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
          <DatePicker 
            date={dayjs(date).toDate()} 
            setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
-           className="h-10 text-xs font-bold"
+           className="h-10 text-xs font-bold cursor-pointer"
          />
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">

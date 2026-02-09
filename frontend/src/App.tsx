@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { FloorPlan } from './components/FloorPlan';
 import { Agenda } from './components/Agenda';
@@ -11,11 +11,23 @@ import { LanguageProvider } from './i18n/LanguageContext';
 import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
+import { BookingsProvider } from './context/BookingsContext';
+import { Outlet } from 'react-router-dom';
 
 function AdminDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dateFromQuery = searchParams.get('date');
+  
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [selectedDate, setSelectedDate] = useState(dateFromQuery || dayjs().format('YYYY-MM-DD'));
   const [isQuickResOpen, setIsQuickResOpen] = useState(false);
+
+  // Update URL when date changes to keep it in sync
+  useEffect(() => {
+    if (selectedDate) {
+      setSearchParams({ date: selectedDate }, { replace: true });
+    }
+  }, [selectedDate, setSearchParams]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
@@ -35,7 +47,7 @@ function AdminDashboard() {
                         <span className="text-lg">+</span> Quick Res
                     </button>
                     <Link 
-                        to="/assign" 
+                        to={`/assign?date=${selectedDate}`} 
                         className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
                     >
                         Assign Tables
@@ -84,10 +96,12 @@ function App() {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/book" element={<BookingPage />} />
- <Route element={<ProtectedRoutes />}>
-          <Route path="/assign" element={<TableAssignmentPage />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        </Route>
+          <Route element={<ProtectedRoutes />}>
+            <Route element={<BookingsProvider><Outlet /></BookingsProvider>}>
+                <Route path="/assign" element={<TableAssignmentPage />} />
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            </Route>
+          </Route>
         </Routes>
       </BrowserRouter>
     </LanguageProvider>

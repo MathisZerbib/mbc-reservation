@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
 import { ChevronLeft, Save, Users, Clock } from 'lucide-react';
@@ -9,8 +10,11 @@ import { useBookingsContext } from '../context/useBookingsContext';
 
 export const TableAssignmentPage: React.FC = () => {
     const { bookings, refresh } = useBookingsContext();
+    const [searchParams] = useSearchParams();
+    const initialDate = searchParams.get('date') || dayjs().format('YYYY-MM-DD');
+    
     const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-    const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
+    const [date, setDate] = useState(initialDate);
     const [loading, setLoading] = useState(false);
     const [tempTables, setTempTables] = useState<string[]>([]);
 
@@ -98,7 +102,7 @@ export const TableAssignmentPage: React.FC = () => {
             <div className="w-96 bg-white border-r border-slate-200 flex flex-col shadow-xl z-10">
                 <div className="p-6 border-b border-slate-100 bg-slate-900 text-white">
                     <div className="flex items-center gap-2 mb-4">
-                        <a href="/admin/dashboard" className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                        <a href={`/admin/dashboard?date=${date}`} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
                             <ChevronLeft className="w-5 h-5" />
                         </a>
                         <h1 className="text-xl font-bold tracking-tight">Table Assignments</h1>
