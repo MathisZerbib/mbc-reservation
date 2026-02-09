@@ -36,12 +36,12 @@ export const FLOOR_PLAN_DATA: TableConfig[] = [
     { id: '1', x: 770, y: 50, width: 80, height: 80, shape: 'OCTAGONAL' },
 
     // --- LEFT COLUMN (100-105) ---
-    { id: '105', x: 20, y: 150, width: 50, height: 50, shape: 'OCTAGONAL' },
-    { id: '104', x: 20, y: 210, width: 50, height: 50, shape: 'OCTAGONAL' },
-    { id: '103', x: 20, y: 270, width: 50, height: 50, shape: 'OCTAGONAL' },
-    { id: '102', x: 20, y: 330, width: 50, height: 50, shape: 'OCTAGONAL' },
-    { id: '101', x: 20, y: 390, width: 50, height: 50, shape: 'OCTAGONAL' },
-    { id: '100', x: 20, y: 450, width: 50, height: 50, shape: 'OCTAGONAL' },
+    // { id: '105', x: 20, y: 150, width: 50, height: 50, shape: 'OCTAGONAL' },
+    // { id: '104', x: 20, y: 210, width: 50, height: 50, shape: 'OCTAGONAL' },
+    // { id: '103', x: 20, y: 270, width: 50, height: 50, shape: 'OCTAGONAL' },
+    // { id: '102', x: 20, y: 330, width: 50, height: 50, shape: 'OCTAGONAL' },
+    // { id: '101', x: 20, y: 390, width: 50, height: 50, shape: 'OCTAGONAL' },
+    // { id: '100', x: 20, y: 450, width: 50, height: 50, shape: 'OCTAGONAL' },
 
 
     // --- MIDDLE AREA (11, 12, 50-54) ---

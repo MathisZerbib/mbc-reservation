@@ -79,18 +79,22 @@ export const bookingController = (io: Server) => ({
             const duration = getDuration(guestSize);
             const requestedEnd = addMinutes(requestedStart, duration);
 
+            // AUTO-ASSIGNMENT LOGIC
+            const availableTables = await getAvailableTables(requestedStart, requestedEnd);
+            const combination = findTableCombination(guestSize, availableTables);
+
             const newBooking = await prisma.booking.create({
                 data: {
                     name: name,
                     phone: phone || null,
                     email: email || null,
-                    language: language || 'fr', // always a string
+                    language: language || 'fr',
                     size: guestSize,
                     startTime: requestedStart,
                     endTime: requestedEnd,
                     highTable: highTable || false,
                     tables: {
-                        connect: [] // Manager will assign tables manually
+                        connect: combination ? combination.map((t: any) => ({ id: t.id })) : []
                     }
                 }
             } as any);

@@ -104,7 +104,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                 </div>
                                 <button
                                     onClick={onClose}
-                                    className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600"
+                                    className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600 cursor-pointer"
                                 >
                                     <X className="w-5 h-5" />
                                 </button>
@@ -151,8 +151,8 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                                     type="button"
                                                     className={
                                                         formData.language === l.code
-                                                            ? 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-indigo-50 border-indigo-600 text-indigo-700'
-                                                            : 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                                            ? 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-indigo-50 border-indigo-600 text-indigo-700 cursor-pointer'
+                                                            : 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-white border-slate-100 text-slate-400 hover:border-slate-200 cursor-pointer'
                                                     }
                                                     onClick={() => setFormData({ ...formData, language: l.code })}
                                                 >

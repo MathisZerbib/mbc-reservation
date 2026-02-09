@@ -6,6 +6,7 @@ import { ChevronLeft, Save, Users, Clock } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
+import { calculateAffluence, affluenceClassNames } from '../utils/bookingUtils';
 import { useBookingsContext } from '../context/useBookingsContext';
 
 export const TableAssignmentPage: React.FC = () => {
@@ -17,6 +18,7 @@ export const TableAssignmentPage: React.FC = () => {
     const [date, setDate] = useState(initialDate);
     const [loading, setLoading] = useState(false);
     const [tempTables, setTempTables] = useState<string[]>([]);
+    const [hoveredTable, setHoveredTable] = useState<string | null>(null);
 
     const selectedBooking = bookings.find(b => b.id === selectedBookingId);
 
@@ -30,11 +32,15 @@ export const TableAssignmentPage: React.FC = () => {
 
     const filteredBookings = bookings.filter(b => 
         dayjs(b.startTime).format('YYYY-MM-DD') === date && 
-        b.status !== 'CANCELLED'
+        b.status !== 'CANCELLED' &&
+        b.status !== 'COMPLETED'
     );
     
-    const isReservedAnyTimeToday = (tableId: string) => {
-        return filteredBookings.some(b => b.tables.some(t => t.name === tableId));
+    const hasOtherReservationsToday = (tableId: string) => {
+        return filteredBookings.some(b => 
+            (!selectedBooking || b.id !== selectedBooking.id) && 
+            b.tables.some(t => t.name === tableId)
+        );
     };
 
     const isOccupiedByOthers = (tableId: string) => {
@@ -111,6 +117,8 @@ export const TableAssignmentPage: React.FC = () => {
                         date={dayjs(date).toDate()} 
                         setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
                         className="bg-slate-800 border-none text-white focus:ring-2 focus:ring-indigo-500 h-10 text-xs"
+                        modifiers={calculateAffluence(bookings)}
+                        modifiersClassNames={affluenceClassNames}
                     />
                 </div>
 
@@ -132,9 +140,12 @@ export const TableAssignmentPage: React.FC = () => {
                                 <div className="flex justify-between items-start mb-2">
                                     <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{b.name}</span>
                                     <span className={clsx(
-                                        "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
-                                        b.tables.length > 0 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"
+                                        "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border flex items-center gap-1",
+                                        b.tables.length > 0 
+                                            ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                                            : "bg-red-50 text-red-600 border-red-100 animate-pulse-subtle"
                                     )}>
+                                        {!b.tables || b.tables.length === 0 && <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />}
                                         {b.tables.length > 0 ? "Assigned" : "Unassigned"}
                                     </span>
                                 </div>
@@ -181,7 +192,7 @@ export const TableAssignmentPage: React.FC = () => {
                 <div className="p-8 pb-4 flex justify-between items-center">
                     <div>
                          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Interactive <span className="text-indigo-600">Assigner</span></h2>
-                         {selectedBooking && <p className="text-slate-500 font-medium">Assigning for <span className="text-slate-900 font-bold">{selectedBooking.name}</span> &middot; {selectedBooking.size} people</p>}
+                         {selectedBooking && <p className="text-slate-500 font-medium">Assigning for <span className="text-slate-900 font-bold">{selectedBooking.name}</span> &middot; {selectedBooking.size} people @ {dayjs(selectedBooking.startTime).format('HH:mm')}</p>}
                     </div>
                     <div className="flex gap-4">
                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-white border border-slate-300"></div> AVAILABLE</div>
@@ -204,42 +215,55 @@ export const TableAssignmentPage: React.FC = () => {
                             <rect width="100%" height="100%" fill="url(#dots)" />
 
                             {FLOOR_PLAN_DATA.map((table) => {
-                                const occupiedByOthers = selectedBooking 
-                                    ? isOccupiedByOthers(table.id) 
-                                    : isReservedAnyTimeToday(table.id);
+                                const occupiedByOthers = isOccupiedByOthers(table.id);
+                                const hasOtherRes = hasOtherReservationsToday(table.id);
                                 const isSelected = tempTables.includes(table.id);
+                                const isHovered = hoveredTable === table.id;
                                 
                                 return (
                                     <g 
                                         key={table.id} 
-                                        transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width/2}, ${table.height/2}) scale(${isSelected ? 1.05 : 1})`}
+                                        transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width/2}, ${table.height/2}) scale(${isSelected || isHovered ? 1.05 : 1})`}
                                         onClick={() => toggleTable(table.id)}
+                                        onMouseEnter={() => setHoveredTable(table.id)}
+                                        onMouseLeave={() => setHoveredTable(null)}
                                         className={clsx(
                                             "transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] select-none group",
-                                            occupiedByOthers ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                                            occupiedByOthers ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
                                         )}
                                         style={{ 
-                                          filter: 'url(#tableShadow)',
+                                          filter: isHovered && !occupiedByOthers ? 'drop-shadow(0 0 15px rgba(79, 70, 229, 0.6))' : 'url(#tableShadow)',
                                           transformBox: 'fill-box',
                                           transformOrigin: 'center'
                                         }}
                                     >
                                         <path 
                                             d={getShapePath(table)} 
-                                            fill={isSelected ? '#4f46e5' : occupiedByOthers ? '#94a3b8' : 'white'} 
-                                            stroke={isSelected ? '#3730a3' : '#e2e8f0'} 
+                                            fill={isSelected ? '#4f46e5' : occupiedByOthers ? '#cbd5e1' : 'white'} 
+                                            stroke={isSelected ? '#3730a3' : hasOtherRes ? '#cbd5e1' : '#e2e8f0'} 
                                             strokeWidth={isSelected ? '3' : '2'}
                                             className={clsx(
                                                 "transition-colors duration-200",
-                                                !occupiedByOthers && !isSelected && "group-hover:fill-emerald-50 group-hover:stroke-emerald-500"
+                                                !occupiedByOthers && !isSelected && "group-hover:fill-indigo-50 group-hover:stroke-indigo-300"
                                             )}
                                         />
+                                        
+                                        {/* Indicator for other reservations today */}
+                                        {hasOtherRes && !occupiedByOthers && !isSelected && (
+                                            <circle 
+                                                cx={table.width - 8} 
+                                                cy={8} 
+                                                r="4" 
+                                                className="fill-slate-300"
+                                            />
+                                        )}
+
                                         {occupiedByOthers && (
                                             <path 
-                                                d={`M 0 0 L ${table.width} ${table.height} M ${table.width} 0 L 0 ${table.height}`} 
-                                                stroke="#ef4444" 
-                                                strokeWidth="1" 
-                                                strokeOpacity="0.3"
+                                                d={`M ${table.width*0.2} ${table.height*0.2} L ${table.width*0.8} ${table.height*0.8} M ${table.width*0.8} ${table.height*0.2} L ${table.width*0.2} ${table.height*0.8}`} 
+                                                stroke="#94a3b8" 
+                                                strokeWidth="2" 
+                                                strokeOpacity="0.5"
                                                 pointerEvents="none"
                                             />
                                         )}

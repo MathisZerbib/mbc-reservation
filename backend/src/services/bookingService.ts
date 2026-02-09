@@ -47,7 +47,15 @@ const CLUSTERS = [
 export function findTableCombination(size: number, availableTables: any[]) {
     // 1. Try single table first (best fit)
     const single = availableTables
-        .filter(t => t.capacity >= size)
+        .filter(t => {
+            if (t.capacity < size) return false;
+            // CAPACITY SLACK LIMITS:
+            // - If party size is 1-2, don't auto-assign to tables of 4 or more.
+            // - If party size is 3-4, don't auto-assign to tables of 6 or more.
+            if (size <= 2 && t.capacity >= 4) return false;
+            if (size <= 4 && t.capacity >= 6) return false;
+            return true;
+        })
         .sort((a, b) => a.capacity - b.capacity)[0];
 
     if (single) return [single];

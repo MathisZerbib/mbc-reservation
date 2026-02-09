@@ -60,10 +60,10 @@ async function seed() {
         tables.push({ name: String(id), capacity: 4, type: TableType.RECTANGULAR });
     });
 
-    // 100-105 - Round/Octagonal small
-    [100, 101, 102, 103, 104, 105].forEach(id => {
-        tables.push({ name: String(id), capacity: 2, type: TableType.ROUND });
-    });
+    // // 100-105 - Round/Octagonal small
+    // [100, 101, 102, 103, 104, 105].forEach(id => {
+    //     tables.push({ name: String(id), capacity: 2, type: TableType.ROUND });
+    // });
 
     // BAR (40-48) - Cap 1
     [40, 42, 44, 46, 48].forEach(id => {

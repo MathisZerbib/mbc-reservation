@@ -17,9 +17,11 @@ interface DatePickerProps {
   placeholder?: string
   className?: string
   disabled?: (date: Date) => boolean
+  modifiers?: Record<string, any>
+  modifiersClassNames?: Record<string, string>
 }
 
-export function DatePicker({ date, setDate, placeholder = "Pick a date", className, disabled }: DatePickerProps) {
+export function DatePicker({ date, setDate, placeholder = "Pick a date", className, disabled, modifiers, modifiersClassNames }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -47,6 +49,8 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
           }}
           disabled={disabled}
           initialFocus
+          modifiers={modifiers}
+          modifiersClassNames={modifiersClassNames}
         />
       </PopoverContent>
     </Popover>

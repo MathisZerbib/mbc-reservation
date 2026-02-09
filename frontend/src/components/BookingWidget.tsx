@@ -78,6 +78,10 @@ export const BookingWidget: React.FC = () => {
   };
 
   const handleBook = async () => {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
+      setError('Name, Email and Phone are mandatory');
+      return;
+    }
     if (!token) {
         setError('Please complete the verification');
         return;
@@ -383,23 +387,26 @@ export const BookingWidget: React.FC = () => {
                     <div className="space-y-2">
                         <input 
                             type="text" 
+                            required
                             value={formData.name}
                             onChange={e => setFormData({...formData, name: e.target.value})}
-                            placeholder={t.name}
+                            placeholder={`${t.name} *`}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3.5 text-slate-900 font-bold focus:border-indigo-500/50 transition-all outline-none text-sm"
                         />
                         <input 
                             type="tel" 
+                            required
                             value={formData.phone}
                             onChange={e => setFormData({...formData, phone: e.target.value})}
-                            placeholder={t.phone}
+                            placeholder={`${t.phone} *`}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3.5 text-slate-900 font-bold focus:border-indigo-500/50 transition-all outline-none text-sm"
                         />
                         <input 
                             type="email" 
+                            required
                             value={formData.email}
                             onChange={e => setFormData({...formData, email: e.target.value})}
-                            placeholder={t.email}
+                            placeholder={`${t.email} *`}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3.5 text-slate-900 font-bold focus:border-indigo-500/50 transition-all outline-none text-sm"
                         />
                         
@@ -422,7 +429,7 @@ export const BookingWidget: React.FC = () => {
                               key={l.code}
                               type="button"
                               className={clsx(
-                                'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1',
+                                'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 cursor-pointer',
                                 formData.language === l.code ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
                               )}
                               onClick={() => setFormData({ ...formData, language: l.code as Lang })}
@@ -432,6 +439,7 @@ export const BookingWidget: React.FC = () => {
                           ))}
                         </div>
                     </div>
+
 
                     <div className="pt-2 flex justify-center scale-[0.85] sm:scale-100 origin-center sm:origin-left">
                         <Turnstile 
@@ -448,7 +456,7 @@ export const BookingWidget: React.FC = () => {
                     <button onClick={() => prevStep(2)} className="flex-1 bg-slate-100 text-slate-600 p-4 rounded-2xl font-black text-xs cursor-pointer">{t.back}</button>
                     <button 
                         onClick={handleBook}
-                        disabled={loading || !formData.name || !formData.phone || !token}
+                        disabled={loading || !formData.name.trim() || !formData.phone.trim() || !formData.email.trim() || !token}
                         className="flex-2 bg-emerald-600 text-white p-4 rounded-2xl font-black hover:bg-emerald-500 disabled:opacity-50 transition-all shadow-md text-xs flex items-center justify-center gap-2 cursor-pointer"
                     >
                         {loading ? `${t.processing}...` : <>{t.book} <Check className="w-4 h-4" /></>}
