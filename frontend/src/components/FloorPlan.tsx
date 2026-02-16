@@ -18,7 +18,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   selectedDate,
 }) => {
   const { bookings: allBookings } = useBookingsContext();
-  // Define Booking type based on usage
+  const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>('OVERVIEW');
 
   const bookings = allBookings.filter(
     (b: Booking) => dayjs(b.startTime).format("YYYY-MM-DD") === selectedDate,
@@ -30,14 +30,28 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(dayjs());
-    }, 60000); // Update every minute
+    }, 60000);
 
     return () => {
       clearInterval(interval);
     };
   }, []);
 
+  const getTableReservationCount = (tableId: string) => {
+    return bookings.filter((b: Booking) =>
+      b.tables?.some((t: { name: string }) => t.name === tableId) && b.status !== 'CANCELLED'
+    ).length;
+  };
+
   const getTableStatus = (tableId: string) => {
+    if (viewMode === 'OVERVIEW') {
+        const count = getTableReservationCount(tableId);
+        if (count === 0) return "FREE";
+        if (count === 1) return "ONE_RES";
+        if (count === 2) return "TWO_RES";
+        return "THREE_PLUS_RES";
+    }
+
     const tableBookings = bookings.filter((b: Booking) =>
       b.tables?.some((t: { name: string }) => t.name === tableId),
     );
@@ -101,51 +115,105 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
         return "#eab308";
       case "GREEN":
         return "#22c55e";
+      case "FREE":
+        return "#ffffff";
+      case "ONE_RES":
+        return "#dbeafe";
+      case "TWO_RES":
+        return "#93c5fd";
+      case "THREE_PLUS_RES":
+        return "#3b82f6";
       default:
         return "#e5e7eb";
     }
   };
+  
+  const getStrokeColor = (status: string, isHighlighted: boolean) => {
+      if (isHighlighted) return "#4f46e5";
+      
+      switch(status) {
+          case "FREE": return "#22c55e";
+          case "ONE_RES": return "#60a5fa";
+          case "TWO_RES": return "#3b82f6";
+          case "THREE_PLUS_RES": return "#1d4ed8";
+          default: return "white";
+      }
+  }
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">
-          Floor Plan{" "}
-          <span className="text-sm font-normal text-slate-400 ml-2">
-            Live View
-          </span>
-        </h2>
-        <div className="flex gap-4 text-xs font-bold tracking-wide">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></div>{" "}
-            AVAILABLE
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-yellow-400 shadow-sm shadow-yellow-400/50"></div>{" "}
-            RES (30m)
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></div>{" "}
-            OCCUPIED
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></div>{" "}
-            SOON AVAILABLE
-          </div>
+      {/* Header + Legend — OUTSIDE the SVG container */}
+      <div className="flex-none flex justify-between items-center m-2">
+        <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-slate-900">
+              Floor Plan
+            </h2>
+            <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                <button 
+                    onClick={() => setViewMode('LIVE')} 
+                    className={cn(
+                        "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all cursor-pointer", 
+                        viewMode === 'LIVE' ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-900"
+                    )}
+                >
+                    Live
+                </button>
+                <button 
+                    onClick={() => setViewMode('OVERVIEW')} 
+                    className={cn(
+                        "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all cursor-pointer", 
+                        viewMode === 'OVERVIEW' ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-900"
+                    )}
+                >
+                    Overview
+                </button>
+            </div>
         </div>
+
+        {viewMode === 'LIVE' ? (
+            <div className="flex gap-3 text-[10px] font-bold tracking-wide">
+              <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> AVAILABLE
+              </div>
+              <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div> RES (30m)
+              </div>
+              <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div> OCCUPIED
+              </div>
+              <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> SOON
+              </div>
+            </div>
+        ) : (
+            <div className="flex gap-3 text-[10px] font-bold tracking-wide">
+              <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full border-2 border-emerald-500 bg-white"></div> FREE
+              </div>
+              <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-100 border border-blue-300"></div> 1 RES
+              </div>
+              <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-300 border border-blue-500"></div> 2 RES
+              </div>
+              <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500 border border-blue-700"></div> 3+ RES
+              </div>
+            </div>
+        )}
       </div>
 
+      {/* SVG container — takes ALL remaining space */}
       <div
-        className="flex-1 bg-white rounded-3xl shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden relative group/floorplan"
+        className="flex-1 min-h-0 rounded-2xl border border-slate-100 overflow-hidden relative"
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
         }}
       >
         <svg
-          width="100%"
-          height="100%"
-          viewBox="0 0 1000 800"
+          viewBox="-20 20 920 670"
+          preserveAspectRatio="xMidYMid meet"
           className="w-full h-full bg-slate-50"
         >
           <defs>
@@ -175,6 +243,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
 
           {FLOOR_PLAN_DATA.map((table) => {
             const status = getTableStatus(table.id);
+            const count = getTableReservationCount(table.id);
             const tableBookings = bookings.filter((b: Booking) =>
               b.tables?.some((t: { name: string }) => t.name === table.id),
             );
@@ -201,8 +270,8 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                 <path
                   d={getShapePath(table)}
                   fill={getColor(status)}
-                  stroke={isHighlighted ? "#4f46e5" : "white"}
-                  strokeWidth={isHighlighted ? "4" : "3"}
+                  stroke={getStrokeColor(status, !!isHighlighted)}
+                  strokeWidth={isHighlighted ? "4" : viewMode === 'OVERVIEW' ? "2" : "3"}
                   className="transition-all duration-300"
                 />
                 <text
@@ -210,7 +279,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                   y={table.height / 2}
                   dy="0.35em"
                   textAnchor="middle"
-                  fill="white"
+                  fill={viewMode === 'OVERVIEW' && status === 'FREE' ? '#22c55e' : 'white'}
                   fontSize="14"
                   fontWeight="800"
                   pointerEvents="none"
@@ -219,6 +288,13 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                 >
                   {table.id}
                 </text>
+
+                {viewMode === 'OVERVIEW' && count > 0 && (
+                    <g transform={`translate(${table.width - 20}, -5)`}>
+                         <circle cx="10" cy="10" r="10" fill="#ef4444" stroke="white" strokeWidth="2" />
+                         <text x="10" y="10" dy="0.35em" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">{count}</text>
+                    </g>
+                )}
               </g>
             );
           })}
@@ -228,7 +304,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           <div
             className="absolute top-0 left-0 z-50 pointer-events-none bg-slate-900/90 backdrop-blur-xl text-white p-5 rounded-4xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/20 min-w-[240px] transition-opacity duration-300"
             style={{
-              transform: `translate3d(${mousePos.x + 20}px, ${mousePos.y + 20}px, 0) ${mousePos.x > 750 ? "translateX(-110%)" : ""}`,
+              transform: `translate3d(${mousePos.x + 20}px, ${mousePos.y + 20}px, 0) ${mousePos.y > 260 ? "translateY(-120%)" : ""}`,
               opacity: hoveredTable ? 1 : 0,
             }}
           >
@@ -237,7 +313,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                 Table {hoveredTable}
               </span>
               <span className="text-[10px] bg-indigo-500/30 text-indigo-300 border border-indigo-500/50 px-2.5 py-1 rounded-full font-black uppercase tracking-wider">
-                Live View
+                {viewMode} Mode
               </span>
             </div>
 
@@ -310,15 +386,15 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
             </div>
           </div>
         )}
-
-        <div className="absolute bottom-6 right-6 flex flex-col gap-2">
-          <button className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold transition-all active:scale-95 cursor-pointer">
+{/* 
+        <div className="absolute bottom-4 right-4 flex flex-col gap-2">
+          <button className="w-9 h-9 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold transition-all active:scale-95 cursor-pointer">
             +
           </button>
-          <button className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold transition-all active:scale-95 cursor-pointer">
+          <button className="w-9 h-9 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold transition-all active:scale-95 cursor-pointer">
             -
           </button>
-        </div>
+        </div> */}
       </div>
     </div>
   );

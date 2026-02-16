@@ -1,25 +1,11 @@
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { Request, Response } from 'express';
 import { bookingController } from '../controllers/bookingController';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/prisma'; // Real prisma
 import { emailService } from './emailService';
+import { FLOOR_PLAN_DATA, getCapacity } from '../utils/floorPlanData';
 
-// Mock dependencies
-vi.mock('../lib/prisma', () => ({
-    prisma: {
-        booking: {
-            create: vi.fn(),
-            update: vi.fn(),
-            findUnique: vi.fn(),
-            findMany: vi.fn(),
-        },
-        table: {
-            findMany: vi.fn(),
-        },
-    },
-}));
-
+// Only mock email service to avoid sending real emails
 vi.mock('./emailService', () => ({
     emailService: {
         sendConfirmationEmail: vi.fn(),
@@ -27,149 +13,170 @@ vi.mock('./emailService', () => ({
     },
 }));
 
-vi.mock('./bookingService', () => ({
-    getAvailableTables: vi.fn().mockResolvedValue([]),
-    findTableCombination: vi.fn().mockReturnValue([]),
-    addMinutes: (d: Date, m: number) => new Date(d.getTime() + m * 60000),
-}));
+// We do NOT mock bookingService or prisma anymore. We test the Full Flow.
 
-describe('bookingController Integration', () => {
+describe('bookingController Integration (Real DB)', () => {
     let req: Partial<Request>;
     let res: Partial<Response>;
     let json: any;
     let status: any;
     let io: any;
 
-    beforeEach(() => {
+    beforeAll(async () => {
+        // CLEANUP & SEED
+        await prisma.booking.deleteMany();
+        await prisma.table.deleteMany();
+
+        for (const t of FLOOR_PLAN_DATA) {
+            await prisma.table.create({ 
+                data: { 
+                    name: t.id,
+                    capacity: getCapacity(t),
+                    type: t.shape === 'BAR' ? 'BAR' : 'RECTANGULAR',
+                    x: t.x,
+                    y: t.y
+                } 
+            });
+        }
+    });
+
+    afterAll(async () => {
+        await prisma.booking.deleteMany();
+        await prisma.table.deleteMany();
+    });
+
+    beforeEach(async () => {
+        // Reset bookings only
+        await prisma.booking.deleteMany();
         vi.clearAllMocks();
 
         json = vi.fn();
         status = vi.fn().mockReturnValue({ json });
         res = { json, status };
-
-        // Mock Socket.IO
         io = { emit: vi.fn() };
     });
 
     describe('createBooking (Quick Reservation)', () => {
-        it('should create a booking successfully and send confirmation email', async () => {
+        it('should create a booking successfully in DB and assign a real table', async () => {
             req = {
                 body: {
                     name: 'John Doe',
                     phone: '123456789',
                     email: 'john@example.com',
-                    size: '4', // coming as string from form-data often, or JSON number. Controller parses it.
-                    startTime: '2026-05-20T19:00:00.000Z',
+                    size: '2', // requesting 2 people
+                    startTime: new Date().toISOString(), // Immediate booking (assuming avail)
                     language: 'en',
                     highTable: false
                 }
             };
-
-            const mockCreatedBooking = {
-                id: 'booking-123',
-                ...req.body,
-                size: 4,
-                startTime: new Date('2026-05-20T19:00:00.000Z'),
-                email: 'john@example.com'
-            };
-
-            (prisma.booking.create as any).mockResolvedValue(mockCreatedBooking);
+            
+            // NOTE: We need a future date to ensure availability isn't blocked by "past" logic? 
+            // Or just use tomorrow 19:00
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(19, 0, 0, 0);
+            req.body.startTime = tomorrow.toISOString();
 
             await bookingController(io).createBooking(req as Request, res as Response);
 
-            expect(prisma.booking.create).toHaveBeenCalled();
-            expect(emailService.sendConfirmationEmail).toHaveBeenCalledWith(mockCreatedBooking);
-            expect(io.emit).toHaveBeenCalledWith('booking-update', { type: 'new', booking: mockCreatedBooking });
-            expect(json).toHaveBeenCalledWith(mockCreatedBooking);
+            // 1. Check HTTP Response
+            expect(json).toHaveBeenCalled();
+            const createdBooking = json.mock.calls[0][0];
+            expect(createdBooking).toHaveProperty('id');
+            expect(createdBooking.name).toBe('John Doe');
+            
+            // 2. Check DB side-effects
+            const dbBooking = await prisma.booking.findUnique({
+                where: { id: createdBooking.id },
+                include: { tables: true }
+            });
+            expect(dbBooking).toBeDefined();
+            expect(dbBooking?.tables.length).toBeGreaterThan(0); // Should have auto-assigned a table!
+            
+            // 3. Check Email & Socket
+            expect(emailService.sendConfirmationEmail).toHaveBeenCalled();
+            expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'new' }));
         });
 
         it('should return 400 if missing required fields', async () => {
             req = {
                 body: {
-                    name: 'John Doe',
-                    // Missing size and startTime
+                    name: 'Bad Request',
+                    // Missing size/time
                 }
             };
-
             await bookingController(io).createBooking(req as Request, res as Response);
-
             expect(status).toHaveBeenCalledWith(400);
             expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Missing fields' }));
-            expect(prisma.booking.create).not.toHaveBeenCalled();
         });
     });
 
-    describe('updateAssignment (Assign Tables)', () => {
-        it('should update booking with assigned tables', async () => {
+    describe('updateAssignment (Manual Override)', () => {
+        it('should manually re-assign tables from existing floor plan', async () => {
+            // 1. Create a booking first
+            const existing = await prisma.booking.create({
+                data: {
+                    name: 'Manual Mover',
+                    size: 2,
+                    startTime: new Date(),
+                    endTime: new Date(),
+                    language: 'en',
+                    tables: { connect: { name: '30' } } // Connect to '30' initially
+                }
+            });
+
+            // 2. Request to move to '10' and '9'
             req = {
-                params: { id: 'booking-123' },
+                params: { id: existing.id },
                 body: { tableNames: ['10', '9'] }
             };
 
-            const mockTables = [
-                { id: 1, name: '10' },
-                { id: 2, name: '9' }
-            ];
-
-            (prisma.table.findMany as any).mockResolvedValue(mockTables);
-            (prisma.booking.update as any).mockResolvedValue({}); // update result typically ignored for return, we fetch again or return object
-
-            const mockUpdatedBooking = {
-                id: 'booking-123',
-                tables: mockTables
-            };
-            (prisma.booking.findUnique as any).mockResolvedValue(mockUpdatedBooking);
-
             await bookingController(io).updateAssignment(req as Request, res as Response);
 
-            expect(prisma.table.findMany).toHaveBeenCalledWith({ where: { name: { in: ['10', '9'] } } });
-            expect(prisma.booking.update).toHaveBeenCalledWith(expect.objectContaining({
-                where: { id: 'booking-123' },
-                data: expect.objectContaining({
-                    tables: {
-                        set: [],
-                        connect: [{ id: 1 }, { id: 2 }]
-                    }
-                })
-            }));
-            expect(io.emit).toHaveBeenCalledWith('booking-update', { type: 'update', booking: mockUpdatedBooking });
-            expect(json).toHaveBeenCalledWith(mockUpdatedBooking);
+            // 3. Verify in DB
+            const updated = await prisma.booking.findUnique({
+                where: { id: existing.id },
+                include: { tables: true }
+            });
+            
+            const tableNames = updated?.tables.map((t: { name: string }) => t.name).sort();
+            expect(tableNames).toEqual(['10', '9'].sort());
+            
+            expect(json).toHaveBeenCalled();
+            expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'update' }));
         });
     });
 
     describe('cancelBooking', () => {
-        it('should cancel a booking and notify via socket', async () => {
-            req = {
-                params: { id: 'booking-123' }
-            };
-
-            const mockCancelledBooking = {
-                id: 'booking-123',
-                status: 'CANCELLED',
-                tables: []
-            };
-
-            (prisma.booking.update as any).mockResolvedValue({ id: 'booking-123', status: 'CANCELLED' });
-            (prisma.booking.findUnique as any).mockResolvedValue(mockCancelledBooking);
-
-            await bookingController(io).cancelBooking(req as Request, res as Response);
-
-            expect(prisma.booking.update).toHaveBeenCalledWith({
-                where: { id: 'booking-123' },
-                data: { status: 'CANCELLED' }
+        it('should cancel a booking in DB', async () => {
+             const existing = await prisma.booking.create({
+                data: {
+                    name: 'To Cancel',
+                    size: 2,
+                    startTime: new Date(),
+                    endTime: new Date(),
+                    language: 'en',
+                    status: 'CONFIRMED'
+                }
             });
-            expect(io.emit).toHaveBeenCalledWith('booking-update', { type: 'update', booking: mockCancelledBooking });
-            expect(json).toHaveBeenCalledWith(mockCancelledBooking);
-        });
 
-        it('should handle errors gracefully', async () => {
-            req = { params: { id: 'unknown-id' } };
-            (prisma.booking.update as any).mockRejectedValue(new Error('Record not found'));
+            req = { params: { id: existing.id } };
 
             await bookingController(io).cancelBooking(req as Request, res as Response);
 
-            expect(status).toHaveBeenCalledWith(500);
-            expect(json).toHaveBeenCalledWith({ error: 'Failed to cancel booking' });
+            const dbBooking = await prisma.booking.findUnique({ where: { id: existing.id } });
+            expect(dbBooking?.status).toBe('CANCELLED');
+            
+            expect(json).toHaveBeenCalled();
+        });
+        
+        it('should return 500/Error if ID not found (prisma throws)', async () => {
+             req = { params: { id: 'non-existent-uuid' } };
+             // Prisma throws "Record to update not found." usually
+             
+             await bookingController(io).cancelBooking(req as Request, res as Response);
+             
+             expect(status).toHaveBeenCalledWith(500);
         });
     });
 });

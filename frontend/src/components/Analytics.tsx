@@ -56,7 +56,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
   );
 
   return (
-    <div className="grid grid-cols-3 gap-4 mb-8">
+    <div className="grid grid-cols-3 gap-4 mb-2">
        <Card 
             label="Total Bookings" 
             value={data?.totalBookings ?? 0} 

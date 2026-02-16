@@ -17,8 +17,9 @@ export const useBookings = () => {
             const data = await api.fetchBookings();
             const sorted = data.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
             setBookings(sorted);
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'An unknown error occurred';
+            setError(message);
         } finally {
             setLoading(false);
         }

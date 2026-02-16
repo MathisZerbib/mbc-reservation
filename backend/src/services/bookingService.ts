@@ -1,11 +1,14 @@
 import { prisma } from '../lib/prisma';
 import { ADJACENCY_MAP } from '../utils/adjacency';
 
+// Core booking logic and availability checks
+export const LAST_SEATING = '22:00';
+
 // Helper: Add minutes to date
 export const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60000);
 
 // Helper: Get duration based on guest size
-export const getDuration = (guestSize: number) => (guestSize >= 6 ? 180 : 120);
+export const getDuration = (guestSize: number) => (guestSize >= 6 ? 120 : 120);
 
 export async function getAvailableTables(requestedStart: Date, requestedEnd: Date) {
     const buffer = 15;
@@ -139,7 +142,7 @@ export function findTableCombination(size: number, availableTables: any[]) {
 }
 
 export async function getSuggestions(date: string, size: number, requestedTime: string) {
-    const TIME_SLOTS = ['17:00', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
+    const TIME_SLOTS = ['17:00', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30'];
     const suggestions: string[] = [];
 
     // Sort slots by proximity to requested time
