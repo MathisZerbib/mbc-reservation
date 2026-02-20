@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { FloorPlan } from './components/FloorPlan';
 import { Agenda } from './components/Agenda';
@@ -11,18 +11,30 @@ import { LanguageProvider } from './i18n/LanguageContext';
 import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
+import { BookingsProvider } from './context/BookingsContext';
+import { Outlet } from 'react-router-dom';
 
 function AdminDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dateFromQuery = searchParams.get('date');
+  
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [selectedDate, setSelectedDate] = useState(dateFromQuery || dayjs().format('YYYY-MM-DD'));
   const [isQuickResOpen, setIsQuickResOpen] = useState(false);
 
+  // Update URL when date changes to keep it in sync
+  useEffect(() => {
+    if (selectedDate) {
+      setSearchParams({ date: selectedDate }, { replace: true });
+    }
+  }, [selectedDate, setSearchParams]);
+
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-400 mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-4rem)]">
+    <div className="min-h-screen bg-slate-50 p-4 h-screen overflow-hidden">
+      <div className="max-w-400 mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-2rem)]">
         {/* Left Column: Floor Plan + Analytics */}
-        <div className="lg:col-span-8 flex flex-col gap-8 h-full">
-            <header className="flex justify-between items-end">
+        <div className="lg:col-span-9 flex flex-col gap-4 h-full overflow-hidden">
+            <header className="flex justify-between items-end flex-none">
                 <div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">MBC <span className="text-slate-400">Manager</span></h1>
                    <p className="text-slate-500 font-medium">{dayjs(selectedDate).format('dddd, D MMM YYYY')}</p>
@@ -35,7 +47,7 @@ function AdminDashboard() {
                         <span className="text-lg">+</span> Quick Res
                     </button>
                     <Link 
-                        to="/assign" 
+                        to={`/assign?date=${selectedDate}`} 
                         className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
                     >
                         Assign Tables
@@ -47,14 +59,14 @@ function AdminDashboard() {
                  <Analytics date={selectedDate} />
             </div>
 
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-hidden relative rounded-3xl bg-white shadow-sm border border-slate-200">
                 <FloorPlan hoveredBookingId={hoveredBookingId} selectedDate={selectedDate} />
             </div>
         </div>
 
         {/* Right Column: Agenda */}
-        <div className="lg:col-span-4 flex flex-col gap-8 h-full">
-            <div className="flex-1 min-h-0">
+        <div className="lg:col-span-3 flex flex-col gap-4 h-full min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-2">
                  <Agenda 
                     setHoveredBookingId={setHoveredBookingId} 
                     date={selectedDate}
@@ -84,10 +96,12 @@ function App() {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/book" element={<BookingPage />} />
- <Route element={<ProtectedRoutes />}>
-          <Route path="/assign" element={<TableAssignmentPage />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        </Route>
+          <Route element={<ProtectedRoutes />}>
+            <Route element={<BookingsProvider><Outlet /></BookingsProvider>}>
+                <Route path="/assign" element={<TableAssignmentPage />} />
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            </Route>
+          </Route>
         </Routes>
       </BrowserRouter>
     </LanguageProvider>

@@ -1,3 +1,4 @@
+import * as React from "react"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 
@@ -16,11 +17,15 @@ interface DatePickerProps {
   placeholder?: string
   className?: string
   disabled?: (date: Date) => boolean
+  modifiers?: Record<string, any>
+  modifiersClassNames?: Record<string, string>
 }
 
-export function DatePicker({ date, setDate, placeholder = "Pick a date", className, disabled }: DatePickerProps) {
+export function DatePicker({ date, setDate, placeholder = "Pick a date", className, disabled, modifiers, modifiersClassNames }: DatePickerProps) {
+  const [open, setOpen] = React.useState(false);
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant={"outline"}
@@ -38,9 +43,14 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
         <Calendar
           mode="single"
           selected={date}
-          onSelect={setDate}
+          onSelect={(d) => {
+            setDate(d);
+            setOpen(false);
+          }}
           disabled={disabled}
           initialFocus
+          modifiers={modifiers}
+          modifiersClassNames={modifiersClassNames}
         />
       </PopoverContent>
     </Popover>

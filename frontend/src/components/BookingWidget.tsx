@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, 
@@ -21,7 +21,7 @@ import type { Lang } from '../i18n/translations';
 import { useLanguage } from '../i18n/useLanguage';
 
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
-const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];
+const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
 export const BookingWidget: React.FC = () => {
     const { lang, setLang, t } = useLanguage();
@@ -41,10 +41,34 @@ export const BookingWidget: React.FC = () => {
     name: '',
     phone: '',
     email: '',
+    highTable: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [token, setToken] = useState<string | null>(null);
+  const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
+  const [fetchingAvailability, setFetchingAvailability] = useState(false);
+
+  useEffect(() => {
+    const fetchDaily = async () => {
+        if (!formData.date || !formData.size) return;
+        setFetchingAvailability(true);
+        try {
+            const data = await api.getDailyAvailability(formData.date, formData.size);
+            const map: Record<string, boolean> = {};
+            data.forEach(item => {
+                map[item.time] = item.available;
+            });
+            setAvailableTimes(map);
+        } catch (e) {
+            console.error('Failed to fetch daily availability', e);
+        } finally {
+            setFetchingAvailability(false);
+        }
+    };
+    fetchDaily();
+  }, [formData.date, formData.size]);
 
   const nextStep = (next: number) => {
     setDirection(1);
@@ -59,11 +83,13 @@ export const BookingWidget: React.FC = () => {
   const handleCheckAvailability = async () => {
     setLoading(true);
     setError('');
+    setSuggestions([]);
     try {
       const data = await api.checkAvailability(formData.date, formData.startTime || '', formData.size);
       if (data.available) {
         nextStep(3);
       } else {
+        setSuggestions(data.suggestions || []);
         setError(t.no_tables);
       }
     } catch {
@@ -74,6 +100,10 @@ export const BookingWidget: React.FC = () => {
   };
 
   const handleBook = async () => {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
+      setError('Name, Email and Phone are mandatory');
+      return;
+    }
     if (!token) {
         setError('Please complete the verification');
         return;
@@ -286,22 +316,28 @@ export const BookingWidget: React.FC = () => {
                             <div className="grid grid-cols-3 gap-2">
                                 {TIME_SLOTS.map(t => {
                                     const isPassed = dayjs(`${formData.date} ${t}`).isBefore(dayjs());
+                                    const isAvailable = availableTimes[t] !== false; // Default to true while loading for better UX, but gray out if explicitly false
+                                    const isDisabled = isPassed || (!fetchingAvailability && !isAvailable);
+
                                     return (
                                         <button
                                             key={t}
                                             type="button"
-                                            disabled={isPassed}
+                                            disabled={isDisabled}
                                             onClick={() => setFormData({...formData, startTime: t})}
                                             className={clsx(
-                                                "py-2.5 rounded-xl border-2 font-black transition-all text-sm cursor-pointer",
+                                                "py-2.5 rounded-xl border-2 font-black transition-all text-sm relative cursor-pointer",
                                                 formData.startTime === t 
-                                                    ? "bg-indigo-600 border-indigo-600 text-white" 
-                                                    : isPassed
-                                                        ? "bg-slate-50 border-transparent text-slate-300 opacity-40 cursor-not-allowed"
-                                                        : "bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100"
+                                                    ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200" 
+                                                    : isDisabled
+                                                        ? "bg-slate-50 border-slate-100 text-slate-300 opacity-40 cursor-not-allowed select-none"
+                                                        : "bg-white border-slate-100 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30"
                                             )}
                                         >
                                             {t}
+                                            {!fetchingAvailability && !isAvailable && !isPassed && (
+                                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-400 rounded-full border border-white shadow-xs"></div>
+                                            )}
                                         </button>
                                     );
                                 })}
@@ -311,13 +347,41 @@ export const BookingWidget: React.FC = () => {
                   </div>
 
                   {error && (
-                    <div className="bg-red-50 text-red-600 p-3 rounded-xl border border-red-100 flex items-center gap-2 text-[10px] font-bold">
-                        <ShieldCheck className="w-4 h-4 opacity-50" />
-                        {error}
+                    <div className="space-y-4">
+                        <div className="bg-red-50 text-red-600 p-3 rounded-xl border border-red-100 flex items-center gap-2 text-[10px] font-bold">
+                            <ShieldCheck className="w-4 h-4 opacity-50" />
+                            {error}
+                        </div>
+                        
+                        {suggestions.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.suggested_slots}</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {suggestions.map(s => (
+                                        <button
+                                            key={s}
+                                            onClick={() => {
+                                                setFormData({...formData, startTime: s});
+                                                setSuggestions([]);
+                                                setError('');
+                                                // Trigger check again or just set it? 
+                                                // Plan said "proceed to next step". Let's just set and maybe they hit check again?
+                                                // User prompt said "suggest a better spot ... to choose instead".
+                                                // I'll make it auto-check after clicking suggestion for better UX.
+                                                setTimeout(() => handleCheckAvailability(), 0);
+                                            }}
+                                            className="py-2.5 rounded-xl border-2 border-indigo-100 bg-white text-indigo-600 font-black text-sm hover:bg-indigo-50 transition-all cursor-pointer"
+                                        >
+                                            {s}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                   )}
 
-                  <div className="flex gap-3 pt-2">
+                    <div className="flex gap-3 pt-2">
                     <button 
                         onClick={() => prevStep(1)} 
                         className="flex-1 bg-slate-100 text-slate-600 p-4 rounded-2xl font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5 text-xs group cursor-pointer"
@@ -326,10 +390,10 @@ export const BookingWidget: React.FC = () => {
                     </button>
                     <button 
                         onClick={handleCheckAvailability}
-                        disabled={loading || !formData.startTime || dayjs(`${formData.date} ${formData.startTime}`).isBefore(dayjs())}
+                        disabled={loading || fetchingAvailability || !formData.startTime || dayjs(`${formData.date} ${formData.startTime}`).isBefore(dayjs()) || (availableTimes[formData.startTime] === false)}
                         className="flex-2 bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 text-xs cursor-pointer"
                     >
-                        {loading ? <div className="loading-dots italic">{t.checking}</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}
+                        {loading || fetchingAvailability ? <div className="loading-dots italic">{t.checking || 'Checking...'}</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}
                     </button>
                   </div>
                 </motion.div>
@@ -351,25 +415,36 @@ export const BookingWidget: React.FC = () => {
                     <div className="space-y-2">
                         <input 
                             type="text" 
+                            required
                             value={formData.name}
                             onChange={e => setFormData({...formData, name: e.target.value})}
-                            placeholder={t.name}
+                            placeholder={`${t.name} *`}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3.5 text-slate-900 font-bold focus:border-indigo-500/50 transition-all outline-none text-sm"
                         />
                         <input 
                             type="tel" 
+                            required
                             value={formData.phone}
                             onChange={e => setFormData({...formData, phone: e.target.value})}
-                            placeholder={t.phone}
+                            placeholder={`${t.phone} *`}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3.5 text-slate-900 font-bold focus:border-indigo-500/50 transition-all outline-none text-sm"
                         />
                         <input 
                             type="email" 
+                            required
                             value={formData.email}
                             onChange={e => setFormData({...formData, email: e.target.value})}
-                            placeholder={t.email}
+                            placeholder={`${t.email} *`}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3.5 text-slate-900 font-bold focus:border-indigo-500/50 transition-all outline-none text-sm"
                         />
+                        
+                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border-2 border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setFormData({...formData, highTable: !formData.highTable})}>
+                            <div className={clsx("w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all", formData.highTable ? "bg-indigo-600 border-indigo-600" : "border-slate-300 bg-white")}>
+                                {formData.highTable && <Check className="w-3 h-3 text-white stroke-4" />}
+                            </div>
+                            <span className="text-xs font-bold text-slate-600 select-none">{t.high_table}</span>
+                        </div>
+
                         <div className="flex gap-2 mt-2">
                           {[
                             { code: 'fr', flag: '🇫🇷', label: 'Français' },
@@ -382,7 +457,7 @@ export const BookingWidget: React.FC = () => {
                               key={l.code}
                               type="button"
                               className={clsx(
-                                'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1',
+                                'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 cursor-pointer',
                                 formData.language === l.code ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
                               )}
                               onClick={() => setFormData({ ...formData, language: l.code as Lang })}
@@ -392,6 +467,7 @@ export const BookingWidget: React.FC = () => {
                           ))}
                         </div>
                     </div>
+
 
                     <div className="pt-2 flex justify-center scale-[0.85] sm:scale-100 origin-center sm:origin-left">
                         <Turnstile 
@@ -408,7 +484,7 @@ export const BookingWidget: React.FC = () => {
                     <button onClick={() => prevStep(2)} className="flex-1 bg-slate-100 text-slate-600 p-4 rounded-2xl font-black text-xs cursor-pointer">{t.back}</button>
                     <button 
                         onClick={handleBook}
-                        disabled={loading || !formData.name || !formData.phone || !token}
+                        disabled={loading || !formData.name.trim() || !formData.phone.trim() || !formData.email.trim() || !token}
                         className="flex-2 bg-emerald-600 text-white p-4 rounded-2xl font-black hover:bg-emerald-500 disabled:opacity-50 transition-all shadow-md text-xs flex items-center justify-center gap-2 cursor-pointer"
                     >
                         {loading ? `${t.processing}...` : <>{t.book} <Check className="w-4 h-4" /></>}
@@ -544,7 +620,7 @@ export const BookingWidget: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.8 }}
-                    onClick={() => { setStep(1); setFormData({...formData, name: '', phone: '', email: ''}); setToken(null); }}
+                    onClick={() => { setStep(1); setFormData({...formData, name: '', phone: '', email: '', highTable: false}); setToken(null); }}
                     className="inline-flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors font-black text-[10px] uppercase tracking-[0.2em] cursor-pointer"
                   >
                     {t.new_res} <ArrowRight className="w-3 h-3" />

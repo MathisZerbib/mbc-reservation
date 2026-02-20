@@ -15,6 +15,7 @@ export interface Booking {
     size: number;
     startTime: string;
     endTime: string;
+    highTable: boolean;
     status: BookingStatus;
     tables: Table[];
 }
@@ -25,6 +26,7 @@ export interface CreateBookingPayload {
     email?: string;
     size: number;
     language?: string;
+    highTable?: boolean;
     startTime: string;
 }
 
@@ -32,6 +34,7 @@ export interface CreateBookingPayload {
 export interface AvailabilityResponse {
     available: boolean;
     tables: Table[];
+    suggestions?: string[];
 }
 
 export interface Analytics {
@@ -39,4 +42,8 @@ export interface Analytics {
     turnover: number;
     peakHour: string;
     growth: string; // e.g. "+12%"
+}
+export interface DailyAvailability {
+    time: string;
+    available: boolean;
 }

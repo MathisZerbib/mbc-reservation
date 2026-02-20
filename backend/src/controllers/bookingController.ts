@@ -1,32 +1,21 @@
 import { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma';
-import { getAvailableTables, findTableCombination, addMinutes } from '../services/bookingService';
+import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions, createReservation } from '../services/bookingService';
 import { Server } from 'socket.io';
 import { emailService } from '../services/emailService';
+import { Table, Booking } from '../types/booking';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 
-// Interfaces for types
-interface Table {
-    id: number;
-    name: string;
-    // Add other properties if needed
-}
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
-interface Booking {
-    id: string;
-    name: string;
-    phone?: string | null;
-    email?: string | null;
-    language: string;
-    size: number;
-    startTime: Date | string;
-    endTime: Date | string;
-    status?: string;
-    tables?: Table[];
-    // Add other properties if needed
-}
+const RESTAURANT_TZ = 'Europe/Paris';
 
-const getDuration = (guestSize: number) => (guestSize >= 6 ? 180 : 120);
+
+
 
 export const bookingController = (io: Server) => ({
     checkAvailability: async (req: Request, res: Response) => {
@@ -35,18 +24,24 @@ export const bookingController = (io: Server) => ({
             if (!date || !time || !size) return res.status(400).json({ error: 'Missing parameters' });
 
             const guestSize = parseInt(size as string);
-            const requestedStart = new Date(`${date}T${time}`);
+            // Parse requested time specifically in the restaurant's timezone
+            const requestedStart = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ).toDate();
             if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
-            const duration = getDuration(guestSize);
-            const requestedEnd = addMinutes(requestedStart, duration);
+            const requestedEnd = addMinutes(requestedStart, RESERVATION_DURATION);
 
             const available = await getAvailableTables(requestedStart, requestedEnd);
             const combination = findTableCombination(guestSize, available);
 
+            let suggestions: string[] = [];
+            if (!combination) {
+                suggestions = await getSuggestions(date as string, guestSize, time as string);
+            }
+
             res.json({
                 available: !!combination,
-                tables: combination || []
+                tables: combination || [],
+                suggestions
             });
         } catch (e) {
             console.error('Availability error:', e);
@@ -54,10 +49,35 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    createBooking: async (req: Request, res: Response) => {
-
+    getDailyAvailability: async (req: Request, res: Response) => {
         try {
-            const { name, phone, email, size, startTime, language } = req.body;
+            const { date, size } = req.query;
+            if (!date || !size) return res.status(400).json({ error: 'Missing parameters' });
+
+            const guestSize = parseInt(size as string);
+            const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
+
+            const results = await Promise.all(TIME_SLOTS.map(async (time) => {
+                const start = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ).toDate();
+                const end = addMinutes(start, RESERVATION_DURATION);
+                const available = await getAvailableTables(start, end);
+                const combination = findTableCombination(guestSize, available);
+                return {
+                    time,
+                    available: !!combination
+                };
+            }));
+
+            res.json(results);
+        } catch (e) {
+            console.error('Daily availability error:', e);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+
+    createBooking: async (req: Request, res: Response) => {
+        try {
+            const { name, phone, email, size, startTime, language, highTable } = req.body;
             const missingFields: string[] = [];
             if (!name) missingFields.push('name');
             if (!size) missingFields.push('size');
@@ -67,26 +87,21 @@ export const bookingController = (io: Server) => ({
             }
 
             const guestSize = parseInt(size);
-            const requestedStart = new Date(startTime);
+            // Parse requested time specifically in the restaurant's timezone
+            const requestedStart = dayjs.tz(startTime, RESTAURANT_TZ).toDate();
             if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
-            const duration = getDuration(guestSize);
-            const requestedEnd = addMinutes(requestedStart, duration);
-
-            const newBooking = await prisma.booking.create({
-                data: {
-                    name: name,
-                    phone: phone || null,
-                    email: email || null,
-                    language: language || 'fr', // always a string
-                    size: guestSize,
-                    startTime: requestedStart,
-                    endTime: requestedEnd,
-                    tables: {
-                        connect: [] // Manager will assign tables manually
-                    }
-                }
-            } as any);
+            // Transactional booking: availability check + table assignment + create
+            // all happen atomically — prevents race-condition double bookings
+            const newBooking = await createReservation({
+                name,
+                phone: phone || null,
+                email: email || null,
+                language: language || 'fr',
+                size: guestSize,
+                startTime: requestedStart,
+                highTable: highTable || false
+            });
 
             // Send confirmation email
             if (newBooking.email) {

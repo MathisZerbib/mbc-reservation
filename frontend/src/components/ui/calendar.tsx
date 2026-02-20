@@ -11,6 +11,8 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  modifiers,
+  modifiersClassNames,
   ...props
 }: CalendarProps) {
   return (
@@ -38,7 +40,11 @@ function Calendar({
         day: "h-10 w-10 p-0 flex items-center justify-center relative",
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-10 w-10 p-0 font-bold transition-all hover:bg-indigo-50 hover:text-indigo-600 rounded-xl text-sm"
+          "h-10 w-10 p-0 font-bold transition-all hover:bg-indigo-50 hover:text-indigo-600 rounded-xl text-sm cursor-pointer",
+          "[&.low]:bg-emerald-50! [&.low]:text-emerald-700! [&.low]:border-emerald-100!",
+          "[&.medium]:bg-yellow-50! [&.medium]:text-yellow-700! [&.medium]:border-yellow-100!",
+          "[&.high]:bg-red-50! [&.high]:text-red-700! [&.high]:border-red-100!",
+          "[&.critical]:bg-purple-50! [&.critical]:text-purple-700! [&.critical]:border-purple-100!"
         ),
         range_start: "day-range-start",
         range_end: "day-range-end",
@@ -50,8 +56,10 @@ function Calendar({
         range_middle:
           "aria-selected:bg-slate-100 aria-selected:text-slate-900",
         hidden: "invisible",
+        ...modifiersClassNames,
         ...classNames,
       }}
+      modifiers={modifiers}
       components={{
         Chevron: ({ ...props }) => props.orientation === 'left' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />,
       }}

@@ -105,7 +105,7 @@ export async function login(req: Request, res: Response) {
   const token = await new SignJWT({ email })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('1h')
+    .setExpirationTime('6h')
     .sign(new TextEncoder().encode(SECRET_KEY));
   return res.json({ token });
 }

@@ -493,42 +493,25 @@ cors({
 })
 ```
 
-## 🧪 Testing
+## Development & Testing
 
-Testing infrastructure to be added. Recommended tools:
+### Simulating a Full Restaurant
+To test features like **Booking Suggestions**, you can use the `full-book` script.
+Due to port conflicts with local databases, Docker Postgres is mapped to port **5433**.
 
-- **Vitest** - Fast unit testing
-- **React Testing Library** - Component testing
-- **Playwright** - E2E testing
+#### Option 1: Run inside Docker (Recommended)
+This is the most reliable way as it uses the same network as the backend.
+```bash
+docker compose exec backend npm run full-book 2026-05-20
+```
 
-## 📚 Additional Resources
+#### Option 2: Run locally
+Ensure your `backend/.env` has `DATABASE_URL` pointing to `localhost:5433`.
+```bash
+cd backend
+npm run full-book 2026-05-20
+```
 
-- [React Documentation](https://react.dev/)
-- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
-- [Vite Documentation](https://vitejs.dev/)
-- [TailwindCSS Documentation](https://tailwindcss.com/docs)
-- [React Router Documentation](https://reactrouter.com/)
-- [Radix UI Documentation](https://www.radix-ui.com/)
-
-## 🤝 Contributing
-
-1. Follow the code style guidelines
-2. Write meaningful commit messages
-3. Test your changes thoroughly
-4. Update documentation as needed
-5. Create pull requests with detailed descriptions
-
-## 📄 License
-
-ISC License
-
-## 👥 Support
-
-For questions or issues:
-- Open an issue on GitHub
-- Contact the development team
-- Check the documentation
-
----
-
-**Happy Coding! 🚀**
+### Running Tests
+- Frontend: `npm run test` (Vitest + React Testing Library)
+- Backend: `npm test` (Vitest)
