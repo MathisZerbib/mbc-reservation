@@ -56,7 +56,7 @@ export function LoginPage() {
         >
           <div className="flex flex-col items-center mb-2">
             <img
-              src="/public/mbc-logo.png"
+              src="/mbc-logo.png"
               alt="MBC Logo"
               className="w-20 h-20 mb-2 drop-shadow-sm"
               style={{ objectFit: 'contain' }}
