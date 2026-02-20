@@ -21,7 +21,9 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>('OVERVIEW');
 
   const bookings = allBookings.filter(
-    (b: Booking) => dayjs(b.startTime).format("YYYY-MM-DD") === selectedDate,
+    (b: Booking) => 
+      dayjs(b.startTime).format("YYYY-MM-DD") === selectedDate && 
+      b.status !== 'CANCELLED',
   );
   const [currentTime, setCurrentTime] = useState(dayjs());
   const [hoveredTable, setHoveredTable] = useState<string | null>(null);

@@ -6,7 +6,7 @@ import fs from 'fs';
 const prismaClientSingleton = () => {
   const isProduction = process.env.NODE_ENV === 'production';
 
-  const pool = new Pool({ 
+  const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: isProduction ? {
       rejectUnauthorized: true,
@@ -14,12 +14,12 @@ const prismaClientSingleton = () => {
       ca: fs.readFileSync('/etc/secrets/ca.pem').toString(),
     } : false
   });
-  
+
   const adapter = new PrismaPg(pool);
 
-  return new PrismaClient({ 
+  return new PrismaClient({
     adapter,
-    log: ['query', 'info', 'warn', 'error'] 
+    // log: ['query', 'info', 'warn', 'error'] 
   });
 };
 type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>;

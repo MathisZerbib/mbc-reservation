@@ -88,7 +88,10 @@ export const bookingController = (io: Server) => ({
 
             const guestSize = parseInt(size);
             // Parse requested time specifically in the restaurant's timezone
-            const requestedStart = dayjs.tz(startTime, RESTAURANT_TZ).toDate();
+            // Parse as absolute time (UTC) and then convert to restaurant timezone object
+            console.log(`📩 [createBooking] Received request: ${name}, size: ${size}, startTime: ${startTime}, highTable: ${highTable}`);
+            const requestedStart = dayjs(startTime).tz(RESTAURANT_TZ).toDate();
+            console.log(`⏰ [createBooking] Parsed requestedStart: ${requestedStart.toISOString()} (Local: ${dayjs(requestedStart).tz(RESTAURANT_TZ).format()})`);
             if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
             // Transactional booking: availability check + table assignment + create

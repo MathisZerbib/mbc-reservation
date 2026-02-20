@@ -13,6 +13,9 @@ import { swaggerSpec } from './docs/swagger';
 
 const app = express();
 const server = http.createServer(app);
+const PORT = process.env.PORT || 3000;
+// Fallback to localhost if the Render variable isn't set (for local dev)
+const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 
 
 const allowedOrigins = [
@@ -30,7 +33,7 @@ const io = new Server(server, {
     },
 });
 
-
+// app.set('trust proxy', true); ?????? gemini generated
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -55,7 +58,7 @@ io.on('connection', (socket) => {
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-console.log('📄 Swagger docs available at http://localhost:3000/api-docs');
+console.log(`📄 Swagger docs available at ${baseUrl}/api-docs`);
 
 // Routes
 app.use('/api', bookingRoutes(io));
@@ -69,7 +72,6 @@ app.get('/health', (req, res) => {
 });
 
 
-const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
