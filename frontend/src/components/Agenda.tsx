@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import dayjs from 'dayjs';
-import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Search, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
@@ -16,6 +16,8 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
   const { bookings, refresh } = useBookingsContext();
   const [showModal, setShowModal] = useState<{ id: string, name: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [searchName, setSearchName] = useState('');
+  const [searchSize, setSearchSize] = useState<string>('');
 
   const handleCheckIn = async (id: string) => {
     try {
@@ -45,19 +47,70 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
     }
   };
 
-  const filteredBookings = bookings.filter(b => dayjs(b.startTime).format('YYYY-MM-DD') === date);
+  const filteredBookings = bookings
+    .filter(b => dayjs(b.startTime).format('YYYY-MM-DD') === date)
+    .filter(b => {
+      // Name or Table match
+      if (searchName) {
+        const s = searchName.toLowerCase();
+        const guestMatch = b.name.toLowerCase().includes(s);
+        const tableMatch = b.tables?.some(t => t.name.toLowerCase().includes(s));
+        if (!guestMatch && !tableMatch) return false;
+      }
+      
+      // Exact Size match
+      if (searchSize) {
+        if (b.size !== parseInt(searchSize)) return false;
+      }
+
+      return true;
+    });
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden h-full flex flex-col relative">
-      <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-         <h2 className="text-xl font-bold text-slate-900 mr-4">Agenda</h2>
-         <DatePicker 
-           date={dayjs(date).toDate()} 
-           setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
-           className="h-10 text-xs font-bold cursor-pointer"
-           modifiers={calculateAffluence(bookings)}
-           modifiersClassNames={affluenceClassNames}
-         />
+      <div className="p-6 border-b border-slate-100 bg-slate-50 space-y-4">
+        <div className="flex justify-between items-center">
+           <h2 className="text-xl font-bold text-slate-900">Agenda</h2>
+           <DatePicker 
+             date={dayjs(date).toDate()} 
+             setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
+             className="h-10 text-xs font-bold cursor-pointer"
+             modifiers={calculateAffluence(bookings)}
+             modifiersClassNames={affluenceClassNames}
+           />
+        </div>
+        
+        <div className="flex gap-2">
+            <div className="relative group flex-1">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
+               <input 
+                 type="text"
+                 placeholder="Search name or table..."
+                 value={searchName}
+                 onChange={e => setSearchName(e.target.value)}
+                 className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all placeholder:text-slate-400 shadow-sm"
+               />
+               {searchName && (
+                 <button 
+                   onClick={() => setSearchName('')}
+                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                 >
+                   <XCircle className="w-3 h-3 text-slate-300 hover:text-slate-500" />
+                 </button>
+               )}
+            </div>
+
+            <div className="relative group w-20">
+               <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
+               <input 
+                 type="number"
+                 placeholder="Size"
+                 value={searchSize}
+                 onChange={e => setSearchSize(e.target.value)}
+                 className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-2 text-xs font-black text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all placeholder:text-slate-400 shadow-sm appearance-none"
+               />
+            </div>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {filteredBookings.length === 0 ? (
