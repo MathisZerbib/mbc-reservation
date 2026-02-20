@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
 import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
 import { ChevronLeft, Save, Users, Clock } from 'lucide-react';
 import clsx from 'clsx';
+import { cn } from '../lib/utils';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
 import { calculateAffluence, affluenceClassNames } from '../utils/bookingUtils';
 import { useBookingsContext } from '../context/useBookingsContext';
+import type { Booking } from '../types';
+
+dayjs.extend(isBetween);
 
 export const TableAssignmentPage: React.FC = () => {
     const { bookings, refresh } = useBookingsContext();
@@ -19,6 +24,7 @@ export const TableAssignmentPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [tempTables, setTempTables] = useState<string[]>([]);
     const [hoveredTable, setHoveredTable] = useState<string | null>(null);
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
     const selectedBooking = bookings.find(b => b.id === selectedBookingId);
 
@@ -32,9 +38,16 @@ export const TableAssignmentPage: React.FC = () => {
 
     const filteredBookings = bookings.filter(b => 
         dayjs(b.startTime).format('YYYY-MM-DD') === date && 
-        b.status !== 'CANCELLED' &&
+        b.status !== 'CANCELLED' && 
         b.status !== 'COMPLETED'
-    );
+    ).sort((a, b) => {
+        const aAssigned = a.tables && a.tables.length > 0;
+        const bAssigned = b.tables && b.tables.length > 0;
+        // Unassigned first
+        if (aAssigned !== bAssigned) return aAssigned ? 1 : -1;
+        // Then by time
+        return dayjs(a.startTime).unix() - dayjs(b.startTime).unix();
+    });
     
     const hasOtherReservationsToday = (tableId: string) => {
         return filteredBookings.some(b => 
@@ -43,20 +56,26 @@ export const TableAssignmentPage: React.FC = () => {
         );
     };
 
-    const isOccupiedByOthers = (tableId: string) => {
-        if (!selectedBooking) return false;
+    const MAX_BOOKINGS_PER_TABLE = 3;
+
+    const countOverlapping = (tableId: string) => {
+        if (!selectedBooking) return 0;
         const buffer = 15;
         const requestedStart = dayjs(selectedBooking.startTime);
         const requestedEnd = dayjs(selectedBooking.endTime);
 
-        return bookings.some(b => {
+        return bookings.filter(b => {
             if (b.id === selectedBooking.id || b.status === 'CANCELLED') return false;
             const bStart = dayjs(b.startTime);
             const bEnd = dayjs(b.endTime);
             const overlaps = bStart.isBefore(requestedEnd.add(buffer, 'minute')) && 
                              bEnd.isAfter(requestedStart.subtract(buffer, 'minute'));
             return overlaps && b.tables.some(t => t.name === tableId);
-        });
+        }).length;
+    };
+
+    const isOccupiedByOthers = (tableId: string) => {
+        return countOverlapping(tableId) >= MAX_BOOKINGS_PER_TABLE;
     };
 
     const toggleTable = (tableId: string) => {
@@ -94,7 +113,10 @@ export const TableAssignmentPage: React.FC = () => {
                     ? `M ${r} 0 H ${width - r} A ${r} ${r} 0 0 1 ${width - r} ${height} H ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`
                     : `M 0 ${r} V ${height - r} A ${r} ${r} 0 0 0 ${width} ${height - r} V ${r} A ${r} ${r} 0 0 0 0 ${r} Z`; }
             case 'BAR':
-                return `M ${width / 2}, 0 A ${width / 2} ${width / 2} 0 1,1 ${width / 2} ${width} A ${width / 2} ${width / 2} 0 1,1 ${width / 2} 0`;
+                { const r = Math.max(width, height) * 0.65;
+                const cx = width / 2;
+                const cy = height / 2;
+                return `M ${cx}, ${cy - r} A ${r} ${r} 0 1,1 ${cx} ${cy + r} A ${r} ${r} 0 1,1 ${cx} ${cy - r}`; }
             case 'SQUARE':
             case 'RECTANGULAR':
             default:
@@ -103,9 +125,9 @@ export const TableAssignmentPage: React.FC = () => {
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 overflow-hidden">
+        <div className="flex flex-col lg:flex-row h-screen bg-slate-100 overflow-hidden">
             {/* Sidebar */}
-            <div className="w-96 bg-white border-r border-slate-200 flex flex-col shadow-xl z-10">
+            <div className="w-full lg:w-96 h-1/3 lg:h-full bg-white border-r border-slate-200 flex flex-col shadow-xl z-10 shrink-0">
                 <div className="p-6 border-b border-slate-100 bg-slate-900 text-white">
                     <div className="flex items-center gap-2 mb-4">
                         <a href={`/admin/dashboard?date=${date}`} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
@@ -129,7 +151,7 @@ export const TableAssignmentPage: React.FC = () => {
                         filteredBookings.map(b => (
                             <button
                                 key={b.id}
-                                onClick={() => setSelectedBookingId(b.id)}
+                                onClick={() => setSelectedBookingId(prev => prev === b.id ? null : b.id)}
                                 className={clsx(
                                     "w-full text-left p-4 rounded-2xl border transition-all duration-200 group relative cursor-pointer",
                                     selectedBookingId === b.id 
@@ -189,20 +211,27 @@ export const TableAssignmentPage: React.FC = () => {
             {/* Main View: Interactive Floor Plan */}
             <div className="flex-1 flex flex-col relative">
 
-                <div className="p-8 pb-4 flex justify-between items-center">
+                <div className="p-4 lg:p-8 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                         <h2 className="text-3xl font-black text-slate-900 tracking-tight">Interactive <span className="text-indigo-600">Assigner</span></h2>
-                         {selectedBooking && <p className="text-slate-500 font-medium">Assigning for <span className="text-slate-900 font-bold">{selectedBooking.name}</span> &middot; {selectedBooking.size} people @ {dayjs(selectedBooking.startTime).format('HH:mm')}</p>}
+                         <h2 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">Interactive <span className="text-indigo-600">Assigner</span></h2>
+                         {selectedBooking && <p className="text-sm text-slate-500 font-medium">Assigning for <span className="text-slate-900 font-bold">{selectedBooking.name}</span> &middot; {selectedBooking.size} people @ {dayjs(selectedBooking.startTime).format('HH:mm')}</p>}
                     </div>
-                    <div className="flex gap-4">
-                         <div className="flex items-center gap-2 text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-white border border-slate-300"></div> AVAILABLE</div>
-                         <div className="flex items-center gap-2 text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-indigo-600 shadow-sm shadow-indigo-500/50"></div> SELECTED</div>
-                         <div className="flex items-center gap-2 text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-slate-300 opacity-50"></div> OCCUPIED</div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                         <div className="flex items-center gap-2 text-[10px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-white border border-slate-300"></div> AVAILABLE</div>
+                         <div className="flex items-center gap-2 text-[10px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-indigo-600 shadow-sm shadow-indigo-500/50"></div> SELECTED</div>
+                         <div className="flex items-center gap-2 text-[10px] lg:text-xs font-bold text-amber-500"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300"></div> SHARED (1-2/{MAX_BOOKINGS_PER_TABLE})</div>
+                         <div className="flex items-center gap-2 text-[10px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-slate-300 opacity-50"></div> FULL ({MAX_BOOKINGS_PER_TABLE}/{MAX_BOOKINGS_PER_TABLE})</div>
                     </div>
                 </div>
 
                 <div className="flex-1 p-8 pt-4 overflow-hidden relative">
-                    <div className="w-full h-full bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden relative">
+                    <div 
+                        className="w-full h-full bg-white rounded-2xl lg:rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden relative"
+                        onMouseMove={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                        }}
+                    >
                         <svg width="100%" height="100%" viewBox="0 0 1000 800" className="w-full h-full bg-slate-50/50 cursor-grab active:cursor-grabbing">
                             <defs>
                                 <pattern id="dots" width="30" height="30" patternUnits="userSpaceOnUse">
@@ -215,7 +244,9 @@ export const TableAssignmentPage: React.FC = () => {
                             <rect width="100%" height="100%" fill="url(#dots)" />
 
                             {FLOOR_PLAN_DATA.map((table) => {
-                                const occupiedByOthers = isOccupiedByOthers(table.id);
+                                const usageCount = selectedBooking ? countOverlapping(table.id) : filteredBookings.filter(b => b.tables.some(t => t.name === table.id)).length;
+                                const isFull = usageCount >= MAX_BOOKINGS_PER_TABLE;
+                                const isPartiallyOccupied = usageCount > 0 && usageCount < MAX_BOOKINGS_PER_TABLE;
                                 const hasOtherRes = hasOtherReservationsToday(table.id);
                                 const isSelected = tempTables.includes(table.id);
                                 const isHovered = hoveredTable === table.id;
@@ -229,36 +260,50 @@ export const TableAssignmentPage: React.FC = () => {
                                         onMouseLeave={() => setHoveredTable(null)}
                                         className={clsx(
                                             "transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] select-none group",
-                                            occupiedByOthers ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                                            isFull && selectedBooking ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
                                         )}
                                         style={{ 
-                                          filter: isHovered && !occupiedByOthers ? 'drop-shadow(0 0 15px rgba(79, 70, 229, 0.6))' : 'url(#tableShadow)',
+                                          filter: isHovered && !(isFull && selectedBooking) ? 'drop-shadow(0 0 15px rgba(79, 70, 229, 0.6))' : 'url(#tableShadow)',
                                           transformBox: 'fill-box',
                                           transformOrigin: 'center'
                                         }}
                                     >
                                         <path 
                                             d={getShapePath(table)} 
-                                            fill={isSelected ? '#4f46e5' : occupiedByOthers ? '#cbd5e1' : 'white'} 
-                                            stroke={isSelected ? '#3730a3' : hasOtherRes ? '#cbd5e1' : '#e2e8f0'} 
-                                            strokeWidth={isSelected ? '3' : '2'}
+                                            fill={isSelected ? '#4f46e5' : isFull ? '#cbd5e1' : isPartiallyOccupied ? '#fef3c7' : 'white'} 
+                                            stroke={isSelected ? '#3730a3' : isFull ? '#94a3b8' : isPartiallyOccupied ? '#f59e0b' : hasOtherRes ? '#cbd5e1' : '#e2e8f0'} 
+                                            strokeWidth={isSelected ? '3' : isPartiallyOccupied ? '2.5' : '2'}
                                             className={clsx(
                                                 "transition-colors duration-200",
-                                                !occupiedByOthers && !isSelected && "group-hover:fill-indigo-50 group-hover:stroke-indigo-300"
+                                                !(isFull && selectedBooking) && !isSelected && "group-hover:fill-indigo-50 group-hover:stroke-indigo-300"
                                             )}
                                         />
                                         
-                                        {/* Indicator for other reservations today */}
-                                        {hasOtherRes && !occupiedByOthers && !isSelected && (
-                                            <circle 
-                                                cx={table.width - 8} 
-                                                cy={8} 
-                                                r="4" 
-                                                className="fill-slate-300"
-                                            />
+                                        {/* Usage indicator badge (X/3) */}
+                                        {usageCount > 0 && (
+                                            <g pointerEvents="none">
+                                                <circle 
+                                                    cx={table.width} 
+                                                    cy={0} 
+                                                    r="9" 
+                                                    fill={isFull ? '#94a3b8' : '#f59e0b'}
+                                                    stroke="white"
+                                                    strokeWidth="2"
+                                                />
+                                                <text
+                                                    x={table.width}
+                                                    y={0}
+                                                    dy="0.35em"
+                                                    textAnchor="middle"
+                                                    fill="white"
+                                                    fontSize="9"
+                                                    fontWeight="900"
+                                                >
+                                                    {usageCount}/{MAX_BOOKINGS_PER_TABLE}
+                                                </text>
+                                            </g>
                                         )}
-
-                                        {occupiedByOthers && (
+                                        {isFull && (
                                             <path 
                                                 d={`M ${table.width*0.2} ${table.height*0.2} L ${table.width*0.8} ${table.height*0.8} M ${table.width*0.8} ${table.height*0.2} L ${table.width*0.2} ${table.height*0.8}`} 
                                                 stroke="#94a3b8" 
@@ -272,13 +317,13 @@ export const TableAssignmentPage: React.FC = () => {
                                             y={table.height / 2} 
                                             dy="0.35em" 
                                             textAnchor="middle" 
-                                            fill={isSelected ? 'white' : occupiedByOthers ? '#64748b' : '#94a3b8'} 
+                                            fill={isSelected ? 'white' : isFull ? '#64748b' : isPartiallyOccupied ? '#92400e' : '#94a3b8'} 
                                             fontSize="14" 
                                             fontWeight="800"
                                             pointerEvents="none"
                                             className={clsx(
                                                 "transition-colors duration-200",
-                                                !occupiedByOthers && !isSelected && "group-hover:fill-emerald-600"
+                                                !(isFull && selectedBooking) && !isSelected && "group-hover:fill-emerald-600"
                                             )}
                                         >
                                             {table.id}
@@ -287,6 +332,90 @@ export const TableAssignmentPage: React.FC = () => {
                                 );
                             })}
                         </svg>
+
+                        {/* FloorPlan-style tooltip */}
+                        {hoveredTable && (
+                            <div
+                                className="absolute top-0 left-0 z-50 pointer-events-none bg-slate-900/90 backdrop-blur-xl text-white p-5 rounded-4xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/20 min-w-60 transition-opacity duration-300"
+                                style={{
+                                    transform: `translate3d(${mousePos.x + 20}px, ${mousePos.y + 20}px, 0) ${mousePos.y > 260 ? 'translateY(-120%)' : ''}`,
+                                    opacity: hoveredTable ? 1 : 0,
+                                }}
+                            >
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-xl font-black tracking-tight">Table {hoveredTable}</span>
+                                    {selectedBooking && (
+                                        <span className={cn(
+                                            "text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider border",
+                                            countOverlapping(hoveredTable) >= MAX_BOOKINGS_PER_TABLE
+                                                ? "bg-red-500/30 text-red-300 border-red-500/50"
+                                                : countOverlapping(hoveredTable) > 0
+                                                    ? "bg-amber-500/30 text-amber-300 border-amber-500/50"
+                                                    : "bg-emerald-500/30 text-emerald-300 border-emerald-500/50"
+                                        )}>
+                                            {countOverlapping(hoveredTable)}/{MAX_BOOKINGS_PER_TABLE} slots
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="space-y-3">
+                                    {filteredBookings.filter((b: Booking) =>
+                                        b.tables?.some((t) => t.name === hoveredTable)
+                                    ).length === 0 ? (
+                                        <div className="py-4 text-center">
+                                            <p className="text-sm text-slate-400 font-bold italic">No reservations</p>
+                                            <p className="text-[10px] text-slate-500 font-medium mt-1">Available all day</p>
+                                        </div>
+                                    ) : (
+                                        filteredBookings
+                                            .filter((b: Booking) =>
+                                                b.tables?.some((t) => t.name === hoveredTable)
+                                            )
+                                            .sort((a, b) => dayjs(a.startTime).diff(dayjs(b.startTime)))
+                                            .map((b: Booking) => {
+                                                const isCurrent = dayjs().isBetween(dayjs(b.startTime), dayjs(b.endTime));
+                                                const isThisBooking = selectedBooking && b.id === selectedBooking.id;
+                                                return (
+                                                    <div
+                                                        key={b.id}
+                                                        className={cn(
+                                                            "p-3 rounded-2xl border transition-all duration-300",
+                                                            isThisBooking
+                                                                ? "bg-indigo-600 border-indigo-400 shadow-[0_0_20px_rgba(79,70,229,0.4)] text-white scale-[1.02]"
+                                                                : isCurrent
+                                                                    ? "bg-emerald-600/20 border-emerald-400/30 text-white"
+                                                                    : "bg-white/5 border-white/10 text-slate-200"
+                                                        )}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-1.5">
+                                                            <span className="text-sm font-black leading-tight tracking-tight">
+                                                                {b.name}
+                                                                {isThisBooking && <span className="text-[9px] ml-1.5 opacity-70">(current)</span>}
+                                                            </span>
+                                                            <span className={cn(
+                                                                "text-[10px] font-black",
+                                                                isThisBooking ? "text-indigo-100" : "text-slate-500"
+                                                            )}>
+                                                                {dayjs(b.startTime).format('HH:mm')}
+                                                            </span>
+                                                        </div>
+                                                        <div className={cn(
+                                                            "text-[11px] font-bold flex justify-between",
+                                                            isThisBooking ? "text-indigo-200/80" : "text-slate-400"
+                                                        )}>
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="w-1 h-1 rounded-full bg-current opacity-50"></span>
+                                                                {b.size} guests
+                                                            </span>
+                                                            <span>ends {dayjs(b.endTime).format('HH:mm')}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

@@ -313,7 +313,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                 Table {hoveredTable}
               </span>
               <span className="text-[10px] bg-indigo-500/30 text-indigo-300 border border-indigo-500/50 px-2.5 py-1 rounded-full font-black uppercase tracking-wider">
-                {viewMode} Mode
+                {viewMode}
               </span>
             </div>
 

@@ -10,6 +10,8 @@ export const addMinutes = (date: Date, minutes: number) => new Date(date.getTime
 // Helper: Get duration based on guest size
 export const getDuration = (guestSize: number) => (guestSize >= 6 ? 120 : 120);
 
+export const MAX_BOOKINGS_PER_TABLE = 3;
+
 export async function getAvailableTables(requestedStart: Date, requestedEnd: Date) {
     const buffer = 15;
     const allTables = await prisma.table.findMany();
@@ -26,7 +28,7 @@ export async function getAvailableTables(requestedStart: Date, requestedEnd: Dat
                 ]
             } as any
         });
-        if (collisions.length === 0) {
+        if (collisions.length < MAX_BOOKINGS_PER_TABLE) {
             availableTables.push(table);
         }
     }
