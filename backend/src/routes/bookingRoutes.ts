@@ -26,6 +26,30 @@ export const bookingRoutes = (io: Server) => {
      */
     router.get('/analytics', controller.getAnalytics);
 
+    /** 
+     * @swagger
+     * /daily-availability:
+     *   get:
+     *     summary: Get daily availability
+     *     tags: [Bookings]
+     *     parameters:
+     *       - in: query
+     *         name: date
+     *         schema:
+     *           type: string
+     *         required: true
+     *         description: Date in YYYY-MM-DD format
+     *       - in: query
+     *         name: size
+     *         schema:
+     *           type: integer
+     *         description: Party size
+     *     responses:
+     *       200:
+     *         description: Availability status
+     */
+    router.get('/daily-availability', controller.getDailyAvailability);
+
     /**
      * @swagger
      * /availability:
@@ -92,7 +116,7 @@ export const bookingRoutes = (io: Server) => {
      *                 $ref: '#/components/schemas/Booking'
      */
     router.get('/bookings', isAuthenticated, controller.getAllBookings);
-    
+
     router.patch('/bookings/:id/tables', isAuthenticated, controller.updateAssignment);
     router.post('/bookings/:id/check-in', isAuthenticated, controller.checkIn);
     router.post('/bookings/:id/cancel', isAuthenticated, controller.cancelBooking);

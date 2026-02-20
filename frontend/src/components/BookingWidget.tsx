@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, 
@@ -47,6 +47,28 @@ export const BookingWidget: React.FC = () => {
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [token, setToken] = useState<string | null>(null);
+  const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
+  const [fetchingAvailability, setFetchingAvailability] = useState(false);
+
+  useEffect(() => {
+    const fetchDaily = async () => {
+        if (!formData.date || !formData.size) return;
+        setFetchingAvailability(true);
+        try {
+            const data = await api.getDailyAvailability(formData.date, formData.size);
+            const map: Record<string, boolean> = {};
+            data.forEach(item => {
+                map[item.time] = item.available;
+            });
+            setAvailableTimes(map);
+        } catch (e) {
+            console.error('Failed to fetch daily availability', e);
+        } finally {
+            setFetchingAvailability(false);
+        }
+    };
+    fetchDaily();
+  }, [formData.date, formData.size]);
 
   const nextStep = (next: number) => {
     setDirection(1);
@@ -294,22 +316,28 @@ export const BookingWidget: React.FC = () => {
                             <div className="grid grid-cols-3 gap-2">
                                 {TIME_SLOTS.map(t => {
                                     const isPassed = dayjs(`${formData.date} ${t}`).isBefore(dayjs());
+                                    const isAvailable = availableTimes[t] !== false; // Default to true while loading for better UX, but gray out if explicitly false
+                                    const isDisabled = isPassed || (!fetchingAvailability && !isAvailable);
+
                                     return (
                                         <button
                                             key={t}
                                             type="button"
-                                            disabled={isPassed}
+                                            disabled={isDisabled}
                                             onClick={() => setFormData({...formData, startTime: t})}
                                             className={clsx(
-                                                "py-2.5 rounded-xl border-2 font-black transition-all text-sm cursor-pointer",
+                                                "py-2.5 rounded-xl border-2 font-black transition-all text-sm relative cursor-pointer",
                                                 formData.startTime === t 
-                                                    ? "bg-indigo-600 border-indigo-600 text-white" 
-                                                    : isPassed
-                                                        ? "bg-slate-50 border-transparent text-slate-300 opacity-40 cursor-not-allowed"
-                                                        : "bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100"
+                                                    ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200" 
+                                                    : isDisabled
+                                                        ? "bg-slate-50 border-slate-100 text-slate-300 opacity-40 cursor-not-allowed select-none"
+                                                        : "bg-white border-slate-100 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30"
                                             )}
                                         >
                                             {t}
+                                            {!fetchingAvailability && !isAvailable && !isPassed && (
+                                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-400 rounded-full border border-white shadow-xs"></div>
+                                            )}
                                         </button>
                                     );
                                 })}
@@ -353,7 +381,7 @@ export const BookingWidget: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex gap-3 pt-2">
+                    <div className="flex gap-3 pt-2">
                     <button 
                         onClick={() => prevStep(1)} 
                         className="flex-1 bg-slate-100 text-slate-600 p-4 rounded-2xl font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5 text-xs group cursor-pointer"
@@ -362,10 +390,10 @@ export const BookingWidget: React.FC = () => {
                     </button>
                     <button 
                         onClick={handleCheckAvailability}
-                        disabled={loading || !formData.startTime || dayjs(`${formData.date} ${formData.startTime}`).isBefore(dayjs())}
+                        disabled={loading || fetchingAvailability || !formData.startTime || dayjs(`${formData.date} ${formData.startTime}`).isBefore(dayjs()) || (availableTimes[formData.startTime] === false)}
                         className="flex-2 bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 text-xs cursor-pointer"
                     >
-                        {loading ? <div className="loading-dots italic">{t.checking}</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}
+                        {loading || fetchingAvailability ? <div className="loading-dots italic">{t.checking || 'Checking...'}</div> : <>{t.check} <ArrowRight className="w-4 h-4" /></>}
                     </button>
                   </div>
                 </motion.div>

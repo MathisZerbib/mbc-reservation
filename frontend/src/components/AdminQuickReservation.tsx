@@ -19,10 +19,12 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
     onSuccess
 }) => {
 const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
-        const getFirstAvailableTime = (date: string) => {
-            const now = dayjs();
-            return TIME_SLOTS.find(slot => dayjs(`${date} ${slot}`).isAfter(now)) || null;
-        };
+const getFirstAvailableTime = (date: string) => {
+    const now = dayjs();
+    return TIME_SLOTS.find(slot => dayjs(`${date} ${slot}`).isAfter(now)) || null;
+};
+
+
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -34,6 +36,29 @@ const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00
         date: selectedDate,
         time: '19:00',
     });
+
+    const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
+    const [fetchingAvailability, setFetchingAvailability] = useState(false);
+
+    React.useEffect(() => {
+        const fetchDaily = async () => {
+            if (!formData.date || !formData.size) return;
+            setFetchingAvailability(true);
+            try {
+                const data = await api.getDailyAvailability(formData.date, formData.size);
+                const map: Record<string, boolean> = {};
+                data.forEach(item => {
+                    map[item.time] = item.available;
+                });
+                setAvailableTimes(map);
+            } catch (e) {
+                console.error('Failed to fetch daily availability', e);
+            } finally {
+                setFetchingAvailability(false);
+            }
+        };
+        if (isOpen) fetchDaily();
+    }, [formData.date, formData.size, isOpen]);
 
     // Keep date in sync with selectedDate prop when dialog opens
     React.useEffect(() => {
@@ -197,7 +222,14 @@ const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00
 
                                     
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Time</label>
+                                        <div className="flex justify-between items-center ml-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Time</label>
+                                            {!fetchingAvailability && availableTimes[formData.time] === false && (
+                                                <span className="text-[9px] font-black text-red-500 uppercase tracking-tight flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" /> Full Capacity
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="relative group">
                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                                                 <Clock className="w-4 h-4" />
@@ -205,11 +237,21 @@ const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00
                                             <select
                                                 value={formData.time}
                                                 onChange={e => setFormData({ ...formData, time: e.target.value })}
-                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all appearance-none"
+                                                className={`w-full bg-slate-50 border-2 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:bg-white outline-none transition-all appearance-none ${
+                                                    !fetchingAvailability && availableTimes[formData.time] === false 
+                                                    ? 'border-red-100 text-red-900 focus:border-red-200' 
+                                                    : 'border-slate-100 focus:border-indigo-500/50'
+                                                }`}
                                             >
-                                                {['17:00', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '22:00'].map(t => (
-                                                    <option key={t} value={t}>{t}</option>
-                                                ))}
+                                                {TIME_SLOTS.map(t => {
+                                                    const isFull = !fetchingAvailability && availableTimes[t] === false;
+                                                    const isPassed = dayjs(`${formData.date} ${t}`).isBefore(dayjs());
+                                                    return (
+                                                        <option key={t} value={t} className={isFull ? 'text-red-600' : ''}>
+                                                            {t} {isFull ? '(Full)' : ''} {isPassed ? '(Past)' : ''}
+                                                        </option>
+                                                    );
+                                                })}
                                             </select>
                                         </div>
                                     </div>

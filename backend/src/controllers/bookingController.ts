@@ -49,6 +49,32 @@ export const bookingController = (io: Server) => ({
         }
     },
 
+    getDailyAvailability: async (req: Request, res: Response) => {
+        try {
+            const { date, size } = req.query;
+            if (!date || !size) return res.status(400).json({ error: 'Missing parameters' });
+
+            const guestSize = parseInt(size as string);
+            const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
+
+            const results = await Promise.all(TIME_SLOTS.map(async (time) => {
+                const start = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ).toDate();
+                const end = addMinutes(start, RESERVATION_DURATION);
+                const available = await getAvailableTables(start, end);
+                const combination = findTableCombination(guestSize, available);
+                return {
+                    time,
+                    available: !!combination
+                };
+            }));
+
+            res.json(results);
+        } catch (e) {
+            console.error('Daily availability error:', e);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+
     createBooking: async (req: Request, res: Response) => {
         try {
             const { name, phone, email, size, startTime, language, highTable } = req.body;

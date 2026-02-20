@@ -1,4 +1,4 @@
-import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, DailyAvailability } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -73,6 +73,9 @@ export const api = {
 
     checkAvailability: (date: string, time: string, size: number) =>
         client.get<AvailabilityResponse>('/availability', { params: { date, time, size } }),
+
+    getDailyAvailability: (date: string, size: number) =>
+        client.get<DailyAvailability[]>('/daily-availability', { params: { date, size } }),
 
     createBooking: (data: Partial<CreateBookingPayload>) =>
         client.post<Booking>('/bookings', { body: data }),

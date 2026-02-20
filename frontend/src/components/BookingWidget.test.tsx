@@ -19,13 +19,18 @@ vi.mock('../i18n/useLanguage', () => ({
         booking_info: 'Booking info...',
         no_slots: 'No slots available',
         date_passed: 'Date passed',
-        check: 'Check Availability',
+        check: 'Book',
         checking: 'Checking...',
     }
 });
 
 // Mock API calls
-globalThis.fetch = vi.fn();
+globalThis.fetch = vi.fn().mockImplementation(() => 
+    Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([])
+    })
+);
 
 describe('BookingWidget', () => {
     it('renders the initial state correctly', () => {
@@ -36,12 +41,20 @@ describe('BookingWidget', () => {
 
     it('allows a user to select a date and see available times', async () => {
         // Mock API response for availability
-        (globalThis.fetch as any).mockResolvedValueOnce({
-            ok: true,
-            json: async () => ({
-                available: true,
-                tables: [{ id: 1, name: '10', capacity: 4 }] 
-            })
+        (globalThis.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('daily-availability')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => []
+                });
+            }
+            return Promise.resolve({
+                ok: true,
+                json: async () => ({
+                    available: true,
+                    tables: [{ id: 1, name: '10', capacity: 4 }] 
+                })
+            });
         });
 
         render(<BookingWidget />);

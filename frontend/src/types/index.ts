@@ -43,3 +43,7 @@ export interface Analytics {
     peakHour: string;
     growth: string; // e.g. "+12%"
 }
+export interface DailyAvailability {
+    time: string;
+    available: boolean;
+}
