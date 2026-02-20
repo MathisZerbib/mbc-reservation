@@ -4,7 +4,7 @@ import { CheckCircle2, XCircle, AlertTriangle, Search, Users } from 'lucide-reac
 import clsx from 'clsx';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
-import { calculateAffluence, affluenceClassNames } from '../utils/bookingUtils';
+import { calculateAffluence, affluenceClassNames, formatTableLabels } from '../utils/bookingUtils';
 import { useBookingsContext } from '../context/useBookingsContext';
 interface AgendaProps {
   setHoveredBookingId: (id: string | null) => void;
@@ -123,64 +123,105 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                 onMouseEnter={() => setHoveredBookingId(b.id)}
                 onMouseLeave={() => setHoveredBookingId(null)}
                 className={clsx(
-                  "group bg-white border rounded-xl p-4 hover:shadow-xl transition-all duration-300 relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
-                  b.status === 'CANCELLED' ? "opacity-50 grayscale border-slate-100" : "border-slate-100 hover:border-indigo-200"
+                  "group bg-white border rounded-[2rem] p-6 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 relative overflow-hidden cursor-pointer",
+                  b.status === 'CANCELLED' ? "opacity-60 grayscale border-slate-100" : "border-slate-100 hover:border-indigo-200"
                 )}
             >
                <div className={clsx(
-                   "absolute left-0 top-0 bottom-0 w-1 transition-colors",
-                   b.status === 'COMPLETED' ? "bg-emerald-500" : 
-                   b.status === 'CANCELLED' ? "bg-slate-300" : "bg-slate-200 group-hover:bg-slate-900"
+                   "absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-500",
+                   b.status === 'COMPLETED' ? "bg-emerald-400" : 
+                   b.status === 'CANCELLED' ? "bg-slate-200" : "bg-slate-100 group-hover:bg-indigo-500"
                )}></div>
-               <div className="flex justify-between items-start pl-3">
-                 <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-slate-900">{dayjs(b.startTime).format('HH:mm')}</span>
-                        <span className="text-slate-400 text-xs">to</span>
-                        <span className="font-bold text-slate-500">{dayjs(b.endTime).format('HH:mm')}</span>
+               
+               <div className="flex justify-between items-start gap-4">
+                 <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 mb-2">
+                        <div className="bg-slate-900 text-white px-2.5 py-1 rounded-lg text-xs font-black tracking-tight">
+                            {dayjs(b.startTime).format('HH:mm')}
+                        </div>
+                        <div className="w-4 h-px bg-slate-200"></div>
+                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                            {dayjs(b.endTime).format('HH:mm')}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                         <span className="text-sm font-semibold text-slate-800">{b.name}</span>
-                         <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">{b.size}p</span>
-                         {b.highTable && <span className="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100">High</span>}
-                         {b.status === 'COMPLETED' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                    </div>
-                    <div className="text-xs text-slate-400 mt-1">{b.phone}</div>
-                 </div>
-                  <div className="text-right">
-                     {b.status === 'CANCELLED' ? (
-                         <span className="text-[10px] font-black uppercase text-slate-400">Cancelled</span>
-                     ) : b.tables.length > 0 ? (
-                       <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded block mb-2">
-                          {b.tables.map(t => t.name).join(' + ')}
-                       </span>
-                     ) : (
-                       <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded block mb-2 border border-red-100">
-                          Unassigned
-                       </span>
-                     )}
-                     
-                     {b.status !== 'CANCELLED' && b.status !== 'COMPLETED' && (
-                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                            <button 
-                                className="p-1.5 rounded hover:bg-emerald-50 text-emerald-600 transition-colors flex items-center gap-1 text-[10px] font-bold cursor-pointer"
-                                title="Check-in"
-                                onClick={() => handleCheckIn(b.id)}
-                                disabled={loading}
-                            >
-                                <CheckCircle2 className="w-3 h-3" /> Check-in
-                            </button>
-                            <button 
-                                className="p-1.5 rounded hover:bg-red-50 text-red-600 transition-colors flex items-center gap-1 text-[10px] font-bold cursor-pointer"
-                                title="Cancel"
-                                onClick={() => setShowModal({ id: b.id, name: b.name })}
-                                disabled={loading}
-                            >
-                                <XCircle className="w-3 h-3" /> Cancel
-                            </button>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                         <h3 className="text-base font-black text-slate-900 tracking-tight">{b.name}</h3>
+                         <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-black">
+                            <Users className="w-3 h-3" />
+                            {b.size}
                          </div>
-                     )}
+                         {b.highTable && (
+                            <div className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md border border-indigo-100 uppercase tracking-wider">
+                                High
+                            </div>
+                         )}
+                         {b.status === 'COMPLETED' && (
+                            <div className="bg-emerald-50 text-emerald-600 p-1 rounded-full border border-emerald-100">
+                                <CheckCircle2 className="w-3 h-3" />
+                            </div>
+                         )}
+                    </div>
+                    
+                    {b.phone && (
+                        <p className="text-[11px] text-slate-400 font-medium mt-2 flex items-center gap-1.5 opacity-80">
+                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                            {b.phone}
+                        </p>
+                    )}
                  </div>
+
+                  <div className="flex flex-col justify-between items-end shrink-0 min-h-[130px] ml-4">
+                     {/* Top Right: Status/Tables - Clearly separated */}
+                     <div className="flex flex-col items-end gap-2 pr-10">
+                        {b.status === 'CANCELLED' ? (
+                            <div className="px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                Cancelled
+                            </div>
+                        ) : b.tables.length > 0 ? (
+                            <div className="flex flex-wrap justify-end gap-1.5 max-w-[200px]">
+                                {formatTableLabels(b.tables).map((label, idx) => (
+                                    <span key={idx} className="text-[10px] font-black text-emerald-700 bg-emerald-50/80 border border-emerald-100 px-2 py-1 rounded-md whitespace-nowrap shadow-sm">
+                                        {label}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : b.status !== 'COMPLETED' && (
+                            <div className="px-3 py-1 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[9px] font-black animate-pulse uppercase tracking-wider shadow-sm shadow-red-100">
+                                Unassigned
+                            </div>
+                        )}
+                     </div>
+
+                     {/* Bottom Right: Primary Action - Even more bottom-right */}
+                     <div className="-mb-2 -mr-3">
+                        {b.status === 'COMPLETED' ? (
+                            <div className="flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-100 shadow-sm">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">Completed</span>
+                            </div>
+                        ) : b.status !== 'CANCELLED' && (
+                            <button 
+                                className="h-10 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white transition-all duration-300 flex items-center gap-2 text-xs font-black cursor-pointer shadow-xl shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                                onClick={(e) => { e.stopPropagation(); handleCheckIn(b.id); }}
+                                disabled={loading}
+                            >
+                                <CheckCircle2 className="w-4 h-4" /> Check-in
+                            </button>
+                        )}
+                     </div>
+                  </div>
+
+                  {/* Absolute Cancel Cross: Fixed positioning to avoid overlap */}
+                  {b.status !== 'CANCELLED' && b.status !== 'COMPLETED' && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setShowModal({ id: b.id, name: b.name }); }}
+                        className="absolute top-3.5 right-3.5 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer opacity-0 group-hover:opacity-100 border border-transparent hover:border-red-100"
+                        title="Cancel Reservation"
+                    >
+                        <XCircle className="w-4 h-4" />
+                    </button>
+                  )}
                </div>
             </div>
           ))

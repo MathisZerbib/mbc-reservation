@@ -62,7 +62,12 @@ export async function getAvailableTables(
     }
 
     // O(n) filter
-    return allTables.filter(t => !occupiedTableIds.has(t.id));
+    const available = allTables.filter(t => !occupiedTableIds.has(t.id));
+    console.log(`🔍 [getAvailableTables] Found ${available.length}/${allTables.length} tables available from ${requestedStart.toISOString()} to ${requestedEnd.toISOString()}`);
+    if (available.length < 10) {
+        console.log(`   Occupied IDs: ${Array.from(occupiedTableIds).join(', ')}`);
+    }
+    return available;
 }
 
 // ──────────────────────────────────────────
@@ -106,7 +111,14 @@ export async function createReservation(input: CreateReservationInput) {
         const availableTables = allTables.filter(t => !occupiedIds.has(t.id));
 
         // 2. Find best table combination
+        console.log(`🎯 [createReservation] Attempting auto-assignment for ${size} guests (High Table: ${highTable}) at ${startTime.toISOString()}`);
         const combination = findTableCombination(size, availableTables);
+
+        if (combination) {
+            console.log(`✅ [createReservation] Found combination: ${combination.map((t: any) => t.name).join(', ')} (Total Capacity: ${combination.reduce((s: number, t: any) => s + t.capacity, 0)})`);
+        } else {
+            console.log(`❌ [createReservation] No valid combination found for ${size} guests.`);
+        }
 
         // 3. Create booking atomically (even without tables if none found)
         const booking = await tx.booking.create({
@@ -208,7 +220,10 @@ export function findTableCombination(size: number, availableTables: any[]) {
         })
         .sort((a, b) => a.capacity - b.capacity)[0];
 
-    if (single) return [single];
+    if (single) {
+        console.log(`   └─ Step 1 (Single): Found table ${single.name} (Cap: ${single.capacity})`);
+        return [single];
+    }
 
     const tableMap = new Map(availableTables.map(t => [t.name, t]));
 
@@ -239,6 +254,7 @@ export function findTableCombination(size: number, availableTables: any[]) {
         if (candidates.length > 0) {
             // Pick the best-scored combination in this cluster
             candidates.sort((a, b) => scoreCombination(a, size) - scoreCombination(b, size));
+            console.log(`   └─ Step 2 (Cluster): Found best in cluster ${cluster.join(',')} -> ${candidates[0].map((t: any) => t.name).join(',')}`);
             return candidates[0];
         }
     }
@@ -255,8 +271,11 @@ export function findTableCombination(size: number, availableTables: any[]) {
 
     if (globalCandidates.length > 0) {
         globalCandidates.sort((a, b) => scoreCombination(a, size) - scoreCombination(b, size));
+        console.log(`   └─ Step 3 (Global): Found fallback combination: ${globalCandidates[0].map((t: any) => t.name).join(',')}`);
         return globalCandidates[0];
     }
+
+    console.log(`   └─ Failed: No combination found in any step.`);
 
     return null;
 }

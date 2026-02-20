@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
-import { ChevronLeft, Save, Users, Clock } from 'lucide-react';
+import { ChevronLeft, Save, Users, Clock, Search, XCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { cn } from '../lib/utils';
 import { api } from '../services/api';
@@ -25,6 +25,8 @@ export const TableAssignmentPage: React.FC = () => {
     const [tempTables, setTempTables] = useState<string[]>([]);
     const [hoveredTable, setHoveredTable] = useState<string | null>(null);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const [searchName, setSearchName] = useState('');
+    const [searchSize, setSearchSize] = useState('');
 
     const selectedBooking = bookings.find(b => b.id === selectedBookingId);
 
@@ -40,7 +42,20 @@ export const TableAssignmentPage: React.FC = () => {
         dayjs(b.startTime).format('YYYY-MM-DD') === date && 
         b.status !== 'CANCELLED' && 
         b.status !== 'COMPLETED'
-    ).sort((a, b) => {
+    ).filter(b => {
+        // Name or Table search
+        if (searchName) {
+            const s = searchName.toLowerCase();
+            const nameMatch = b.name.toLowerCase().includes(s);
+            const tableMatch = b.tables?.some(t => t.name.toLowerCase().includes(s));
+            if (!nameMatch && !tableMatch) return false;
+        }
+        // Size search
+        if (searchSize) {
+            if (b.size !== parseInt(searchSize)) return false;
+        }
+        return true;
+    }).sort((a, b) => {
         const aAssigned = a.tables && a.tables.length > 0;
         const bAssigned = b.tables && b.tables.length > 0;
         // Unassigned first
@@ -138,10 +153,42 @@ export const TableAssignmentPage: React.FC = () => {
                     <DatePicker 
                         date={dayjs(date).toDate()} 
                         setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
-                        className="bg-slate-800 border-none text-white focus:ring-2 focus:ring-indigo-500 h-10 text-xs"
+                        className="bg-slate-800 border-none text-white focus:ring-2 focus:ring-indigo-500 h-10 text-xs mb-4"
                         modifiers={calculateAffluence(bookings)}
                         modifiersClassNames={affluenceClassNames}
                     />
+
+                    <div className="flex gap-2">
+                        <div className="relative group flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
+                            <input 
+                                type="text"
+                                placeholder="Search name or table..."
+                                value={searchName}
+                                onChange={e => setSearchName(e.target.value)}
+                                className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all placeholder:text-slate-500"
+                            />
+                            {searchName && (
+                                <button 
+                                    onClick={() => setSearchName('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+                                >
+                                    <XCircle className="w-3 h-3 text-slate-500 hover:text-slate-300" />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="relative group w-20">
+                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
+                            <input 
+                                type="number"
+                                placeholder="Size"
+                                value={searchSize}
+                                onChange={e => setSearchSize(e.target.value)}
+                                className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2 pl-9 pr-2 text-xs font-black text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all placeholder:text-slate-500 appearance-none"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -153,31 +200,57 @@ export const TableAssignmentPage: React.FC = () => {
                                 key={b.id}
                                 onClick={() => setSelectedBookingId(prev => prev === b.id ? null : b.id)}
                                 className={clsx(
-                                    "w-full text-left p-4 rounded-2xl border transition-all duration-200 group relative cursor-pointer",
+                                    "w-full text-left p-4 rounded-2xl border transition-all duration-500 group relative cursor-pointer overflow-hidden",
                                     selectedBookingId === b.id 
-                                        ? "bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20" 
-                                        : "bg-white border-slate-100 hover:border-slate-300 hover:shadow-md"
+                                        ? "bg-indigo-50/50 border-indigo-500/40 ring-4 ring-indigo-500/5 shadow-lg shadow-indigo-500/10" 
+                                        : "bg-white border-slate-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-slate-200/50 hover:scale-[1.01]"
                                 )}
                             >
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{b.name}</span>
-                                    <span className={clsx(
-                                        "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border flex items-center gap-1",
+                                {selectedBookingId === b.id && (
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 animate-in slide-in-from-left duration-300"></div>
+                                )}
+                                
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="min-w-0">
+                                        <span className={clsx(
+                                            "block font-black text-sm truncate tracking-tight transition-colors",
+                                            selectedBookingId === b.id ? "text-indigo-700" : "text-slate-900 group-hover:text-indigo-600"
+                                        )}>
+                                            {b.name}
+                                        </span>
+                                    </div>
+                                    <div className={clsx(
+                                        "shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border flex items-center gap-1.5",
                                         b.tables.length > 0 
                                             ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                                            : "bg-red-50 text-red-600 border-red-100 animate-pulse-subtle"
+                                            : "bg-red-50 text-red-600 border-red-100"
                                     )}>
-                                        {!b.tables || b.tables.length === 0 && <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />}
-                                        {b.tables.length > 0 ? "Assigned" : "Unassigned"}
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 font-medium">
-                                    <div className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {dayjs(b.startTime).format('HH:mm')} - {dayjs(b.endTime).format('HH:mm')}</div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Users className="w-3 h-3" /> {b.size} guests
-                                        {b.highTable && <span className="text-[9px] font-bold bg-indigo-50 text-indigo-600 px-1 rounded border border-indigo-100 ml-1">High</span>}
+                                        {b.tables.length === 0 && <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" />}
+                                        {b.tables.length > 0 ? "Mapped" : "Unmapped"}
                                     </div>
                                 </div>
+
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 border border-slate-100 rounded-lg">
+                                        <Clock className="w-3 h-3 text-slate-400" />
+                                        <span className="text-[10px] font-black text-slate-600">{dayjs(b.startTime).format('HH:mm')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 border border-slate-100 rounded-lg">
+                                        <Users className="w-3 h-3 text-slate-400" />
+                                        <span className="text-[10px] font-black text-slate-700">{b.size} guests</span>
+                                        {b.highTable && <span className="text-[8px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded-sm ml-0.5 tracking-tighter">HIGH</span>}
+                                    </div>
+                                </div>
+
+                                {b.tables.length > 0 && (
+                                    <div className="mt-3 flex flex-wrap gap-1 border-t border-slate-100/50 pt-3">
+                                        {b.tables.map(t => (
+                                            <span key={t.id} className="text-[9px] font-black text-slate-400 border border-slate-100 px-1.5 py-0.5 rounded uppercase tracking-tighter group-hover:border-indigo-100 group-hover:text-indigo-400 transition-colors">
+                                                {t.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </button>
                         ))
                     )}
