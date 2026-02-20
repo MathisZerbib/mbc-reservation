@@ -95,8 +95,8 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           return `M 0 ${r} V ${height - r} A ${r} ${r} 0 0 0 ${width} ${height - r} V ${r} A ${r} ${r} 0 0 0 0 ${r} Z`;
         }
       }
-      case "BAR":
-        return `M ${width / 2}, 0 A ${width / 2} ${width / 2} 0 1,1 ${width / 2} ${width} A ${width / 2} ${width / 2} 0 1,1 ${width / 2} 0`;
+      // case "BAR":
+      //   return `M ${width / 2}, 0 A ${width / 2} ${width / 2} 0 1,1 ${width / 2} ${width} A ${width / 2} ${width / 2} 0 1,1 ${width / 2} 0`;
       case "SQUARE":
         return `M 0 0 H ${width} V ${width} H 0 Z`;
       case "RECTANGULAR":

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 
 import { prisma } from '../lib/prisma';
-import { getAvailableTables, findTableCombination, addMinutes, getDuration, getSuggestions } from '../services/bookingService';
+import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions } from '../services/bookingService';
 import { Server } from 'socket.io';
 import { emailService } from '../services/emailService';
 
@@ -38,8 +38,7 @@ export const bookingController = (io: Server) => ({
             const requestedStart = new Date(`${date}T${time}`);
             if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
-            const duration = getDuration(guestSize);
-            const requestedEnd = addMinutes(requestedStart, duration);
+            const requestedEnd = addMinutes(requestedStart, RESERVATION_DURATION);
 
             const available = await getAvailableTables(requestedStart, requestedEnd);
             const combination = findTableCombination(guestSize, available);
@@ -76,8 +75,7 @@ export const bookingController = (io: Server) => ({
             const requestedStart = new Date(startTime);
             if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
-            const duration = getDuration(guestSize);
-            const requestedEnd = addMinutes(requestedStart, duration);
+            const requestedEnd = addMinutes(requestedStart, RESERVATION_DURATION);
 
             // AUTO-ASSIGNMENT LOGIC
             const availableTables = await getAvailableTables(requestedStart, requestedEnd);

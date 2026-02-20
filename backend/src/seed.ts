@@ -29,7 +29,7 @@ async function seed() {
                 case 'OCTAGONAL': type = TableType.OCTAGONAL; break;
                 case 'CAPSULE': type = TableType.CAPSULE; break;
                 case 'ROUND': type = TableType.ROUND; break;
-                case 'BAR': type = TableType.BAR; break;
+                // case 'BAR': type = TableType.BAR; break;
                 case 'SQUARE':
                 case 'RECTANGULAR':
                 default: type = TableType.RECTANGULAR; break;
@@ -44,11 +44,11 @@ async function seed() {
 
         // Also add the BAR tables if they are not in the FLOOR_PLAN_DATA yet (currently commented out there)
         const existingTableIds = new Set(tables.map(t => t.name));
-        [40, 42, 44, 46, 48].forEach(id => {
-            if (!existingTableIds.has(String(id))) {
-                tables.push({ name: String(id), capacity: 1, type: TableType.BAR });
-            }
-        });
+        // [40, 42, 44, 46, 48].forEach(id => {
+        //     if (!existingTableIds.has(String(id))) {
+        //         tables.push({ name: String(id), capacity: 1, type: TableType.BAR });
+        //     }
+        // });
     });
 
     // 1. Seed users (requested first)

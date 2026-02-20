@@ -98,9 +98,9 @@ export const FLOOR_PLAN_DATA: TableConfig[] = [
     { id: '30', x: 0, y: 600, width: 40, height: 40, shape: 'ROUND' },
 
     // Bar stools
-    { id: '40', x: 450, y: 600, width: 30, height: 30, shape: 'BAR' },
-    { id: '42', x: 500, y: 600, width: 30, height: 30, shape: 'BAR' },
-    { id: '44', x: 550, y: 600, width: 30, height: 30, shape: 'BAR' },
-    { id: '46', x: 600, y: 600, width: 30, height: 30, shape: 'BAR' },
-    { id: '48', x: 650, y: 600, width: 30, height: 30, shape: 'BAR' },
+    // { id: '40', x: 450, y: 600, width: 30, height: 30, shape: 'BAR' },
+    // { id: '42', x: 500, y: 600, width: 30, height: 30, shape: 'BAR' },
+    // { id: '44', x: 550, y: 600, width: 30, height: 30, shape: 'BAR' },
+    // { id: '46', x: 600, y: 600, width: 30, height: 30, shape: 'BAR' },
+    // { id: '48', x: 650, y: 600, width: 30, height: 30, shape: 'BAR' },
 ];

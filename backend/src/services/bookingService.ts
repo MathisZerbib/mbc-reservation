@@ -7,13 +7,12 @@ export const LAST_SEATING = '22:00';
 // Helper: Add minutes to date
 export const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60000);
 
-// Helper: Get duration based on guest size
-export const getDuration = (guestSize: number) => (guestSize >= 6 ? 120 : 120);
+// Reservation duration in minutes (fixed 2 hours for all bookings)
+export const RESERVATION_DURATION = 120;
 
 export const MAX_BOOKINGS_PER_TABLE = 3;
 
 export async function getAvailableTables(requestedStart: Date, requestedEnd: Date) {
-    const buffer = 15;
     const allTables = await prisma.table.findMany();
     const availableTables = [];
 
@@ -23,8 +22,8 @@ export async function getAvailableTables(requestedStart: Date, requestedEnd: Dat
                 tables: { some: { id: table.id } },
                 status: { not: 'CANCELLED' },
                 AND: [
-                    { startTime: { lt: addMinutes(requestedEnd, buffer) } },
-                    { endTime: { gt: addMinutes(requestedStart, -buffer) } }
+                    { startTime: { lt: requestedEnd } },
+                    { endTime: { gt: requestedStart } }
                 ]
             } as any
         });
@@ -159,7 +158,7 @@ export async function getSuggestions(date: string, size: number, requestedTime: 
         const start = new Date(`${date}T${slot}`);
         if (isNaN(start.getTime())) continue;
 
-        const duration = getDuration(size);
+        const duration = RESERVATION_DURATION;
         const end = addMinutes(start, duration);
 
         const availableTables = await getAvailableTables(start, end);

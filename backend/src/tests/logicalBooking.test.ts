@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma';
 import { 
     getAvailableTables, 
     findTableCombination, 
-    getDuration,
+    RESERVATION_DURATION,
     addMinutes 
 } from '../services/bookingService';
 import { FLOOR_PLAN_DATA, getCapacity } from '../utils/floorPlanData';
@@ -51,7 +51,7 @@ describe('Real-Life Booking Logic', () => {
         it('should assign a small table for a couple', async () => {
             const size = 2;
             const startTime = getTargetDate('19:00');
-            const endTime = addMinutes(startTime, getDuration(size));
+            const endTime = addMinutes(startTime, RESERVATION_DURATION);
 
             // Fetch availability
             const available = await getAvailableTables(startTime, endTime);
@@ -68,7 +68,7 @@ describe('Real-Life Booking Logic', () => {
         it('should prioritize large tables (11/12) for large groups (6 pax)', async () => {
             const size = 6;
             const startTime = getTargetDate('19:00');
-            const endTime = addMinutes(startTime, getDuration(size));
+            const endTime = addMinutes(startTime, RESERVATION_DURATION);
             const available = await getAvailableTables(startTime, endTime);
 
             const assignment = findTableCombination(size, available);
@@ -84,7 +84,7 @@ describe('Real-Life Booking Logic', () => {
         it('should combine tables for very large groups (12 pax)', async () => {
             const size = 12;
             const startTime = getTargetDate('20:00');
-            const endTime = addMinutes(startTime, getDuration(size));
+            const endTime = addMinutes(startTime, RESERVATION_DURATION);
 
             const available = await getAvailableTables(startTime, endTime);
             const assignment = findTableCombination(size, available);
@@ -98,7 +98,7 @@ describe('Real-Life Booking Logic', () => {
         it('should combine capsule tables if large tables are taken', async () => {
              const size = 6;
              const startTime = getTargetDate('20:00');
-             const endTime = addMinutes(startTime, getDuration(size));
+             const endTime = addMinutes(startTime, RESERVATION_DURATION);
 
              // Block 11 and 12
              const largeTables = await prisma.table.findMany({ where: { name: { in: ['11', '12'] } } });
