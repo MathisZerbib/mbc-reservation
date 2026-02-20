@@ -42,3 +42,46 @@ export const affluenceClassNames = {
     high: "high",
     critical: "critical"
 };
+
+export const formatTableLabels = (tables: (string | { name: string })[]): string[] => {
+    if (!tables || tables.length === 0) return [];
+
+    // Normalize and sort table names numerically
+    const normalized = tables.map(t => typeof t === 'string' ? t : t.name);
+
+    const sorted = normalized
+        .map(name => ({ val: parseInt(name), original: name }))
+        .sort((a, b) => {
+            if (isNaN(a.val) || isNaN(b.val)) return a.original.localeCompare(b.original);
+            return a.val - b.val;
+        });
+
+    const results: string[] = [];
+    let i = 0;
+
+    while (i < sorted.length) {
+        const current = sorted[i];
+
+        // If not a number, just add it and continue
+        if (isNaN(current.val)) {
+            results.push(current.original);
+            i++;
+            continue;
+        }
+
+        let j = i;
+        while (j + 1 < sorted.length && !isNaN(sorted[j + 1].val) && sorted[j + 1].val === sorted[j].val + 1) {
+            j++;
+        }
+
+        if (j > i) {
+            results.push(`${sorted[i].val} to ${sorted[j].val}`);
+            i = j + 1;
+        } else {
+            results.push(current.original);
+            i++;
+        }
+    }
+
+    return results;
+};
