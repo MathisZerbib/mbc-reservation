@@ -122,6 +122,53 @@ npm test
 npm run test -- --watch
 ```
 
+## 📅 Reservation Filler CLI
+
+A utility script to bulk-create bookings for testing and demo purposes. Supports both an **interactive menu** and **one-liner commands** via CLI arguments.
+
+### Interactive mode
+
+```bash
+docker compose exec backend npm run full-book
+```
+
+Walks you through mode selection, date/time, table picking, and confirmation prompts.
+
+### Non-interactive mode
+
+Pass all options as `--` flags to skip prompts entirely.
+
+**Mode 1 — Full Book** (fill all tables for a time slot):
+```bash
+docker compose exec backend npm run full-book -- --mode 1 --date 2026-02-20 --time 16:30 --empty 2 --yes
+```
+
+**Mode 2 — Consecutive Book** (book specific tables for N consecutive slots):
+```bash
+docker compose exec backend npm run full-book -- --mode 2 --date 2026-02-20 --time 16:30 --tables 1,10,11 --count 3 --name "VIP" --yes
+```
+
+**Mode 3 — Full Book + Consecutive** (fill all tables AND add extra consecutive slots on specific tables):
+```bash
+docker compose exec backend npm run full-book -- --mode 3 --date 2026-02-20 --time 16:30 --empty 2 --tables 1,10,11,12,7,4,2 --extra 3 --name "Auto-Consec" --yes
+```
+
+### Available flags
+
+| Flag | Description | Default | Modes |
+|------|-------------|---------|-------|
+| `--mode` | `1`, `2`, or `3` (**required**) | — | all |
+| `--date` | Date in `YYYY-MM-DD` format | today | all |
+| `--time` | Time in `HH:mm` format | `19:00` | all |
+| `--empty` | Number of tables to leave empty | `0` | 1, 3 |
+| `--tables` | Comma-separated table names (e.g. `1,10,11`) | — | 2, 3 |
+| `--count` | Number of consecutive slots per table | `2` | 2 |
+| `--extra` | Number of extra consecutive slots (on top of full book) | `1` | 3 |
+| `--name` | Guest name prefix for bookings | `Auto-Consec` | 2, 3 |
+| `--yes` | Skip the confirmation prompt | asks `y/n` | all |
+
+> **Note:** Without `--yes`, the script will still pause for a `y/n` confirmation before executing.
+
 ## 🔌 API Documentation
 
 ### Bookings

@@ -163,6 +163,76 @@ async function runFullBookWithConsecutive(date: string, time: string) {
     console.log(`\nℹ️  Navigate to ${start.format('YYYY-MM-DD')} in dashboard.`);
 }
 
+// ── Arg parsing ─────────────────────────────────────────────────────
+
+function parseArgs(): Record<string, string> {
+    const args: Record<string, string> = {};
+    const raw = process.argv.slice(2);
+    for (let i = 0; i < raw.length; i++) {
+        if (raw[i].startsWith('--')) {
+            const key = raw[i].slice(2);
+            // Flags with no value (e.g. --yes)
+            if (i + 1 >= raw.length || raw[i + 1].startsWith('--')) {
+                args[key] = 'true';
+            } else {
+                args[key] = raw[++i];
+            }
+        }
+    }
+    return args;
+}
+
+// ── Non-interactive runners ─────────────────────────────────────────
+
+async function runFullBookDirect(date: string, time: string, args: Record<string, string>) {
+    const leaveEmpty = parseInt(args.empty || '0');
+    const total = await prisma.table.count();
+    const toBook = total - leaveEmpty;
+    const start = dayjs(`${date}T${time}`);
+
+    console.log(`\n🚀 Full book: ~${toBook} tables at ${start.format('dddd, D MMMM YYYY HH:mm')} (${leaveEmpty} empty)`);
+    const r = await fullBook(date, time, Math.max(toBook, 0));
+    console.log('\n🎉 Completed!');
+    printResult(r);
+}
+
+async function runConsecutiveBookDirect(date: string, time: string, args: Record<string, string>) {
+    const tableNames = (args.tables || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!tableNames.length) throw new Error('--tables is required for mode 2 (e.g. --tables 1,5,11)');
+
+    const count = parseInt(args.count || '2');
+    const guestName = args.name || 'Auto-Consec';
+    const start = dayjs(`${date}T${time}`);
+
+    console.log(`\n🚀 Consecutive book: [${tableNames.join(', ')}] × ${count} slots from ${start.format('dddd, D MMMM YYYY HH:mm')}`);
+    const r = await consecutiveBook(date, time, tableNames, count, guestName);
+    console.log('\n🎉 Completed!');
+    printResult(r);
+}
+
+async function runFullBookWithConsecutiveDirect(date: string, time: string, args: Record<string, string>) {
+    const leaveEmpty = parseInt(args.empty || '0');
+    const tableNames = (args.tables || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!tableNames.length) throw new Error('--tables is required for mode 3 (e.g. --tables 1,10,11)');
+
+    const extraSlots = parseInt(args.extra || '1');
+    const guestName = args.name || 'Auto-Consec';
+    const start = dayjs(`${date}T${time}`);
+    const total = await prisma.table.count();
+
+    console.log(`\n🚀 Full book + consecutive:`);
+    console.log(`  Full book: ~${total - leaveEmpty} tables at ${start.format('dddd, D MMMM YYYY HH:mm')} (${leaveEmpty} empty)`);
+    console.log(`  Consecutive on: [${tableNames.join(', ')}] × ${extraSlots} extra slot(s)`);
+
+    const r = await fullBookWithConsecutive(date, time, leaveEmpty, tableNames, extraSlots, guestName);
+    console.log('\n🎉 Completed!');
+    console.log('\n📦 Full book:');
+    printResult(r.full);
+    console.log('\n🔗 Consecutive:');
+    printResult(r.consecutive);
+    console.log(`\n📊 Total: ✅ ${r.totalSuccess} | ❌ ${r.totalFailed}`);
+}
+
 // ── Main ────────────────────────────────────────────────────────────
 
 const MODES = [
@@ -170,6 +240,12 @@ const MODES = [
     { key: '2', label: 'Consecutive Book — book specific table(s) for N consecutive slots', fn: runConsecutiveBook },
     { key: '3', label: 'Full Book + Consecutive — fill all tables AND add extra consecutive slots on specific table(s)', fn: runFullBookWithConsecutive },
 ] as const;
+
+const DIRECT_MODES: Record<string, (date: string, time: string, args: Record<string, string>) => Promise<void>> = {
+    '1': runFullBookDirect,
+    '2': runConsecutiveBookDirect,
+    '3': runFullBookWithConsecutiveDirect,
+};
 
 async function runCli() {
     console.log('📅 Reservation Filler CLI\n');
@@ -207,6 +283,45 @@ async function runCli() {
     rl.close();
 }
 
-runCli()
-    .catch(e => { console.error(e); process.exit(1); })
-    .finally(() => prisma.$disconnect());
+async function runDirect(args: Record<string, string>) {
+    const mode = args.mode;
+    if (!mode || !DIRECT_MODES[mode]) {
+        console.error(`❌ Invalid --mode. Must be 1, 2, or 3.`);
+        process.exit(1);
+    }
+
+    const date = args.date || dayjs().format('YYYY-MM-DD');
+    const time = args.time || '19:00';
+
+    if (!dayjs(`${date}T${time}`).isValid()) {
+        console.error('❌ Invalid date/time format.');
+        process.exit(1);
+    }
+
+    if (time >= LAST_SEATING) {
+        console.error(`❌ No reservations allowed at or after ${LAST_SEATING}.`);
+        process.exit(1);
+    }
+
+    // Unless --yes is passed, ask for confirmation
+    if (!args.yes) {
+        console.log('');
+        const ok = await confirm();
+        if (!ok) {
+            console.log('Aborted.');
+            rl.close();
+            return;
+        }
+    }
+
+    await DIRECT_MODES[mode](date, time, args);
+}
+
+// ── Entry point ─────────────────────────────────────────────────────
+
+const cliArgs = parseArgs();
+const hasArgs = Object.keys(cliArgs).length > 0;
+
+(hasArgs ? runDirect(cliArgs) : runCli())
+    .catch(e => { console.error('Critical Error:', (e as Error).message); process.exit(1); })
+    .finally(() => { rl.close(); prisma.$disconnect(); });
