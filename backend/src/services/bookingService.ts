@@ -1,5 +1,14 @@
 import { prisma } from '../lib/prisma';
 import { ADJACENCY_MAP } from '../utils/adjacency';
+import { CreateReservationInput } from '../types/booking';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const RESTAURANT_TZ = 'Europe/Paris';
 
 // Core booking logic and availability checks
 export const LAST_SEATING = '22:00';
@@ -12,27 +21,117 @@ export const RESERVATION_DURATION = 120;
 
 export const MAX_BOOKINGS_PER_TABLE = 3;
 
-export async function getAvailableTables(requestedStart: Date, requestedEnd: Date) {
-    const allTables = await prisma.table.findMany();
-    const availableTables = [];
+// ──────────────────────────────────────────
+// 1️⃣  AVAILABILITY — Single query, no N+1
+// ──────────────────────────────────────────
 
-    for (const table of allTables) {
-        const collisions = await prisma.booking.findMany({
-            where: {
-                tables: { some: { id: table.id } },
-                status: { not: 'CANCELLED' },
-                AND: [
-                    { startTime: { lt: requestedEnd } },
-                    { endTime: { gt: requestedStart } }
-                ]
-            } as any
-        });
-        if (collisions.length < MAX_BOOKINGS_PER_TABLE) {
-            availableTables.push(table);
+/**
+ * Returns all tables that have NO overlapping active bookings
+ * in the [requestedStart, requestedEnd) window.
+ *
+ * Uses a SINGLE query for all overlapping bookings instead of
+ * one query per table (eliminates N+1).
+ */
+export async function getAvailableTables(
+    requestedStart: Date,
+    requestedEnd: Date
+) {
+    const allTables = await prisma.table.findMany();
+
+    // Fetch ALL overlapping bookings in one query
+    const overlappingBookings = await prisma.booking.findMany({
+        where: {
+            status: { not: 'CANCELLED' },
+            AND: [
+                { startTime: { lt: requestedEnd } },
+                { endTime: { gt: requestedStart } }
+            ]
+        },
+        include: {
+            tables: { select: { id: true } }
+        }
+    } as any);
+
+    // Build set of occupied table IDs
+    const occupiedTableIds = new Set<number>();
+    for (const booking of overlappingBookings) {
+        const tableIds = (booking as any).tables.map((t: any) => t.id);
+        for (const id of tableIds) {
+            occupiedTableIds.add(id);
         }
     }
-    return availableTables;
+
+    // O(n) filter
+    return allTables.filter(t => !occupiedTableIds.has(t.id));
 }
+
+// ──────────────────────────────────────────
+// 2️⃣  TRANSACTIONAL BOOKING CREATION
+// ──────────────────────────────────────────
+
+
+
+/**
+ * Creates a booking inside a Prisma transaction.
+ *
+ * The availability check + table assignment + booking creation
+ * all happen atomically, preventing race-condition double bookings
+ * where two users check availability at the same time and both see
+ * the same table as free.
+ */
+export async function createReservation(input: CreateReservationInput) {
+    const { name, phone, email, language, size, startTime, highTable } = input;
+    const endTime = addMinutes(startTime, RESERVATION_DURATION);
+
+    return prisma.$transaction(async (tx) => {
+        // 1. Find all conflicting bookings inside the transaction
+        const conflictingBookings = await tx.booking.findMany({
+            where: {
+                status: { not: 'CANCELLED' },
+                AND: [
+                    { startTime: { lt: endTime } },
+                    { endTime: { gt: startTime } }
+                ]
+            },
+            include: { tables: true }
+        } as any);
+
+        const occupiedIds = new Set<number>(
+            (conflictingBookings as any[]).flatMap((b: any) =>
+                b.tables.map((t: any) => t.id)
+            )
+        );
+
+        const allTables = await tx.table.findMany();
+        const availableTables = allTables.filter(t => !occupiedIds.has(t.id));
+
+        // 2. Find best table combination
+        const combination = findTableCombination(size, availableTables);
+
+        // 3. Create booking atomically (even without tables if none found)
+        const booking = await tx.booking.create({
+            data: {
+                name,
+                phone: phone || null,
+                email: email || null,
+                language: language || 'fr',
+                size,
+                startTime,
+                endTime,
+                highTable: highTable || false,
+                tables: {
+                    connect: combination ? combination.map((t: any) => ({ id: t.id })) : []
+                }
+            }
+        } as any);
+
+        return booking;
+    });
+}
+
+// ──────────────────────────────────────────
+// 3️⃣  COMBINATION LOGIC — Scored optimal
+// ──────────────────────────────────────────
 
 const CLUSTERS = [
     // 1. Big Groups (11+12) - Priority for large groups
@@ -48,8 +147,55 @@ const CLUSTERS = [
     ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 ];
 
+/**
+ * Score a candidate combination.
+ * Lower is better: penalizes capacity overflow and using many tables.
+ */
+function scoreCombination(tables: any[], requestedSize: number): number {
+    const totalCapacity = tables.reduce((s: number, t: any) => s + t.capacity, 0);
+    const overflow = totalCapacity - requestedSize;
+    const tableCountPenalty = tables.length * 2;
+    return overflow + tableCountPenalty;
+}
+
+/**
+ * BFS within a set of available tables, starting from `seed`,
+ * constrained to `allowedNames` (if provided, limits to a cluster).
+ * Returns the connected combination or null if capacity < size.
+ */
+function bfsFromSeed(
+    seed: any,
+    size: number,
+    tableMap: Map<string, any>,
+    allowedNames?: Set<string>
+): any[] | null {
+    const result: any[] = [seed];
+    let capacity = seed.capacity;
+    const visited = new Set([seed.name]);
+    const queue = [...(ADJACENCY_MAP[seed.name] || [])];
+
+    while (queue.length > 0 && capacity < size) {
+        const nextName = queue.shift();
+        if (!nextName || visited.has(nextName)) continue;
+
+        // If restricted to a cluster, skip names outside it
+        if (allowedNames && !allowedNames.has(nextName)) continue;
+
+        visited.add(nextName);
+
+        const neighbor = tableMap.get(nextName);
+        if (neighbor) {
+            result.push(neighbor);
+            capacity += neighbor.capacity;
+            queue.push(...(ADJACENCY_MAP[nextName] || []));
+        }
+    }
+
+    return capacity >= size ? result : null;
+}
+
 export function findTableCombination(size: number, availableTables: any[]) {
-    // 1. Try single table first (best fit)
+    // ── Step 1: Try a single table (best fit with slack limits) ──
     const single = availableTables
         .filter(t => {
             if (t.capacity < size) return false;
@@ -66,12 +212,9 @@ export function findTableCombination(size: number, availableTables: any[]) {
 
     const tableMap = new Map(availableTables.map(t => [t.name, t]));
 
-    // 2. Check Clusters first
+    // ── Step 2: Cluster-based scored search ──
     for (const cluster of CLUSTERS) {
-        // Find available tables within this cluster
         const availableInCluster = cluster.filter(name => tableMap.has(name));
-
-        // Skip if not enough capacity potential
         const totalCapacityInCluster = availableInCluster.reduce((sum, name) => {
             const t = tableMap.get(name);
             return sum + (t?.capacity || 0);
@@ -79,71 +222,51 @@ export function findTableCombination(size: number, availableTables: any[]) {
 
         if (totalCapacityInCluster < size) continue;
 
-        // Try to find a valid connected sub-group within this cluster
-        // We treat the available tables in cluster as our search space
+        const clusterSet = new Set(cluster);
+        const candidates: any[][] = [];
+
+        // Try every available table in this cluster as a BFS seed
         for (const startNode of availableInCluster) {
             const seed = tableMap.get(startNode);
             if (!seed) continue;
 
-            let result: any[] = [seed];
-            let currentCapacity = seed.capacity;
-            const visited = new Set([seed.name]);
-            const queue = [...(ADJACENCY_MAP[seed.name] || [])];
-
-            while (queue.length > 0 && currentCapacity < size) {
-                const nextName = queue.shift();
-                if (!nextName || visited.has(nextName)) continue;
-
-                // CRITICAL: Only consider tables IN THE CURRENT CLUSTER
-                if (!cluster.includes(nextName)) continue;
-
-                visited.add(nextName);
-
-                const neighbor = tableMap.get(nextName);
-                if (neighbor) {
-                    result.push(neighbor);
-                    currentCapacity += neighbor.capacity;
-                    queue.push(...(ADJACENCY_MAP[nextName] || []));
-                }
+            const combo = bfsFromSeed(seed, size, tableMap, clusterSet);
+            if (combo) {
+                candidates.push(combo);
             }
+        }
 
-            if (currentCapacity >= size) {
-                return result;
-            }
+        if (candidates.length > 0) {
+            // Pick the best-scored combination in this cluster
+            candidates.sort((a, b) => scoreCombination(a, size) - scoreCombination(b, size));
+            return candidates[0];
         }
     }
 
-    // 3. Fallback to global greedy search (existing logic)
+    // ── Step 3: Global fallback — scored search across all tables ──
+    const globalCandidates: any[][] = [];
+
     for (const seed of availableTables) {
-        let result: any[] = [seed];
-        let currentCapacity = seed.capacity;
-
-        const queue = [...(ADJACENCY_MAP[seed.name] || [])];
-        const visited = new Set([seed.name]);
-
-        while (queue.length > 0 && currentCapacity < size) {
-            const nextName = queue.shift();
-            if (!nextName || visited.has(nextName)) continue;
-            visited.add(nextName);
-
-            const neighbor = tableMap.get(nextName);
-            if (neighbor) {
-                result.push(neighbor);
-                currentCapacity += neighbor.capacity;
-                queue.push(...(ADJACENCY_MAP[nextName] || []));
-            }
+        const combo = bfsFromSeed(seed, size, tableMap);
+        if (combo) {
+            globalCandidates.push(combo);
         }
+    }
 
-        if (currentCapacity >= size) {
-            return result;
-        }
+    if (globalCandidates.length > 0) {
+        globalCandidates.sort((a, b) => scoreCombination(a, size) - scoreCombination(b, size));
+        return globalCandidates[0];
     }
 
     return null;
 }
 
+// ──────────────────────────────────────────
+// 4️⃣  SUGGESTION ENGINE
+// ──────────────────────────────────────────
+
 export async function getSuggestions(date: string, size: number, requestedTime: string) {
-    const TIME_SLOTS = ['17:00', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30'];
+    const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
     const suggestions: string[] = [];
 
     // Sort slots by proximity to requested time
@@ -155,11 +278,11 @@ export async function getSuggestions(date: string, size: number, requestedTime: 
     for (const slot of sortedSlots) {
         if (slot === requestedTime) continue;
 
-        const start = new Date(`${date}T${slot}`);
+        const start = dayjs.tz(`${date}T${slot}`, RESTAURANT_TZ).toDate();
         if (isNaN(start.getTime())) continue;
 
-        const duration = RESERVATION_DURATION;
-        const end = addMinutes(start, duration);
+        const end = addMinutes(start, RESERVATION_DURATION);
+
 
         const availableTables = await getAvailableTables(start, end);
         const combination = findTableCombination(size, availableTables);
@@ -168,7 +291,7 @@ export async function getSuggestions(date: string, size: number, requestedTime: 
             suggestions.push(slot);
         }
 
-        if (suggestions.length >= 4) break; // Suggest up to 4 closest slots
+        if (suggestions.length >= 4) break;
     }
 
     return suggestions.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));

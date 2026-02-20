@@ -7,52 +7,50 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
   id            String         @id @unique @default(uuid())
   email         String         @unique
   password      String
-  refreshTokens RefreshToken[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
 }
 
 model RefreshToken {
   id          String   @id @unique @default(uuid())
   hashedToken String   @unique
   userId      String
-  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   revoked     Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   expireAt    DateTime
+  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-
 model Table {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique // e.g. "1", "10", "BAR-40"
-  capacity  Int
-  type      TableType @default(RECTANGULAR)
-  x         Float?    // Coordinate for visual map (optional, can be hardcoded in frontend too)
-  y         Float?
-  bookings  Booking[] @relation("BookingTables")
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  capacity Int
+  type     TableType @default(RECTANGULAR)
+  x        Float?
+  y        Float?
+  bookings Booking[] @relation("BookingTables")
 }
 
 model Booking {
-  id        String   @id @default(uuid())
-  name String
-  phone String?
-  email String?
-  language  String
+  id        String        @id @default(uuid())
   size      Int
   startTime DateTime
   endTime   DateTime
-  highTable Boolean @default(false)
   status    BookingStatus @default(CONFIRMED)
-  tables    Table[]  @relation("BookingTables")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  language  String
+  email     String?
+  name      String
+  phone     String?
+  highTable Boolean       @default(false)
+  tables    Table[]       @relation("BookingTables")
 }
 
 enum TableType {

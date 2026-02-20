@@ -21,7 +21,7 @@ import type { Lang } from '../i18n/translations';
 import { useLanguage } from '../i18n/useLanguage';
 
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
-const TIME_SLOTS = ['17:00','18:30','19:00','20:00','21:00','22:00'];
+const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
 export const BookingWidget: React.FC = () => {
     const { lang, setLang, t } = useLanguage();
