@@ -4,7 +4,7 @@ import { fullBook } from '../services/fullBookService';
 export async function fullBookController(req: Request, res: Response) {
     try {
         const { date, time, limit } = req.body;
-        
+
         if (!date) {
             return res.status(400).json({ error: 'Date is required in YYYY-MM-DD format' });
         }
