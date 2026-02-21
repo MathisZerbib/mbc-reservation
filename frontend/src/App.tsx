@@ -12,7 +12,47 @@ import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
 import { BookingsProvider } from './context/BookingsContext';
+import { useBookingsContext } from './context/useBookingsContext';
+import { api } from './services/api';
 import { Outlet } from 'react-router-dom';
+
+const AutoConsecButton: React.FC<{ date: string }> = ({ date }) => {
+  const { refresh } = useBookingsContext();
+  const [loading, setLoading] = useState(false);
+
+  const handleAutoConsec = async () => {
+    if (!window.confirm(`Are you sure you want to trigger auto-consecutive bookings for ${date}?`)) return;
+    
+    setLoading(true);
+    try {
+      await api.autoConsec(date);
+      refresh();
+      alert('Auto-consecutive bookings created successfully!');
+    } catch (error) {
+      console.error('Auto-consec failure:', error);
+      alert('Failed to create bookings: ' + (error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleAutoConsec}
+      disabled={loading}
+      className="w-full bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-100 active:scale-95 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+    >
+      {loading ? (
+        <>
+          <div className="w-3 h-3 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
+          Processing...
+        </>
+      ) : (
+        '🔥 Auto-Consec'
+      )}
+    </button>
+  );
+};
 
 function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,6 +112,11 @@ function AdminDashboard() {
                     date={selectedDate}
                     setDate={setSelectedDate}
                  />
+            </div>
+            
+            {/* Auto-Consec Button for Testing */}
+            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex-none">
+                <AutoConsecButton date={selectedDate} />
             </div>
         </div>
       </div>

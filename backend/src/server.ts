@@ -66,7 +66,7 @@ app.use('/api', tableRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', protectedRoutes);
 // app.use('/api/analytics', protectedRoutes); // Analytics route
-app.use('/api/tests', testRoutes); // Test route
+app.use('/api/tests', testRoutes); // Tests routes
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });

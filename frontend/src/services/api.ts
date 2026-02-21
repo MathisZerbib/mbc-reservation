@@ -88,4 +88,7 @@ export const api = {
 
     cancelBooking: (id: string) =>
         client.post<Booking>(`/bookings/${id}/cancel`, { auth: true }),
+
+    autoConsec: (date: string) =>
+        client.post<any>('/tests/auto-consec', { body: { date } }),
 };
