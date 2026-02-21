@@ -7,6 +7,7 @@ import { Analytics } from './components/Analytics';
 import { BookingPage } from './components/BookingPage';
 import { TableAssignmentPage } from './components/TableAssignmentPage';
 import { LanguageProvider } from './i18n/LanguageContext';
+import { DatePicker } from './components/ui/date-picker';
 
 import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
@@ -60,7 +61,13 @@ function AdminDashboard() {
   
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(dateFromQuery || dayjs().format('YYYY-MM-DD'));
+  const [testDate, setTestDate] = useState(selectedDate);
   const [isQuickResOpen, setIsQuickResOpen] = useState(false);
+
+  // Sync testDate with selectedDate by default when selectedDate changes
+  useEffect(() => {
+    setTestDate(selectedDate);
+  }, [selectedDate]);
 
   // Update URL when date changes to keep it in sync
   useEffect(() => {
@@ -115,8 +122,16 @@ function AdminDashboard() {
             </div>
             
             {/* Auto-Consec Button for Testing */}
-            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex-none">
-                <AutoConsecButton date={selectedDate} />
+            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex-none space-y-3">
+                <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Test Date</label>
+                    <DatePicker 
+                        date={dayjs(testDate).toDate()} 
+                        setDate={(d) => setTestDate(dayjs(d).format('YYYY-MM-DD'))}
+                        className="h-10 text-xs font-bold"
+                    />
+                </div>
+                <AutoConsecButton date={testDate} />
             </div>
         </div>
       </div>
