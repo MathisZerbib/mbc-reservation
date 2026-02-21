@@ -178,6 +178,10 @@ docker compose exec backend npm run full-book -- --mode 3 --date 2026-02-20 --ti
 - `PATCH /api/bookings/:id/tables`: Assign or move a booking to a table.
 - `POST /api/bookings/:id/check-in`: Mark a guest as arrived.
 
+### Internal Testing
+- `POST /api/tests/auto-consec`: Triggers a full booking with 3 extra consecutive slots on predefined tables (1, 10, 11, 12, 7, 4, 2) for a given date.
+  - Body: `{ "date": "YYYY-MM-DD" }`
+
 ### Authentication
 - `POST /api/auth/register`: Register a new admin.
 - `POST /api/auth/login`: Authenticate and receive tokens.

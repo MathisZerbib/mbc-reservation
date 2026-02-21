@@ -163,6 +163,12 @@ This project is designed for collaborative development. Here's a recommended wor
 cd backend
 npm test
 
+# Internal Testing Endpoints
+# POST http://localhost:3000/api/tests/auto-consec
+# Body: { "date": "YYYY-MM-DD" }
+# This endpoint performs a full booking on a specific date with consecutive slots on predefined tables.
+```
+
 # Frontend linting
 cd frontend
 npm run lint
