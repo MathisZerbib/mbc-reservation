@@ -3,7 +3,7 @@ import crypto from 'crypto';
 
 export function generateAccessToken(user: { id: string }) {
   return jwt.sign({ userId: user.id }, process.env.JWT_ACCESS_SECRET as string, {
-    expiresIn: '5m',
+    expiresIn: '12h',
   });
 }
 
