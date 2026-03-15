@@ -15,11 +15,11 @@ To host this for a client, the following "Production Ready" stack is recommended
 
 | Service | Purpose | Recommended Plan | Estimated Cost |
 | :--- | :--- | :--- | :--- |
-| **Vercel** | Frontend (React/Vite) | Pro (for teams) | $20 / month |
-| **Render** | Backend (Node.js/Express) | Starter ($7/mo) | $7 / month |
-| **Aiven.io** | Managed PostgreSQL | Free / Hobby | $0 - $15 / month |
+| **Vercel** | Frontend (React/Vite) | Free (Hobby) | $0 / month |
+| **Render** | Backend (Node.js/Express) | Starter | $7 / month |
+| **Aiven.io** | Managed PostgreSQL | Free / Hobby | $0 / month |
 | **Resend** | Transactional Emails | Free (3k/mo) | $0 / month |
-| **Total Fixed Costs** | | | **~$27 / month** |
+| **Total Fixed Costs** | | | **~$7 / month** |
 
 ### Implementation Details:
 - **Vercel**: Handles the frontend globally with CDN edge caching. 
