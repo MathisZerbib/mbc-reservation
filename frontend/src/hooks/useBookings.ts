@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { io } from 'socket.io-client';
+import { socket } from '../services/socket';
 import type { Booking } from '../types/index';
 import { api } from '../services/api';
-const apiUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
-const socket = io(apiUrl);
 
 export const useBookings = () => {
     const [bookings, setBookings] = useState<Booking[]>([]);

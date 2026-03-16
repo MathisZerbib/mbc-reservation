@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { io } from 'socket.io-client';
+import { socket } from '../services/socket';
 import { TrendingUp, Users, Clock, Euro } from 'lucide-react';
 import { cn } from '../lib/utils';
-
-const apiUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
-const socket = io(apiUrl);
 
 interface AnalyticsProps {
   date: string;
