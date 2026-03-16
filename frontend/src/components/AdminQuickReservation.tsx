@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Phone, Users, Clock, Check, Loader2 } from 'lucide-react';
+import { X, User, Phone, Users, Clock, Check, Loader2, Mail } from 'lucide-react';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
 import dayjs from 'dayjs';
@@ -31,10 +31,12 @@ const getFirstAvailableTime = (date: string) => {
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
+        email: '',
         size: 2,
         language: 'fr',
         date: selectedDate,
         time: '19:00',
+        notify: true,
     });
 
     const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
@@ -75,22 +77,25 @@ const getFirstAvailableTime = (date: string) => {
         try {
             await api.createBooking({
                 name: formData.name,
-                phone: formData.phone, // was phone
-                email: '', // was email
+                phone: formData.phone,
+                email: formData.email,
                 size: formData.size,
                 language: formData.language,
                 startTime: formData.date + ' ' + formData.time,
-            });
+                notify: formData.notify,
+            } as any);
             if (onSuccess) onSuccess();
             onClose();
             // Reset form
             setFormData({
                 name: '',
                 phone: '',
+                email: '',
                 size: 2,
                 time: '19:00',
                 language: 'fr',
                 date: selectedDate,
+                notify: true,
             });
         } catch (err: unknown) {
             if (err instanceof Error) {
@@ -162,6 +167,18 @@ const getFirstAvailableTime = (date: string) => {
                                                 placeholder="Phone Number (Optional)"
                                                 value={formData.phone}
                                                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
+                                                <Mail className="w-4 h-4" />
+                                            </div>
+                                            <input
+                                                type="email"
+                                                placeholder="Email Address (Optional)"
+                                                value={formData.email}
+                                                onChange={e => setFormData({ ...formData, email: e.target.value })}
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
                                             />
                                         </div>
@@ -255,6 +272,18 @@ const getFirstAvailableTime = (date: string) => {
                                             </select>
                                         </div>
                                     </div>
+                                </div>
+                                <div className="flex items-center gap-2 px-1">
+                                    <input
+                                        type="checkbox"
+                                        id="notify"
+                                        checked={formData.notify}
+                                        onChange={e => setFormData({ ...formData, notify: e.target.checked })}
+                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="notify" className="text-xs font-bold text-slate-500 cursor-pointer">
+                                        Send confirmation email
+                                    </label>
                                 </div>
 
                                 

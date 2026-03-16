@@ -77,7 +77,7 @@ export const bookingController = (io: Server) => ({
 
     createBooking: async (req: Request, res: Response) => {
         try {
-            const { name, phone, email, size, startTime, language, highTable } = req.body;
+            const { name, phone, email, size, startTime, language, lowTable, notify } = req.body;
             const missingFields: string[] = [];
             if (!name) missingFields.push('name');
             if (!size) missingFields.push('size');
@@ -89,7 +89,7 @@ export const bookingController = (io: Server) => ({
             const guestSize = parseInt(size);
             // Parse requested time specifically in the restaurant's timezone
             // Parse as absolute time (UTC) and then convert to restaurant timezone object
-            console.log(`📩 [createBooking] Received request: ${name}, size: ${size}, startTime: ${startTime}, highTable: ${highTable}`);
+            console.log(`📩 [createBooking] Received request: ${name}, size: ${size}, startTime: ${startTime}, lowTable: ${lowTable}`);
             const requestedStart = dayjs(startTime).tz(RESTAURANT_TZ).toDate();
             console.log(`⏰ [createBooking] Parsed requestedStart: ${requestedStart.toISOString()} (Local: ${dayjs(requestedStart).tz(RESTAURANT_TZ).format()})`);
             if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
@@ -103,11 +103,11 @@ export const bookingController = (io: Server) => ({
                 language: language || 'fr',
                 size: guestSize,
                 startTime: requestedStart,
-                highTable: highTable || false
+                lowTable: lowTable || false
             });
 
             // Send confirmation email
-            if (newBooking.email) {
+            if (newBooking.email && notify !== false) {
                 emailService.sendConfirmationEmail(newBooking);
             }
 

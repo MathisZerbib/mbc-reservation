@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes';
 import protectedRoutes from './routes/protectedRoutes';
 import testRoutes from './routes/testRoutes';
 import swaggerUi from 'swagger-ui-express';
+import { startCleanupTask } from './services/cleanupService';
 import { swaggerSpec } from './docs/swagger';
 
 const app = express();
@@ -75,4 +76,5 @@ app.get('/health', (req, res) => {
 
 server.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
+    startCleanupTask();
 });

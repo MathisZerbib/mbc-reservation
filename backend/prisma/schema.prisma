@@ -49,7 +49,7 @@ model Booking {
   email     String?
   name      String
   phone     String?
-  highTable Boolean       @default(false)
+  lowTable  Boolean       @default(false)
   tables    Table[]       @relation("BookingTables")
 }
 

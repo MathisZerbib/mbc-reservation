@@ -66,7 +66,7 @@ describe('bookingController Integration (Real DB)', () => {
                     size: '2', // requesting 2 people
                     startTime: new Date().toISOString(), // Immediate booking (assuming avail)
                     language: 'en',
-                    highTable: false
+                    lowTable: false
                 }
             };
             

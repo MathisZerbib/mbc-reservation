@@ -85,7 +85,7 @@ export async function getAvailableTables(
  * the same table as free.
  */
 export async function createReservation(input: CreateReservationInput) {
-    const { name, phone, email, language, size, startTime, highTable } = input;
+    const { name, phone, email, language, size, startTime, lowTable } = input;
     const endTime = addMinutes(startTime, RESERVATION_DURATION);
 
     return prisma.$transaction(async (tx) => {
@@ -111,7 +111,7 @@ export async function createReservation(input: CreateReservationInput) {
         const availableTables = allTables.filter(t => !occupiedIds.has(t.id));
 
         // 2. Find best table combination
-        console.log(`🎯 [createReservation] Attempting auto-assignment for ${size} guests (High Table: ${highTable}) at ${startTime.toISOString()}`);
+        console.log(`🎯 [createReservation] Attempting auto-assignment for ${size} guests (Low Table: ${lowTable}) at ${startTime.toISOString()}`);
         const combination = findTableCombination(size, availableTables);
 
         if (combination) {
@@ -130,7 +130,7 @@ export async function createReservation(input: CreateReservationInput) {
                 size,
                 startTime,
                 endTime,
-                highTable: highTable || false,
+                lowTable: lowTable || false,
                 tables: {
                     connect: combination ? combination.map((t: any) => ({ id: t.id })) : []
                 }

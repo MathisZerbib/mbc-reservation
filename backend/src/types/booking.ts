@@ -17,7 +17,7 @@ export interface Booking {
     startTime: Date | string;
     endTime: Date | string;
     status?: string;
-    highTable?: boolean;
+    lowTable?: boolean;
     tables?: Table[];
     createdAt?: Date;
     updatedAt?: Date;
@@ -30,5 +30,5 @@ export interface CreateReservationInput {
     language?: string;
     size: number;
     startTime: Date;
-    highTable?: boolean;
+    lowTable?: boolean;
 }
