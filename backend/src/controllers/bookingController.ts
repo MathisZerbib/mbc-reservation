@@ -16,7 +16,7 @@ dayjs.extend(timezone);
 const RESTAURANT_TZ = 'Europe/Paris';
 
 const getIsAdmin = (req: Request) => {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers?.authorization;
     if (!authHeader) return false;
     try {
         const token = authHeader.split(' ')[1];

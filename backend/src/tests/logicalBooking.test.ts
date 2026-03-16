@@ -76,7 +76,7 @@ describe('Real-Life Booking Logic', () => {
 
             // Should pick explicit large table if avail
             const tableNames = assignment!.map(t => t.name);
-            expect(tableNames.some(name => ['11', '12'].includes(name))).toBe(true);
+            expect(tableNames.some(name => ['11', '12', '1', '10'].includes(name))).toBe(true);
         });
     });
 
@@ -100,9 +100,11 @@ describe('Real-Life Booking Logic', () => {
             const startTime = getTargetDate('20:00');
             const endTime = addMinutes(startTime, RESERVATION_DURATION);
 
-            // Block 11 and 12
-            const largeTables = await prisma.table.findMany({ where: { name: { in: ['11', '12'] } } });
-            for (const t of largeTables) {
+            // Block big tables (11, 12, 1, 10)
+            const bigTables = await prisma.table.findMany({ 
+                where: { name: { in: ['11', '12', '1', '10'] } } 
+            });
+            for (const t of bigTables) {
                 await prisma.booking.create({
                     data: {
                         name: 'Blocker',

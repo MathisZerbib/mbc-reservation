@@ -80,6 +80,9 @@ describe('bookingController Integration (Real DB)', () => {
             await bookingController(io).createBooking(req as Request, res as Response);
 
             // 1. Check HTTP Response
+            if (json.mock.calls[0][0].error) {
+                console.log('Error from controller:', json.mock.calls[0][0]);
+            }
             expect(json).toHaveBeenCalled();
             const createdBooking = json.mock.calls[0][0];
             expect(createdBooking).toHaveProperty('id');
