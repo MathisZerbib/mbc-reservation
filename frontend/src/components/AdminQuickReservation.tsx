@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Phone, Users, Clock, Check, Loader2, Mail, ChevronDown, Search } from 'lucide-react';
+import { X, User, Phone, Users, Clock, Check, Loader2, Mail, ChevronDown, Search, Bell, MailCheck, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
 import {
@@ -10,13 +10,14 @@ import {
 } from "./ui/popover";
 import { COUNTRIES } from '../utils/countries';
 import { cn } from '../lib/utils';
+import { useBookingsContext } from '../context/useBookingsContext';
 import dayjs from 'dayjs';
 
 interface AdminQuickReservationProps {
     isOpen: boolean;
     onClose: () => void;
     selectedDate: string;
-    onSuccess?: () => void;
+    onSuccess?: (date: string) => void;
 }
 
 export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
@@ -33,6 +34,8 @@ const getFirstAvailableTime = (date: string) => {
 
 
 
+    const { bookings, refresh } = useBookingsContext();
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({
@@ -47,6 +50,17 @@ const getFirstAvailableTime = (date: string) => {
     });
 
     const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
+
+    const currentOccupancyRate = useMemo(() => {
+        const dailyBookings = bookings.filter(b => 
+            dayjs(b.startTime).format('YYYY-MM-DD') === formData.date && 
+            b.status !== 'CANCELLED'
+        );
+        const occupied = new Set(
+            dailyBookings.flatMap(b => b.tables?.map(t => t.name) || [])
+        ).size;
+        return (occupied / 36) * 100;
+    }, [bookings, formData.date]);
     const [fetchingAvailability, setFetchingAvailability] = useState(false);
     const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
     const [phoneValue, setPhoneValue] = useState('');
@@ -121,7 +135,10 @@ const getFirstAvailableTime = (date: string) => {
                 startTime: formData.date + ' ' + formData.time,
                 notify: formData.notify,
             } as any);
-            if (onSuccess) onSuccess();
+            
+            await refresh(); // Force refresh of context data before proceeding
+            
+            if (onSuccess) onSuccess(formData.date);
             onClose();
             // Reset form
             setFormData({
@@ -160,13 +177,24 @@ const getFirstAvailableTime = (date: string) => {
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-4xl shadow-2xl z-51 border border-slate-100"
-                    onClick={(e) => e.stopPropagation()}
+                        className="fixed inset-0 z-[101] flex items-start justify-center p-2 sm:p-4 pointer-events-none overflow-y-auto pt-6 sm:pt-12 md:pt-20"
                     >
-                        <div className="p-8">
-                            <div className="flex justify-between items-center mb-8">
+                        <div 
+                            className="w-full max-w-md md:max-w-2xl bg-white rounded-3xl sm:rounded-4xl shadow-2xl border border-slate-100 mb-8 overflow-visible pointer-events-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                        <div className="p-5 sm:p-8">
+                            <div className="flex justify-between items-center mb-4 sm:mb-8">
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Quick Res</h2>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                        Quick Res
+                                        {currentOccupancyRate >= 70 && (
+                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-600 rounded-lg animate-pulse border border-amber-100">
+                                                <AlertTriangle className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-black uppercase tracking-wider">{Math.round(currentOccupancyRate)}%</span>
+                                            </div>
+                                        )}
+                                    </h2>
                                     <p className="text-sm font-medium text-slate-400">Add reservation manually</p>
                                 </div>
                                 <button
@@ -177,212 +205,230 @@ const getFirstAvailableTime = (date: string) => {
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-5">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Guest details</label>
-                                    <div className="space-y-3">
-                                        <div className="relative group">
-                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
-                                                <User className="w-4 h-4" />
+                            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Left Column: Basic Info */}
+                                    <div className="space-y-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Guest details</label>
+                                            <div className="space-y-3">
+                                                <div className="relative group">
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
+                                                        <User className="w-4 h-4" />
+                                                    </div>
+                                                    <input
+                                                        autoFocus
+                                                        required
+                                                        type="text"
+                                                        maxLength={20}
+                                                        placeholder="Guest Name"
+                                                        value={formData.name}
+                                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
+                                                    />
+                                                </div>
+                                                <div className="relative group flex gap-2">
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className="flex items-center gap-2 bg-slate-50 border-2 border-slate-100 rounded-2xl px-3 hover:bg-white hover:border-indigo-500/50 transition-all cursor-pointer h-[52px] sm:h-[60px]"
+                                                            >
+                                                                <span className="text-lg">{selectedCountry.flag}</span>
+                                                                <span className="text-xs font-bold text-slate-500">{selectedCountry.dial}</span>
+                                                                <ChevronDown className="w-3 h-3 text-slate-300" />
+                                                            </button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-68 p-0 bg-white border-slate-100 shadow-2xl rounded-2xl z-110 overflow-hidden" align="start">
+                                                            <div className="p-2 border-b border-slate-100 bg-slate-50/50">
+                                                                <div className="relative group/search">
+                                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/search:text-indigo-500 transition-colors" />
+                                                                    <input
+                                                                        autoFocus
+                                                                        type="text"
+                                                                        placeholder="Search country..."
+                                                                        value={countrySearch}
+                                                                        onChange={e => setCountrySearch(e.target.value)}
+                                                                        className="w-full bg-white border-2 border-slate-100 rounded-xl py-2 pl-9 pr-3 text-xs font-bold text-slate-700 focus:border-indigo-500/30 outline-none transition-all"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-1 max-h-60 overflow-y-auto p-2 scrollbar-thin">
+                                                                {filteredCountries.length > 0 ? (
+                                                                    filteredCountries.map(c => (
+                                                                        <button
+                                                                            key={c.code}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSelectedCountry(c);
+                                                                                setCountrySearch('');
+                                                                            }}
+                                                                            className={cn(
+                                                                                "flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all hover:bg-slate-50",
+                                                                                selectedCountry.code === c.code && "bg-indigo-50/50 text-indigo-700"
+                                                                            )}
+                                                                        >
+                                                                            <span className="text-xl">{c.flag}</span>
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-xs font-bold">{c.name}</span>
+                                                                                <span className="text-[10px] text-slate-400 font-medium">{c.dial}</span>
+                                                                            </div>
+                                                                        </button>
+                                                                    ))
+                                                                ) : (
+                                                                    <div className="p-8 text-center">
+                                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching country</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+
+                                                    <div className="relative flex-1 group/phone">
+                                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/phone:text-indigo-500 transition-colors">
+                                                            <Phone className="w-4 h-4" />
+                                                        </div>
+                                                        <input
+                                                            type="tel"
+                                                            maxLength={15}
+                                                            placeholder="Phone Number (Optional)"
+                                                            value={phoneValue}
+                                                            onChange={e => setPhoneValue(e.target.value.replace(/[^\d\s]/g, ''))}
+                                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="relative group">
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
+                                                        <Mail className="w-4 h-4" />
+                                                    </div>
+                                                    <input
+                                                        type="email"
+                                                        maxLength={24}
+                                                        placeholder="Email Address (Optional)"
+                                                        value={formData.email}
+                                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {[
+                                                        { code: 'fr', flag: '🇫🇷', label: 'Fr' },
+                                                        { code: 'en', flag: '🇬🇧', label: 'En' },
+                                                        { code: 'it', flag: '🇮🇹', label: 'It' },
+                                                    ].map(l => (
+                                                        <button
+                                                            key={l.code}
+                                                            type="button"
+                                                            className={
+                                                                formData.language === l.code
+                                                                    ? 'px-3 py-1.5 rounded-lg border-2 font-bold text-[10px] uppercase flex items-center gap-1.5 bg-indigo-50 border-indigo-600 text-indigo-700 cursor-pointer transition-all'
+                                                                    : 'px-3 py-1.5 rounded-lg border-2 font-bold text-[10px] uppercase flex items-center gap-1.5 bg-white border-slate-100 text-slate-400 hover:border-slate-200 cursor-pointer transition-all'
+                                                            }
+                                                            onClick={() => setFormData({ ...formData, language: l.code })}
+                                                        >
+                                                            <span>{l.flag}</span> {l.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <input
-                                                autoFocus
-                                                required
-                                                type="text"
-                                                maxLength={20}
-                                                placeholder="Guest Name"
-                                                value={formData.name}
-                                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
-                                            />
                                         </div>
-                                        <div className="relative group flex gap-2">
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <button
-                                                        type="button"
-                                                        className="flex items-center gap-2 bg-slate-50 border-2 border-slate-100 rounded-2xl px-3 hover:bg-white hover:border-indigo-500/50 transition-all cursor-pointer"
-                                                    >
-                                                        <span className="text-lg">{selectedCountry.flag}</span>
-                                                        <span className="text-xs font-bold text-slate-500">{selectedCountry.dial}</span>
-                                                        <ChevronDown className="w-3 h-3 text-slate-300" />
-                                                    </button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-68 p-0 bg-white border-slate-100 shadow-2xl rounded-2xl z-100 overflow-hidden" align="start">
-                                                    <div className="p-2 border-b border-slate-100 bg-slate-50/50">
-                                                        <div className="relative group/search">
-                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/search:text-indigo-500 transition-colors" />
+                                    </div>
+
+                                    {/* Right Column: DateTime and Options */}
+                                    <div className="space-y-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Date & Time</label>
+                                            <div className="space-y-3">
+                                                <DatePicker 
+                                                    date={dayjs(formData.date).toDate()} 
+                                                    setDate={d => {
+                                                        const nextDate = dayjs(d).format('YYYY-MM-DD');
+                                                        const nextTime = dayjs(`${nextDate} ${formData.time}`).isBefore(dayjs()) 
+                                                            ? getFirstAvailableTime(nextDate)
+                                                            : formData.time;
+                                                        setFormData({...formData, date: nextDate, time: nextTime || ''});
+                                                    }}
+                                                    disabled={(date) => dayjs(date).isBefore(dayjs(), 'day')}
+                                                />
+                                                
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Guests</label>
+                                                        <div className="relative group">
+                                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
+                                                                <Users className="w-4 h-4" />
+                                                            </div>
                                                             <input
-                                                                autoFocus
-                                                                type="text"
-                                                                placeholder="Search country..."
-                                                                value={countrySearch}
-                                                                onChange={e => setCountrySearch(e.target.value)}
-                                                                className="w-full bg-white border-2 border-slate-100 rounded-xl py-2 pl-9 pr-3 text-xs font-bold text-slate-700 focus:border-indigo-500/30 outline-none transition-all"
+                                                                type="number"
+                                                                min="1"
+                                                                value={formData.size}
+                                                                onChange={e => setFormData({ ...formData, size: parseInt(e.target.value) || 1 })}
+                                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
                                                             />
                                                         </div>
                                                     </div>
-                                                    <div className="grid grid-cols-1 gap-1 max-h-60 overflow-y-auto p-2 scrollbar-thin">
-                                                        {filteredCountries.length > 0 ? (
-                                                            filteredCountries.map(c => (
-                                                                <button
-                                                                    key={c.code}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setSelectedCountry(c);
-                                                                        setCountrySearch('');
-                                                                    }}
-                                                                    className={cn(
-                                                                        "flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all hover:bg-slate-50",
-                                                                        selectedCountry.code === c.code && "bg-indigo-50/50 text-indigo-700"
-                                                                    )}
-                                                                >
-                                                                    <span className="text-xl">{c.flag}</span>
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-xs font-bold">{c.name}</span>
-                                                                        <span className="text-[10px] text-slate-400 font-medium">{c.dial}</span>
-                                                                    </div>
-                                                                </button>
-                                                            ))
-                                                        ) : (
-                                                            <div className="p-8 text-center">
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching country</p>
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex justify-between items-center ml-1">
+                                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Time</label>
+                                                        </div>
+                                                        <div className="relative group">
+                                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
+                                                                <Clock className="w-4 h-4" />
                                                             </div>
-                                                        )}
+                                                            <select
+                                                                value={formData.time}
+                                                                onChange={e => setFormData({ ...formData, time: e.target.value })}
+                                                                className={`w-full bg-slate-50 border-2 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:bg-white outline-none transition-all appearance-none ${
+                                                                    !fetchingAvailability && availableTimes[formData.time] === false 
+                                                                    ? 'border-red-100 text-red-900' 
+                                                                    : 'border-slate-100 focus:border-indigo-500/50'
+                                                                }`}
+                                                            >
+                                                                {TIME_SLOTS.map(t => {
+                                                                    const isFull = !fetchingAvailability && availableTimes[t] === false;
+                                                                    return (
+                                                                        <option key={t} value={t}>
+                                                                            {t} {isFull ? '(Full)' : ''}
+                                                                        </option>
+                                                                    );
+                                                                })}
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                </PopoverContent>
-                                            </Popover>
-
-                                            <div className="relative flex-1 group/phone">
-                                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/phone:text-indigo-500 transition-colors">
-                                                    <Phone className="w-4 h-4" />
                                                 </div>
-                                                <input
-                                                    type="tel"
-                                                    maxLength={15}
-                                                    placeholder="Phone Number (Optional)"
-                                                    value={phoneValue}
-                                                    onChange={e => setPhoneValue(e.target.value.replace(/[^\d\s]/g, ''))}
-                                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
-                                                />
                                             </div>
                                         </div>
-                                        <div className="relative group">
-                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
-                                                <Mail className="w-4 h-4" />
-                                            </div>
-                                            <input
-                                                type="email"
-                                                maxLength={24}
-                                                placeholder="Email Address (Optional)"
-                                                value={formData.email}
-                                                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
-                                            />
-                                        </div>
-                                        <div className="flex gap-2 mt-2">
-                                            {[
-                                                { code: 'fr', flag: '🇫🇷', label: 'Français' },
-                                                { code: 'en', flag: '🇬🇧', label: 'English' },
-                                                { code: 'it', flag: '🇮🇹', label: 'Italiano' },
-                                            ].map(l => (
+
+                                        <div className="p-4 bg-indigo-50/30 border-2 border-slate-100 rounded-3xl group transition-all hover:bg-white hover:border-indigo-500/30">
+                                            <div className="flex items-center gap-4">
+                                                <div className={cn(
+                                                    "w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
+                                                    formData.notify ? "bg-indigo-600 text-white" : "bg-white text-slate-300 border border-slate-100"
+                                                )}>
+                                                    {formData.notify ? <Bell className="w-4 h-4" /> : <MailCheck className="w-4 h-4" />}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Notifications</div>
+                                                    <div className="text-[9px] text-slate-400 font-bold">Automated confirmation</div>
+                                                </div>
                                                 <button
-                                                    key={l.code}
                                                     type="button"
-                                                    className={
-                                                        formData.language === l.code
-                                                            ? 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-indigo-50 border-indigo-600 text-indigo-700 cursor-pointer'
-                                                            : 'px-2 py-1 rounded-lg border-2 font-bold text-xs flex items-center gap-1 bg-white border-slate-100 text-slate-400 hover:border-slate-200 cursor-pointer'
-                                                    }
-                                                    onClick={() => setFormData({ ...formData, language: l.code })}
+                                                    onClick={() => setFormData(prev => ({ ...prev, notify: !prev.notify }))}
+                                                    className={cn(
+                                                        "w-12 h-6 rounded-full relative transition-all duration-300",
+                                                        formData.notify ? "bg-emerald-500" : "bg-slate-200"
+                                                    )}
                                                 >
-                                                    <span>{l.flag}</span> {l.label}
+                                                    <div className={cn(
+                                                        "absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-500 shadow-md",
+                                                        formData.notify ? "left-6.5" : "left-0.5"
+                                                    )} />
                                                 </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Date</label>
-                                        <DatePicker 
-                                            date={dayjs(formData.date).toDate()} 
-                                            setDate={d => {
-                                                const nextDate = dayjs(d).format('YYYY-MM-DD');
-                                                const nextTime = dayjs(`${nextDate} ${formData.time}`).isBefore(dayjs()) 
-                                                    ? getFirstAvailableTime(nextDate)
-                                                    : formData.time;
-                                                setFormData({...formData, date: nextDate, time: nextTime || ''});
-                                            }}
-                                            disabled={(date) => dayjs(date).isBefore(dayjs(), 'day')}
-                                        />
-                                </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Guests</label>
-                                        <div className="relative group">
-                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
-                                                <Users className="w-4 h-4" />
                                             </div>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={formData.size}
-                                                onChange={e => setFormData({ ...formData, size: parseInt(e.target.value) || 1 })}
-                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    
-                                    <div className="space-y-1.5">
-                                        <div className="flex justify-between items-center ml-1">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Time</label>
-                                            {!fetchingAvailability && availableTimes[formData.time] === false && (
-                                                <span className="text-[9px] font-black text-red-500 uppercase tracking-tight flex items-center gap-1">
-                                                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" /> Full Capacity
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="relative group">
-                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
-                                                <Clock className="w-4 h-4" />
-                                            </div>
-                                            <select
-                                                value={formData.time}
-                                                onChange={e => setFormData({ ...formData, time: e.target.value })}
-                                                className={`w-full bg-slate-50 border-2 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 focus:bg-white outline-none transition-all appearance-none ${
-                                                    !fetchingAvailability && availableTimes[formData.time] === false 
-                                                    ? 'border-red-100 text-red-900 focus:border-red-200' 
-                                                    : 'border-slate-100 focus:border-indigo-500/50'
-                                                }`}
-                                            >
-                                                {TIME_SLOTS.map(t => {
-                                                    const isFull = !fetchingAvailability && availableTimes[t] === false;
-                                                    const isPassed = dayjs(`${formData.date} ${t}`).isBefore(dayjs());
-                                                    return (
-                                                        <option key={t} value={t} className={isFull ? 'text-red-600' : ''}>
-                                                            {t} {isFull ? '(Full)' : ''} {isPassed ? '(Past)' : ''}
-                                                        </option>
-                                                    );
-                                                })}
-                                            </select>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 px-1">
-                                    <input
-                                        type="checkbox"
-                                        id="notify"
-                                        checked={formData.notify}
-                                        onChange={e => setFormData({ ...formData, notify: e.target.checked })}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                    />
-                                    <label htmlFor="notify" className="text-xs font-bold text-slate-500 cursor-pointer">
-                                        Send confirmation email
-                                    </label>
-                                </div>
-
                                 
 
                                 <AnimatePresence>
@@ -405,7 +451,7 @@ const getFirstAvailableTime = (date: string) => {
                                     <button
                                         disabled={loading}
                                         type="submit"
-                                        className="w-full bg-slate-900 text-white rounded-2xl py-5 font-black flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-500/20 disabled:opacity-50 active:scale-[0.98] cursor-pointer group"
+                                        className="w-full bg-slate-900 text-white rounded-2xl py-4 sm:py-5 font-black flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-500/20 disabled:opacity-50 active:scale-[0.98] cursor-pointer group"
                                     >
                                         {loading ? (
                                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -419,7 +465,8 @@ const getFirstAvailableTime = (date: string) => {
                                 </div>
                             </form>
                         </div>
-                    </motion.div>
+                    </div>
+                </motion.div>
                 </>
             )}
         </AnimatePresence>

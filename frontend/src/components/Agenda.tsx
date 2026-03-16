@@ -136,9 +136,9 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
               )}
             >
               <div className={clsx(
-                "absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-500",
-                b.status === 'COMPLETED' ? "bg-emerald-400" :
-                  b.status === 'CANCELLED' ? "bg-slate-200" : "bg-slate-100 group-hover:bg-indigo-500"
+                "absolute left-0 top-0 bottom-0 w-2 transition-all duration-700 ease-out",
+                b.status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]" :
+                  b.status === 'CANCELLED' ? "bg-slate-300" : "bg-slate-100 group-hover:bg-indigo-600 group-hover:w-3 group-hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
               )}></div>
 
               <div className="flex justify-between items-start gap-3">
