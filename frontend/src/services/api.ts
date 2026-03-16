@@ -72,13 +72,13 @@ export const api = {
         client.get<Analytics>('/analytics', { params: { date } }),
 
     checkAvailability: (date: string, time: string, size: number) =>
-        client.get<AvailabilityResponse>('/availability', { params: { date, time, size } }),
+        client.get<AvailabilityResponse>('/availability', { params: { date, time, size }, auth: true }),
 
     getDailyAvailability: (date: string, size: number) =>
-        client.get<DailyAvailability[]>('/daily-availability', { params: { date, size } }),
+        client.get<DailyAvailability[]>('/daily-availability', { params: { date, size }, auth: true }),
 
     createBooking: (data: Partial<CreateBookingPayload>) =>
-        client.post<Booking>('/bookings', { body: data }),
+        client.post<Booking>('/bookings', { body: data, auth: true }),
 
     updateAssignment: (id: string, tableNames: string[]) =>
         client.patch<Booking>(`/bookings/${id}/tables`, { body: { tableNames }, auth: true }),

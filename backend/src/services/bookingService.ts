@@ -12,6 +12,7 @@ const RESTAURANT_TZ = 'Europe/Paris';
 
 // Core booking logic and availability checks
 export const LAST_SEATING = '22:00';
+export const MIN_BOOKING_ADVANCE_HOURS = 2;
 
 // Helper: Add minutes to date
 export const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60000);
@@ -297,13 +298,16 @@ export async function getSuggestions(date: string, size: number, requestedTime: 
     for (const slot of sortedSlots) {
         if (slot === requestedTime) continue;
 
-        const start = dayjs.tz(`${date}T${slot}`, RESTAURANT_TZ).toDate();
-        if (isNaN(start.getTime())) continue;
+        const start = dayjs.tz(`${date}T${slot}`, RESTAURANT_TZ);
+        if (isNaN(start.toDate().getTime())) continue;
 
-        const end = addMinutes(start, RESERVATION_DURATION);
+        // Ensure slot is at least 2 hours away
+        if (start.isBefore(dayjs().add(MIN_BOOKING_ADVANCE_HOURS, 'hours'))) continue;
+
+        const end = addMinutes(start.toDate(), RESERVATION_DURATION);
 
 
-        const availableTables = await getAvailableTables(start, end);
+        const availableTables = await getAvailableTables(start.toDate(), end);
         const combination = findTableCombination(size, availableTables);
 
         if (combination) {

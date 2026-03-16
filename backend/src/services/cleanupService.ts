@@ -10,7 +10,7 @@ export async function cleanupOldBookings() {
     console.log('🧹 [Cleanup] Starting periodic cleanup of old reservations...');
     try {
         const thresholdDate = dayjs().subtract(2, 'days').toDate();
-        
+
         const count = await prisma.booking.deleteMany({
             where: {
                 startTime: {
@@ -18,7 +18,7 @@ export async function cleanupOldBookings() {
                 }
             }
         });
-        
+
         console.log(`✅ [Cleanup] Successfully deleted ${count.count} old reservations.`);
     } catch (error) {
         console.error('❌ [Cleanup] Failed to cleanup old bookings:', error);
@@ -29,7 +29,7 @@ export async function cleanupOldBookings() {
 export function startCleanupTask() {
     // Run immediately on start
     cleanupOldBookings();
-    
+
     // Then every 24 hours
     const interval = 24 * 60 * 60 * 1000;
     setInterval(cleanupOldBookings, interval);

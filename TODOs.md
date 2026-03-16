@@ -11,7 +11,7 @@ Frontend
 
 Backend
 
-- Mettre en place un nettoyage automatique des reservations passees, avec suppression ou archivage apres au moins 2 jours.
+DONE - Mettre en place un nettoyage automatique des reservations passees, avec suppression ou archivage apres au moins 2 jours.
 
 Priorite moyenne
 
@@ -24,7 +24,9 @@ Optionnel
 
 Fullstack
 
-- Autoriser certaines reservations longues, par exemple 2h30 ou 3h, uniquement si la demande est faite suffisamment avant le slot. Ne pas autoriser l'extension apres ce delai.
+- Autoriser la prise de reservations uniquement si la demande est faite suffisamment avant le slot (2h avant). Ne pas autoriser les reservations à moins de 2h avant l'heure du slot.
+
+
 - Si une reservation n'est pas confirmee dans les 30 a 45 minutes, liberer automatiquement la table et marquer la reservation comme non confirmee ou expiree.
 
 Infra

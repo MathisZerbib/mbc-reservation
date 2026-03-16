@@ -8,7 +8,9 @@ import {
   ChevronLeft,
   ArrowRight,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  Phone,
+  Search
 } from 'lucide-react';
 import clsx from 'clsx';
 import { cn } from '../lib/utils';
@@ -21,16 +23,25 @@ import { DatePicker } from './ui/date-picker';
 import type { Lang } from '../i18n/translations';
 import { useLanguage } from '../i18n/useLanguage';
 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "./ui/popover";
+import { COUNTRIES } from '../utils/countries';
+
 const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
 const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
+
+
 
 export const BookingWidget: React.FC = () => {
   const { lang, setLang, t } = useLanguage();
   dayjs.locale(lang);
 
   const getFirstAvailableTime = (date: string) => {
-    const now = dayjs();
-    return TIME_SLOTS.find(slot => dayjs(`${date} ${slot}`).isAfter(now)) || null;
+    const minAdvanceTime = dayjs().add(2, 'hour');
+    return TIME_SLOTS.find(slot => dayjs(`${date} ${slot}`).isAfter(minAdvanceTime)) || null;
   };
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
@@ -44,22 +55,34 @@ export const BookingWidget: React.FC = () => {
     email: '',
     lowTable: false,
   });
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [phoneValue, setPhoneValue] = useState('');
+  const [countrySearch, setCountrySearch] = useState('');
+
+  const filteredCountries = useMemo(() => {
+    const s = countrySearch.toLowerCase().trim();
+    if (!s) return COUNTRIES;
+    return COUNTRIES.filter(c => 
+      c.name.toLowerCase().includes(s) || 
+      c.dial.includes(s) || 
+      c.code.toLowerCase().includes(s)
+    );
+  }, [countrySearch]);
 
   // Harden: Pattern-based validation with strict length limits
   const validation = useMemo(() => {
     const name = formData.name.trim();
-    const phone = formData.phone.trim();
     const email = formData.email.trim();
-    
+
     return {
       email: email.length > 0 && email.length <= 24 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
-      phone: phone.length >= 8 && phone.length <= 20 && /^\+?[\d\s-]{8,}$/.test(phone),
+      phone: phoneValue.length >= 6 && phoneValue.length <= 15 && /^\d+$/.test(phoneValue.replace(/\s/g, '')),
       name: name.length >= 2 && name.length <= 20,
       isStep3Valid: name.length >= 2 && name.length <= 20 &&
         email.length <= 24 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-        phone.length >= 8 && phone.length <= 20 && /^\+?[\d\s-]{8,}$/.test(phone)
+        phoneValue.length >= 6 && phoneValue.length <= 15 && /^\d+$/.test(phoneValue.replace(/\s/g, ''))
     };
-  }, [formData.name, formData.email, formData.phone]);
+  }, [formData.name, formData.email, phoneValue]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -134,12 +157,13 @@ export const BookingWidget: React.FC = () => {
       const startTime = formData.startTime
         ? dayjs(`${formData.date} ${formData.startTime}`).toISOString()
         : '';
-      
+
       // Strict Sanitization before API call
+      const fullPhone = `${selectedCountry.dial}${phoneValue.replace(/\s/g, '')}`;
       const payload = {
         ...formData,
         name: formData.name.trim().substring(0, 20),
-        phone: formData.phone.trim().substring(0, 20),
+        phone: fullPhone.substring(0, 20),
         email: formData.email.trim().toLowerCase().substring(0, 24),
         startTime,
         notify: true,
@@ -321,7 +345,6 @@ export const BookingWidget: React.FC = () => {
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block pl-1">{t.date}</label>
                       <div className="relative group/date">
-                        <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/date:text-indigo-500 transition-colors z-10 pointer-events-none" />
                         <DatePicker
                           date={dayjs(formData.date).toDate()}
                           setDate={d => {
@@ -332,7 +355,7 @@ export const BookingWidget: React.FC = () => {
                             setFormData({ ...formData, date: nextDate, startTime: nextTime || '' });
                           }}
                           disabled={(date) => dayjs(date).isBefore(dayjs(), 'day')}
-                          className="pl-12 h-14 bg-white/50 border-2 border-slate-100 rounded-2xl font-bold text-sm focus:border-indigo-500/30 transition-all shadow-sm"
+                          className="h-14 bg-white/50 border-2 border-slate-100 rounded-2xl font-bold text-sm focus:border-indigo-500/30 transition-all shadow-sm"
                         />
                       </div>
                     </div>
@@ -351,9 +374,9 @@ export const BookingWidget: React.FC = () => {
                       ) : (
                         <div className="grid grid-cols-3 gap-2">
                           {TIME_SLOTS.map(t => {
-                            const isPassed = dayjs(`${formData.date} ${t}`).isBefore(dayjs());
+                            const isTooSoon = dayjs(`${formData.date} ${t}`).isBefore(dayjs().add(2, 'hour'));
                             const isAvailable = availableTimes[t] !== false;
-                            const isDisabled = isPassed || (!fetchingAvailability && !isAvailable);
+                            const isDisabled = isTooSoon || (!fetchingAvailability && !isAvailable);
 
                             return (
                               <button
@@ -371,7 +394,7 @@ export const BookingWidget: React.FC = () => {
                                 )}
                               >
                                 {t}
-                                {!fetchingAvailability && !isAvailable && !isPassed && (
+                                {!fetchingAvailability && !isAvailable && !isTooSoon && (
                                   <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white shadow-sm"></div>
                                 )}
                               </button>
@@ -467,20 +490,77 @@ export const BookingWidget: React.FC = () => {
                         <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/field:text-indigo-500 transition-colors" />
                       </div>
 
-                      <div className="relative group/field">
-                        <input
-                          type="tel"
-                          required
-                          maxLength={20}
-                          value={formData.phone}
-                          onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                          placeholder={`${t.phone} *`}
-                          className={cn(
-                            "w-full bg-slate-50/50 border-2 rounded-2xl p-4 text-slate-900 font-bold focus:bg-white transition-all outline-none text-sm pl-11",
-                            formData.phone && !validation.phone ? "border-red-100 bg-red-50/20" : "border-slate-100 focus:border-indigo-500/30"
-                          )}
-                        />
-                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/field:text-indigo-500 transition-colors" />
+                      <div className="relative group/field flex gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex items-center gap-2 bg-slate-50/50 border-2 border-slate-100 rounded-2xl px-3 hover:bg-white hover:border-indigo-500/30 transition-all cursor-pointer"
+                            >
+                              <span className="text-lg">{selectedCountry.flag}</span>
+                              <span className="text-xs font-bold text-slate-600">{selectedCountry.dial}</span>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-68 p-0 bg-white/95 backdrop-blur-xl border-slate-100 shadow-2xl rounded-2xl overflow-hidden" align="start">
+                            <div className="p-2 border-b border-slate-100 bg-slate-50/50">
+                              <div className="relative group/search">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/search:text-indigo-500 transition-colors" />
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  placeholder="Search country..."
+                                  value={countrySearch}
+                                  onChange={e => setCountrySearch(e.target.value)}
+                                  className="w-full bg-white border-2 border-slate-100 rounded-xl py-2 pl-9 pr-3 text-xs font-bold text-slate-700 focus:border-indigo-500/30 outline-none transition-all"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-1 max-h-60 overflow-y-auto p-2 scrollbar-thin">
+                              {filteredCountries.length > 0 ? (
+                                filteredCountries.map(c => (
+                                  <button
+                                    key={c.code}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCountry(c);
+                                      setCountrySearch('');
+                                    }}
+                                    className={cn(
+                                      "flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all hover:bg-slate-50",
+                                      selectedCountry.code === c.code && "bg-indigo-50/50 text-indigo-700"
+                                    )}
+                                  >
+                                    <span className="text-xl">{c.flag}</span>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-bold">{c.name}</span>
+                                      <span className="text-[10px] text-slate-400 font-medium">{c.dial}</span>
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="p-8 text-center">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching country</p>
+                                </div>
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+
+                        <div className="relative flex-1 group/phone">
+                          <input
+                            type="tel"
+                            required
+                            maxLength={15}
+                            value={phoneValue}
+                            onChange={e => setPhoneValue(e.target.value.replace(/[^\d\s]/g, ''))}
+                            placeholder={`${t.phone} *`}
+                            className={cn(
+                              "w-full bg-slate-50/50 border-2 rounded-2xl p-4 text-slate-900 font-bold focus:bg-white transition-all outline-none text-sm pl-11",
+                              phoneValue && !validation.phone ? "border-red-100 bg-red-50/20" : "border-slate-100 focus:border-indigo-500/30"
+                            )}
+                          />
+                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/phone:text-indigo-500 transition-colors" />
+                        </div>
                       </div>
 
                       <div className="relative group/field">
@@ -499,7 +579,7 @@ export const BookingWidget: React.FC = () => {
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/field:text-indigo-500 transition-colors flex items-center justify-center font-black text-xs">@</div>
                       </div>
 
-                                       <button
+                      <button
                         type="button"
                         className={cn(
                           "w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer",
@@ -548,9 +628,9 @@ export const BookingWidget: React.FC = () => {
 
                   <AnimatePresence>
                     {error && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0, scale: 0.95 }} 
-                        animate={{ opacity: 1, height: 'auto', scale: 1 }} 
+                      <motion.div
+                        initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, height: 'auto', scale: 1 }}
                         exit={{ opacity: 0, height: 0, scale: 0.95 }}
                         className="overflow-hidden"
                       >

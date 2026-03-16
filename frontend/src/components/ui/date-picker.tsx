@@ -30,12 +30,12 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
         <Button
           variant={"outline"}
           className={cn(
-            "w-full justify-start text-left font-normal bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 h-auto focus:border-indigo-500/50 transition-all outline-none overflow-hidden whitespace-normal",
+            "w-full justify-start text-left font-normal bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 h-auto focus:border-indigo-500/50 transition-all outline-none overflow-hidden whitespace-normal group",
             !date && "text-muted-foreground",
             className
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4 text-indigo-500 shrink-0" />
+          <CalendarIcon className="mr-3 h-4 w-4 text-slate-400 group-focus:text-indigo-500 transition-colors shrink-0" />
           <span className="truncate">
             {date ? format(date, "PPP") : placeholder}
           </span>
