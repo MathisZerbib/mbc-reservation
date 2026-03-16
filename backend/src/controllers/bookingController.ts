@@ -83,7 +83,7 @@ export const bookingController = (io: Server) => ({
             const isAdmin = getIsAdmin(req);
             const results = await Promise.all(TIME_SLOTS.map(async (time) => {
                 const start = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ);
-                
+
                 // 2h buffer check (admin bypass)
                 if (!isAdmin && start.isBefore(dayjs().add(MIN_BOOKING_ADVANCE_HOURS, 'hours'))) {
                     return { time, available: false };
@@ -277,45 +277,38 @@ export const bookingController = (io: Server) => ({
             const { date } = req.query;
             if (!date) return res.status(400).json({ error: 'Missing date' });
 
-            const startOfDay = new Date(`${date}T00:00:00`);
-            const endOfDay = new Date(`${date}T23:59:59`);
+            const startOfDay = dayjs.tz(`${date}T00:00:00`, RESTAURANT_TZ).toDate();
+            const endOfDay = dayjs.tz(`${date}T23:59:59`, RESTAURANT_TZ).toDate();
 
-            interface BookingForAnalytics {
-                size: number;
-                startTime: Date | string;
-                endTime: Date | string;
-            }
-
-            const bookings: BookingForAnalytics[] = await prisma.booking.findMany({
+            const bookings = await prisma.booking.findMany({
                 where: {
                     startTime: { gte: startOfDay, lte: endOfDay },
                     status: { not: 'CANCELLED' }
+                },
+                select: {
+                    size: true,
+                    startTime: true,
+                    endTime: true
                 }
             });
 
-            const totalBookings: number = bookings.length;
-            const totalGuests: number = bookings.reduce((sum: number, b: BookingForAnalytics) => sum + b.size, 0);
-            const turnover: number = totalGuests * 55; // Assuming avg 55€ per guest
+            const totalBookings = bookings.length;
+            const totalGuests = bookings.reduce((sum, b) => sum + b.size, 0);
+            const turnover = totalGuests * 55;
 
-            // Calculate Peak Hour
-            const slots: string[] = [];
-            for (let h = 17; h <= 22; h++) {
-                slots.push(`${h}:00`, `${h}:30`);
-            }
+            // Calculate Peak Hour (Time with most guests arriving)
+            const arrivalCounts: Record<string, number> = {};
+            bookings.forEach(b => {
+                const slot = dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm');
+                arrivalCounts[slot] = (arrivalCounts[slot] || 0) + b.size;
+            });
 
-            let peakHour: string = '19:00';
-            let maxOverlaps: number = -1;
+            let peakHour = '—';
+            let maxArrivals = 0;
 
-            slots.forEach((slot: string) => {
-                const slotTime = new Date(`${date}T${slot.length === 4 ? '0' + slot : slot}`);
-                const overlaps: number = bookings.filter((b: BookingForAnalytics) => {
-                    const start: Date = new Date(b.startTime);
-                    const end: Date = new Date(b.endTime);
-                    return slotTime >= start && slotTime < end;
-                }).length;
-
-                if (overlaps > maxOverlaps) {
-                    maxOverlaps = overlaps;
+            Object.entries(arrivalCounts).forEach(([slot, count]) => {
+                if (count > maxArrivals) {
+                    maxArrivals = count;
                     peakHour = slot;
                 }
             });

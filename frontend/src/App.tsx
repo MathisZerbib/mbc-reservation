@@ -149,11 +149,11 @@ function AdminDashboard() {
               <Analytics date={selectedDate} />
             </div>
 
-            <div className="flex-1 min-h-0 overflow-hidden relative rounded-[2.5rem] bg-white shadow-sm border border-slate-200">
-              <div className="absolute top-6 left-8 z-10">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-full border border-slate-100 shadow-sm">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Live Floor Plan</span>
+            <div className="flex-1 min-h-0 overflow-hidden relative rounded-[2.5rem] bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 group/floorplan">
+              <div className="absolute top-8 left-10 z-10 transition-transform duration-500 group-hover/floorplan:scale-105">
+                <div className="flex items-center gap-2.5 px-4 py-2 bg-white/90 backdrop-blur-xl rounded-full border border-slate-100 shadow-lg shadow-slate-200/20">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">Live Floor Plan</span>
                 </div>
               </div>
               <FloorPlan hoveredBookingId={hoveredBookingId} selectedDate={selectedDate} />

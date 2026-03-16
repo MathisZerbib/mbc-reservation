@@ -171,7 +171,7 @@ const getFirstAvailableTime = (date: string) => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+                        className="fixed inset-0 z-[100] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4 transition-colors"
                     />
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
