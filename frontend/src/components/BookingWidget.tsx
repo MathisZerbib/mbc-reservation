@@ -45,15 +45,21 @@ export const BookingWidget: React.FC = () => {
     lowTable: false,
   });
 
-  // Harden: Pattern-based validation
-  const validation = useMemo(() => ({
-    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email),
-    phone: /^\+?[\d\s-]{8,}$/.test(formData.phone),
-    name: formData.name.trim().length >= 2,
-    isStep3Valid: formData.name.trim().length >= 2 &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) &&
-      /^\+?[\d\s-]{8,}$/.test(formData.phone)
-  }), [formData.name, formData.email, formData.phone]);
+  // Harden: Pattern-based validation with strict length limits
+  const validation = useMemo(() => {
+    const name = formData.name.trim();
+    const phone = formData.phone.trim();
+    const email = formData.email.trim();
+    
+    return {
+      email: email.length > 0 && email.length <= 24 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+      phone: phone.length >= 8 && phone.length <= 20 && /^\+?[\d\s-]{8,}$/.test(phone),
+      name: name.length >= 2 && name.length <= 20,
+      isStep3Valid: name.length >= 2 && name.length <= 20 &&
+        email.length <= 24 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+        phone.length >= 8 && phone.length <= 20 && /^\+?[\d\s-]{8,}$/.test(phone)
+    };
+  }, [formData.name, formData.email, formData.phone]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -128,11 +134,18 @@ export const BookingWidget: React.FC = () => {
       const startTime = formData.startTime
         ? dayjs(`${formData.date} ${formData.startTime}`).toISOString()
         : '';
-      await api.createBooking({
+      
+      // Strict Sanitization before API call
+      const payload = {
         ...formData,
+        name: formData.name.trim().substring(0, 20),
+        phone: formData.phone.trim().substring(0, 20),
+        email: formData.email.trim().toLowerCase().substring(0, 24),
         startTime,
         notify: true,
-      } as any);
+      };
+
+      await api.createBooking(payload as any);
       nextStep(4);
     } catch (e: any) {
       setError(e.message || t.error);
@@ -442,6 +455,7 @@ export const BookingWidget: React.FC = () => {
                         <input
                           type="text"
                           required
+                          maxLength={20}
                           value={formData.name}
                           onChange={e => setFormData({ ...formData, name: e.target.value })}
                           placeholder={`${t.name} *`}
@@ -457,6 +471,7 @@ export const BookingWidget: React.FC = () => {
                         <input
                           type="tel"
                           required
+                          maxLength={20}
                           value={formData.phone}
                           onChange={e => setFormData({ ...formData, phone: e.target.value })}
                           placeholder={`${t.phone} *`}
@@ -472,6 +487,7 @@ export const BookingWidget: React.FC = () => {
                         <input
                           type="email"
                           required
+                          maxLength={24}
                           value={formData.email}
                           onChange={e => setFormData({ ...formData, email: e.target.value })}
                           placeholder={`${t.email} *`}
@@ -530,11 +546,21 @@ export const BookingWidget: React.FC = () => {
                     </div>
                   </div>
 
-                  {error && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-50/50 p-3 rounded-xl border-2 border-red-100/30 text-red-500 text-[10px] font-black uppercase tracking-widest text-center">
-                      {error}
-                    </motion.div>
-                  )}
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0, scale: 0.95 }} 
+                        animate={{ opacity: 1, height: 'auto', scale: 1 }} 
+                        exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="bg-red-50/50 p-3 rounded-xl border-2 border-red-100/30 text-red-500 text-[10px] font-black uppercase tracking-widest text-center flex items-center justify-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                          {error}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <div className="flex gap-3 pt-4">
                     <button

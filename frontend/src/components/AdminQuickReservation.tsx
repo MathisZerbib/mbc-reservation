@@ -71,14 +71,30 @@ const getFirstAvailableTime = (date: string) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Basic Sanitization & Validation Guards
+        const sanitizedName = formData.name.trim().substring(0, 20);
+        const sanitizedPhone = formData.phone.trim().substring(0, 20);
+        const sanitizedEmail = formData.email.trim().toLowerCase().substring(0, 24);
+
+        if (sanitizedName.length < 2) {
+            setError('Name must be at least 2 characters');
+            return;
+        }
+
+        if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedEmail)) {
+            setError('Invalid email format');
+            return;
+        }
+
         setLoading(true);
         setError('');
 
         try {
             await api.createBooking({
-                name: formData.name,
-                phone: formData.phone,
-                email: formData.email,
+                name: sanitizedName,
+                phone: sanitizedPhone,
+                email: sanitizedEmail,
                 size: formData.size,
                 language: formData.language,
                 startTime: formData.date + ' ' + formData.time,
@@ -152,6 +168,7 @@ const getFirstAvailableTime = (date: string) => {
                                                 autoFocus
                                                 required
                                                 type="text"
+                                                maxLength={20}
                                                 placeholder="Guest Name"
                                                 value={formData.name}
                                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -164,6 +181,7 @@ const getFirstAvailableTime = (date: string) => {
                                             </div>
                                             <input
                                                 type="tel"
+                                                maxLength={20}
                                                 placeholder="Phone Number (Optional)"
                                                 value={formData.phone}
                                                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
@@ -176,6 +194,7 @@ const getFirstAvailableTime = (date: string) => {
                                             </div>
                                             <input
                                                 type="email"
+                                                maxLength={24}
                                                 placeholder="Email Address (Optional)"
                                                 value={formData.email}
                                                 onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -288,22 +307,35 @@ const getFirstAvailableTime = (date: string) => {
 
                                 
 
-                                {error && (
-                                    <div className="p-3 bg-red-50 text-red-500 text-xs font-bold rounded-xl border border-red-100">
-                                        {error}
-                                    </div>
-                                )}
+                                <AnimatePresence>
+                                    {error && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                                            exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="p-3 bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl border border-red-100/50 flex items-center gap-2">
+                                                <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" />
+                                                {error}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
 
                                 <div className="pt-4">
                                     <button
                                         disabled={loading}
                                         type="submit"
-                                        className="w-full bg-slate-900 text-white rounded-2xl py-5 font-black flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-500/20 disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+                                        className="w-full bg-slate-900 text-white rounded-2xl py-5 font-black flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 hover:shadow-indigo-500/20 disabled:opacity-50 active:scale-[0.98] cursor-pointer group"
                                     >
                                         {loading ? (
                                             <Loader2 className="w-5 h-5 animate-spin" />
                                         ) : (
-                                            <>Create Reservation <Check className="w-5 h-5" /></>
+                                            <>
+                                                Create Reservation 
+                                                <Check className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                            </>
                                         )}
                                     </button>
                                 </div>

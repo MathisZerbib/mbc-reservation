@@ -77,7 +77,9 @@ export const bookingController = (io: Server) => ({
 
     createBooking: async (req: Request, res: Response) => {
         try {
-            const { name, phone, email, size, startTime, language, lowTable, notify } = req.body;
+            let { name, phone, email, size, startTime, language, lowTable, notify } = req.body;
+            
+            // 1. Mandatory Fields Guard
             const missingFields: string[] = [];
             if (!name) missingFields.push('name');
             if (!size) missingFields.push('size');
@@ -86,20 +88,39 @@ export const bookingController = (io: Server) => ({
                 return res.status(400).json({ error: 'Missing fields', missingFields });
             }
 
+            // 2. Strict Sanitization & Security Guards
+            name = String(name).trim().substring(0, 20);
+            phone = phone ? String(phone).trim().substring(0, 20) : null;
+            email = email ? String(email).trim().toLowerCase().substring(0, 24) : null;
+            
+            // 3. Validation Rules
+            if (name.length < 2) {
+                return res.status(400).json({ error: 'Name too short (min 2 characters)' });
+            }
+
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                return res.status(400).json({ error: 'Invalid email format' });
+            }
+
+            if (phone && !/^\+?[\d\s-]{8,}$/.test(phone)) {
+                return res.status(400).json({ error: 'Invalid phone format' });
+            }
+
             const guestSize = parseInt(size);
-            // Parse requested time specifically in the restaurant's timezone
-            // Parse as absolute time (UTC) and then convert to restaurant timezone object
-            console.log(`📩 [createBooking] Received request: ${name}, size: ${size}, startTime: ${startTime}, lowTable: ${lowTable}`);
+            if (isNaN(guestSize) || guestSize < 1 || guestSize > 100) {
+                return res.status(400).json({ error: 'Invalid guest size' });
+            }
+
+            console.log(`📩 [createBooking] Received request: ${name}, size: ${size}, startTime: ${startTime}`);
             const requestedStart = dayjs(startTime).tz(RESTAURANT_TZ).toDate();
-            console.log(`⏰ [createBooking] Parsed requestedStart: ${requestedStart.toISOString()} (Local: ${dayjs(requestedStart).tz(RESTAURANT_TZ).format()})`);
+            
             if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
-            // Transactional booking: availability check + table assignment + create
-            // all happen atomically — prevents race-condition double bookings
+            // 4. Atomic Execution
             const newBooking = await createReservation({
                 name,
-                phone: phone || null,
-                email: email || null,
+                phone,
+                email,
                 language: language || 'fr',
                 size: guestSize,
                 startTime: requestedStart,
