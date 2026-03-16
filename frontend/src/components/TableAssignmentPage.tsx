@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import dayjs from 'dayjs';
+import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
 import { ChevronLeft, Save, Users, Clock, Search, ChevronDown } from 'lucide-react';
@@ -48,7 +48,7 @@ export const TableAssignmentPage: React.FC = () => {
     }, [selectedBookingId, bookings, selectedBooking]);
 
     const filteredBookings = bookings.filter(b =>
-        dayjs(b.startTime).format('YYYY-MM-DD') === date &&
+        dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === date &&
         b.status !== 'CANCELLED' &&
         b.status !== 'COMPLETED'
     ).filter(b => {
@@ -347,7 +347,7 @@ export const TableAssignmentPage: React.FC = () => {
                                     <div className="flex items-center gap-2">
                                         <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 border border-slate-100 rounded-md">
                                             <Clock className="w-2.5 h-2.5 text-slate-400" />
-                                            <span className="text-[9px] font-black text-slate-600">{dayjs(b.startTime).format('HH:mm')}</span>
+                                            <span className="text-[9px] font-black text-slate-600">{dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}</span>
                                         </div>
                                         <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 border border-slate-100 rounded-md">
                                             <Users className="w-2.5 h-2.5 text-slate-400" />
@@ -520,7 +520,7 @@ export const TableAssignmentPage: React.FC = () => {
                                                     )
                                                     .sort((a, b) => dayjs(a.startTime).diff(dayjs(b.startTime)))
                                                     .map((b: Booking) => {
-                                                        const isCurrent = dayjs().isBetween(dayjs(b.startTime), dayjs(b.endTime));
+                                                        const isCurrent = dayjs().tz(RESTAURANT_TZ).isBetween(dayjs(b.startTime), dayjs(b.endTime));
                                                         const isThisBooking = selectedBooking && b.id === selectedBooking.id;
                                                         return (
                                                             <div
@@ -541,7 +541,7 @@ export const TableAssignmentPage: React.FC = () => {
                                                                     </span>
                                                                     <div className="flex items-center gap-1.5">
                                                                         <Clock className="w-3 h-3 opacity-50" />
-                                                                        <span className="text-[10px] font-black">{dayjs(b.startTime).format('HH:mm')}</span>
+                                                                         <span className="text-[10px] font-black">{dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className={cn(
@@ -552,7 +552,7 @@ export const TableAssignmentPage: React.FC = () => {
                                                                         <Users className="w-3 h-3" />
                                                                         {b.size} guests
                                                                     </div>
-                                                                    <span className="opacity-70 italic text-[9px]">until {dayjs(b.endTime).format('HH:mm')}</span>
+                                                                    <span className="opacity-70 italic text-[9px]">until {dayjs(b.endTime).tz(RESTAURANT_TZ).format('HH:mm')}</span>
                                                                 </div>
                                                             </div>
                                                         );

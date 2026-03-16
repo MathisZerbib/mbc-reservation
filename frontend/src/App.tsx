@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserRouter, Routes, Route, Link, useSearchParams } from 'react-router-dom';
 import { Map as MapIcon, X, AlertTriangle } from 'lucide-react';
-import dayjs from 'dayjs';
+import dayjs, { RESTAURANT_TZ } from './utils/dayjs';
 import { FloorPlan } from './components/FloorPlan';
 import { Agenda } from './components/Agenda';
 import { Analytics } from './components/Analytics';
@@ -61,14 +61,14 @@ function AdminDashboard() {
   const dateFromQuery = searchParams.get('date');
   
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(dateFromQuery || dayjs().format('YYYY-MM-DD'));
+  const [selectedDate, setSelectedDate] = useState(dateFromQuery || dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'));
   const [testDate, setTestDate] = useState(selectedDate);
   const [isQuickResOpen, setIsQuickResOpen] = useState(false);
   const [showMobileFloorPlan, setShowMobileFloorPlan] = useState(false);
   const { bookings } = useBookingsContext();
 
   const dailyBookings = bookings.filter(b => 
-    dayjs(b.startTime).format('YYYY-MM-DD') === selectedDate && 
+    dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === selectedDate && 
     b.status !== 'CANCELLED'
   );
   
@@ -99,7 +99,7 @@ function AdminDashboard() {
           <div className="flex items-center justify-between w-full sm:w-auto gap-4">
             <div>
               <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">MBC <span className="text-slate-400">Manager</span></h1>
-              <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">{dayjs(selectedDate).format('dddd, D MMM YYYY')}</p>
+              <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">{dayjs.tz(selectedDate, RESTAURANT_TZ).format('dddd, D MMM YYYY')}</p>
             </div>
             {occupancyRate >= 70 && (
               <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl animate-pulse shadow-sm">

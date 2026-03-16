@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import dayjs from 'dayjs';
+import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { CheckCircle2, XCircle, AlertTriangle, Search, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { cn } from '../lib/utils';
@@ -50,7 +50,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
   };
 
   const filteredBookings = bookings
-    .filter(b => dayjs(b.startTime).format('YYYY-MM-DD') === date)
+    .filter(b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === date)
     .filter(b => {
       // Name or Table match
       if (searchName) {
@@ -75,7 +75,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.25em] pl-0.5">Schedule</span>
-            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{dayjs(date).format('dddd, D MMM')}</p>
+            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM')}</p>
           </div>
           <DatePicker
             date={dayjs(date).toDate()}
@@ -145,10 +145,10 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="bg-slate-900 text-white px-2 py-0.5 rounded-md text-[10px] font-black tracking-tighter">
-                      {dayjs(b.startTime).format('HH:mm')}
+                      {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
                     </div>
                     <div className="text-slate-400 text-[9px] font-bold uppercase tracking-widest opacity-60">
-                      {dayjs(b.endTime).format('HH:mm')}
+                      {dayjs(b.endTime).tz(RESTAURANT_TZ).format('HH:mm')}
                     </div>
                   </div>
 

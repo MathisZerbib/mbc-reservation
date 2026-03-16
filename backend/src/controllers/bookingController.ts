@@ -142,7 +142,7 @@ export const bookingController = (io: Server) => ({
             }
 
             console.log(`📩 [createBooking] Received request: ${name}, size: ${size}, startTime: ${startTime}`);
-            const requestedStart = dayjs(startTime).tz(RESTAURANT_TZ);
+            const requestedStart = dayjs.tz(startTime, RESTAURANT_TZ);
 
             if (isNaN(requestedStart.toDate().getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 

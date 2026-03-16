@@ -11,7 +11,7 @@ import {
 import { COUNTRIES } from '../utils/countries';
 import { cn } from '../lib/utils';
 import { useBookingsContext } from '../context/useBookingsContext';
-import dayjs from 'dayjs';
+import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 
 interface AdminQuickReservationProps {
     isOpen: boolean;
@@ -28,8 +28,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
 }) => {
 const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 const getFirstAvailableTime = (date: string) => {
-    const now = dayjs();
-    return TIME_SLOTS.find(slot => dayjs(`${date} ${slot}`).isAfter(now)) || null;
+    return TIME_SLOTS.find(slot => dayjs.tz(`${date} ${slot}`, RESTAURANT_TZ).isAfter(dayjs().tz(RESTAURANT_TZ))) || null;
 };
 
 
@@ -53,7 +52,7 @@ const getFirstAvailableTime = (date: string) => {
 
     const currentOccupancyRate = useMemo(() => {
         const dailyBookings = bookings.filter(b => 
-            dayjs(b.startTime).format('YYYY-MM-DD') === formData.date && 
+            dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === formData.date && 
             b.status !== 'CANCELLED'
         );
         const occupied = new Set(
