@@ -15,7 +15,7 @@ export interface Booking {
     size: number;
     startTime: string;
     endTime: string;
-    highTable: boolean;
+    lowTable: boolean;
     status: BookingStatus;
     tables: Table[];
 }
@@ -26,8 +26,9 @@ export interface CreateBookingPayload {
     email?: string;
     size: number;
     language?: string;
-    highTable?: boolean;
+    lowTable?: boolean;
     startTime: string;
+    notify?: boolean;
 }
 
 

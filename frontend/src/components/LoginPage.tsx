@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CanadianLeafLoader from './CanadianLeafLoader';
 import { Eye, EyeOff } from 'lucide-react';
 
 export function LoginPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +31,7 @@ export function LoginPage() {
         setShowLoader(true);
         localStorage.setItem('token', data.accessToken);
         setTimeout(() => {
-          window.location.href = '/admin/dashboard';
+          navigate('/admin/dashboard');
         }, 1800);
       }
     } catch (err) {

@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma';
-import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions, createReservation } from '../services/bookingService';
+import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions, createReservation, MIN_BOOKING_ADVANCE_HOURS } from '../services/bookingService';
 import { Server } from 'socket.io';
 import { emailService } from '../services/emailService';
-import { Table, Booking } from '../types/booking';
+import { Booking } from '../types/booking';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -13,6 +14,18 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const RESTAURANT_TZ = 'Europe/Paris';
+
+const getIsAdmin = (req: Request) => {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) return false;
+    try {
+        const token = authHeader.split(' ')[1];
+        jwt.verify(token, process.env.JWT_ACCESS_SECRET as string);
+        return true;
+    } catch (e) {
+        return false;
+    }
+};
 
 
 
@@ -25,12 +38,22 @@ export const bookingController = (io: Server) => ({
 
             const guestSize = parseInt(size as string);
             // Parse requested time specifically in the restaurant's timezone
-            const requestedStart = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ).toDate();
-            if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
+            const requestedStart = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ);
+            if (isNaN(requestedStart.toDate().getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
-            const requestedEnd = addMinutes(requestedStart, RESERVATION_DURATION);
+            // 2h buffer check (admin bypass)
+            if (!getIsAdmin(req) && requestedStart.isBefore(dayjs().add(MIN_BOOKING_ADVANCE_HOURS, 'hours'))) {
+                const suggestions = await getSuggestions(date as string, guestSize, time as string);
+                return res.json({
+                    available: false,
+                    tables: [],
+                    suggestions
+                });
+            }
 
-            const available = await getAvailableTables(requestedStart, requestedEnd);
+            const requestedEnd = addMinutes(requestedStart.toDate(), RESERVATION_DURATION);
+
+            const available = await getAvailableTables(requestedStart.toDate(), requestedEnd);
             const combination = findTableCombination(guestSize, available);
 
             let suggestions: string[] = [];
@@ -57,10 +80,17 @@ export const bookingController = (io: Server) => ({
             const guestSize = parseInt(size as string);
             const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
+            const isAdmin = getIsAdmin(req);
             const results = await Promise.all(TIME_SLOTS.map(async (time) => {
-                const start = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ).toDate();
-                const end = addMinutes(start, RESERVATION_DURATION);
-                const available = await getAvailableTables(start, end);
+                const start = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ);
+
+                // 2h buffer check (admin bypass)
+                if (!isAdmin && start.isBefore(dayjs().add(MIN_BOOKING_ADVANCE_HOURS, 'hours'))) {
+                    return { time, available: false };
+                }
+
+                const end = addMinutes(start.toDate(), RESERVATION_DURATION);
+                const available = await getAvailableTables(start.toDate(), end);
                 const combination = findTableCombination(guestSize, available);
                 return {
                     time,
@@ -77,7 +107,9 @@ export const bookingController = (io: Server) => ({
 
     createBooking: async (req: Request, res: Response) => {
         try {
-            const { name, phone, email, size, startTime, language, highTable } = req.body;
+            let { name, phone, email, size, startTime, language, lowTable, notify } = req.body;
+
+            // 1. Mandatory Fields Guard
             const missingFields: string[] = [];
             if (!name) missingFields.push('name');
             if (!size) missingFields.push('size');
@@ -86,28 +118,52 @@ export const bookingController = (io: Server) => ({
                 return res.status(400).json({ error: 'Missing fields', missingFields });
             }
 
-            const guestSize = parseInt(size);
-            // Parse requested time specifically in the restaurant's timezone
-            // Parse as absolute time (UTC) and then convert to restaurant timezone object
-            console.log(`📩 [createBooking] Received request: ${name}, size: ${size}, startTime: ${startTime}, highTable: ${highTable}`);
-            const requestedStart = dayjs(startTime).tz(RESTAURANT_TZ).toDate();
-            console.log(`⏰ [createBooking] Parsed requestedStart: ${requestedStart.toISOString()} (Local: ${dayjs(requestedStart).tz(RESTAURANT_TZ).format()})`);
-            if (isNaN(requestedStart.getTime())) return res.status(400).json({ error: 'Invalid date/time' });
+            // 2. Strict Sanitization & Security Guards
+            name = String(name).trim().substring(0, 20);
+            phone = phone ? String(phone).trim().substring(0, 20) : null;
+            email = email ? String(email).trim().toLowerCase().substring(0, 24) : null;
 
-            // Transactional booking: availability check + table assignment + create
-            // all happen atomically — prevents race-condition double bookings
+            // 3. Validation Rules
+            if (name.length < 2) {
+                return res.status(400).json({ error: 'Name too short (min 2 characters)' });
+            }
+
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                return res.status(400).json({ error: 'Invalid email format' });
+            }
+
+            if (phone && !/^\+?[\d\s-]{8,}$/.test(phone)) {
+                return res.status(400).json({ error: 'Invalid phone format' });
+            }
+
+            const guestSize = parseInt(size);
+            if (isNaN(guestSize) || guestSize < 1 || guestSize > 100) {
+                return res.status(400).json({ error: 'Invalid guest size' });
+            }
+
+            console.log(`📩 [createBooking] Received request: ${name}, size: ${size}, startTime: ${startTime}`);
+            const requestedStart = dayjs.tz(startTime, RESTAURANT_TZ);
+
+            if (isNaN(requestedStart.toDate().getTime())) return res.status(400).json({ error: 'Invalid date/time' });
+
+            // 2h buffer check (admin bypass)
+            if (!getIsAdmin(req) && requestedStart.isBefore(dayjs().add(MIN_BOOKING_ADVANCE_HOURS, 'hours'))) {
+                return res.status(400).json({ error: `Les réservations doivent être faites au moins ${MIN_BOOKING_ADVANCE_HOURS}h à l'avance.` });
+            }
+
+            // 4. Atomic Execution
             const newBooking = await createReservation({
                 name,
-                phone: phone || null,
-                email: email || null,
+                phone,
+                email,
                 language: language || 'fr',
                 size: guestSize,
-                startTime: requestedStart,
-                highTable: highTable || false
+                startTime: requestedStart.toDate(),
+                lowTable: lowTable || false
             });
 
             // Send confirmation email
-            if (newBooking.email) {
+            if (newBooking.email && notify !== false) {
                 emailService.sendConfirmationEmail(newBooking);
             }
 
@@ -221,45 +277,38 @@ export const bookingController = (io: Server) => ({
             const { date } = req.query;
             if (!date) return res.status(400).json({ error: 'Missing date' });
 
-            const startOfDay = new Date(`${date}T00:00:00`);
-            const endOfDay = new Date(`${date}T23:59:59`);
+            const startOfDay = dayjs.tz(`${date}T00:00:00`, RESTAURANT_TZ).toDate();
+            const endOfDay = dayjs.tz(`${date}T23:59:59`, RESTAURANT_TZ).toDate();
 
-            interface BookingForAnalytics {
-                size: number;
-                startTime: Date | string;
-                endTime: Date | string;
-            }
-
-            const bookings: BookingForAnalytics[] = await prisma.booking.findMany({
+            const bookings = await prisma.booking.findMany({
                 where: {
                     startTime: { gte: startOfDay, lte: endOfDay },
                     status: { not: 'CANCELLED' }
+                },
+                select: {
+                    size: true,
+                    startTime: true,
+                    endTime: true
                 }
             });
 
-            const totalBookings: number = bookings.length;
-            const totalGuests: number = bookings.reduce((sum: number, b: BookingForAnalytics) => sum + b.size, 0);
-            const turnover: number = totalGuests * 55; // Assuming avg 55€ per guest
+            const totalBookings = bookings.length;
+            const totalGuests = bookings.reduce((sum, b) => sum + b.size, 0);
+            const turnover = totalGuests * 55;
 
-            // Calculate Peak Hour
-            const slots: string[] = [];
-            for (let h = 17; h <= 22; h++) {
-                slots.push(`${h}:00`, `${h}:30`);
-            }
+            // Calculate Peak Hour (Time with most guests arriving)
+            const arrivalCounts: Record<string, number> = {};
+            bookings.forEach(b => {
+                const slot = dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm');
+                arrivalCounts[slot] = (arrivalCounts[slot] || 0) + b.size;
+            });
 
-            let peakHour: string = '19:00';
-            let maxOverlaps: number = -1;
+            let peakHour = '—';
+            let maxArrivals = 0;
 
-            slots.forEach((slot: string) => {
-                const slotTime = new Date(`${date}T${slot.length === 4 ? '0' + slot : slot}`);
-                const overlaps: number = bookings.filter((b: BookingForAnalytics) => {
-                    const start: Date = new Date(b.startTime);
-                    const end: Date = new Date(b.endTime);
-                    return slotTime >= start && slotTime < end;
-                }).length;
-
-                if (overlaps > maxOverlaps) {
-                    maxOverlaps = overlaps;
+            Object.entries(arrivalCounts).forEach(([slot, count]) => {
+                if (count > maxArrivals) {
+                    maxArrivals = count;
                     peakHour = slot;
                 }
             });
