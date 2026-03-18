@@ -54,6 +54,8 @@ FRONTEND_URL=http://localhost:5173
 
 # Database Connection (PostgreSQL)
 DATABASE_URL="postgresql://user:password@localhost:5432/mbc_reservation?schema=public"
+# Optional but recommended for Neon/pgBouncer: direct (non-pooler) URL used by Prisma migrations
+DIRECT_DATABASE_URL="postgresql://user:password@localhost:5432/mbc_reservation?schema=public"
 
 # Authentication (JWT Secrets - use strong generated strings)
 JWT_ACCESS_SECRET="your-super-secret-access-key"
