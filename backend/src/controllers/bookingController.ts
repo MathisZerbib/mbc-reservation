@@ -272,6 +272,82 @@ export const bookingController = (io: Server) => ({
         }
     },
 
+    updateBooking: async (req: Request, res: Response) => {
+        try {
+            let { id } = req.params;
+            if (Array.isArray(id)) id = id[0];
+
+            let { name, phone, email, size, startTime, language, lowTable } = req.body;
+
+            // Sanitize & validate only provided fields
+            if (name !== undefined) {
+                name = String(name).trim().substring(0, 20);
+                if (name.length < 2) {
+                    return res.status(400).json({ error: 'Name too short (min 2 characters)' });
+                }
+            }
+
+            if (email !== undefined && email !== null && email !== '') {
+                email = String(email).trim().toLowerCase().substring(0, 24);
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    return res.status(400).json({ error: 'Invalid email format' });
+                }
+            } else if (email === '') {
+                email = null;
+            }
+
+            if (phone !== undefined && phone !== null && phone !== '') {
+                phone = String(phone).trim().substring(0, 20);
+                if (!/^\+?[\d\s-]{8,}$/.test(phone)) {
+                    return res.status(400).json({ error: 'Invalid phone format' });
+                }
+            } else if (phone === '') {
+                phone = null;
+            }
+
+            if (size !== undefined) {
+                const guestSize = parseInt(size);
+                if (isNaN(guestSize) || guestSize < 1 || guestSize > 100) {
+                    return res.status(400).json({ error: 'Invalid guest size' });
+                }
+                size = guestSize;
+            }
+
+            const updateData: Record<string, unknown> = {};
+            if (name !== undefined) updateData.name = name;
+            if (email !== undefined) updateData.email = email;
+            if (phone !== undefined) updateData.phone = phone;
+            if (size !== undefined) updateData.size = size;
+            if (language !== undefined) updateData.language = language;
+            if (lowTable !== undefined) updateData.lowTable = lowTable;
+
+            if (startTime !== undefined) {
+                const requestedStart = dayjs.tz(startTime, RESTAURANT_TZ);
+                if (isNaN(requestedStart.toDate().getTime())) {
+                    return res.status(400).json({ error: 'Invalid date/time' });
+                }
+                updateData.startTime = requestedStart.toDate();
+                updateData.endTime = addMinutes(requestedStart.toDate(), RESERVATION_DURATION);
+            }
+
+            await prisma.booking.update({
+                where: { id },
+                data: updateData
+            } as any);
+
+            const updatedBooking: Booking | null = await prisma.booking.findUnique({
+                where: { id },
+                include: { tables: true } as any
+            });
+
+            io.emit('booking-update', { type: 'update', booking: updatedBooking });
+            res.json(updatedBooking);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Failed to update booking' });
+        }
+    },
+
     getAnalytics: async (req: Request, res: Response) => {
         try {
             const { date } = req.query;
