@@ -1,17 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Phone, Users, Clock, Check, Loader2, Mail, ChevronDown, Search, Bell, MailCheck, AlertTriangle } from 'lucide-react';
+import { X, User, Users, Clock, Check, Loader2, Mail, Bell, MailCheck, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "./ui/popover";
 import { COUNTRIES } from '../utils/countries';
 import { cn } from '../lib/utils';
 import { useBookingsContext } from '../context/useBookingsContext';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
+import { CountryPhonePicker } from './booking/CountryPhonePicker';
+import {
+    TIME_SLOTS,
+    LANGUAGES,
+    sanitizeName,
+    sanitizeEmail,
+    buildPhone,
+    validateBookingFields,
+} from '../utils/bookingValidation';
 
 interface AdminQuickReservationProps {
     isOpen: boolean;
@@ -26,7 +30,6 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
     selectedDate,
     onSuccess
 }) => {
-const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 const getFirstAvailableTime = (date: string) => {
     return TIME_SLOTS.find(slot => dayjs.tz(`${date} ${slot}`, RESTAURANT_TZ).isAfter(dayjs().tz(RESTAURANT_TZ))) || null;
 };
@@ -63,17 +66,6 @@ const getFirstAvailableTime = (date: string) => {
     const [fetchingAvailability, setFetchingAvailability] = useState(false);
     const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
     const [phoneValue, setPhoneValue] = useState('');
-    const [countrySearch, setCountrySearch] = useState('');
-
-    const filteredCountries = useMemo(() => {
-        const s = countrySearch.toLowerCase().trim();
-        if (!s) return COUNTRIES;
-        return COUNTRIES.filter(c => 
-            c.name.toLowerCase().includes(s) || 
-            c.dial.includes(s) || 
-            c.code.toLowerCase().includes(s)
-        );
-    }, [countrySearch]);
 
     React.useEffect(() => {
         const fetchDaily = async () => {
@@ -105,19 +97,14 @@ const getFirstAvailableTime = (date: string) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Basic Sanitization & Validation Guards
-        const sanitizedName = formData.name.trim().substring(0, 20);
-        const fullPhone = phoneValue ? `${selectedCountry.dial}${phoneValue.replace(/\s/g, '')}` : '';
-        const sanitizedPhone = fullPhone.substring(0, 20);
-        const sanitizedEmail = formData.email.trim().toLowerCase().substring(0, 24);
+        // Sanitize & validate using shared rules
+        const sanitizedName = sanitizeName(formData.name);
+        const sanitizedEmail = sanitizeEmail(formData.email);
+        const sanitizedPhone = buildPhone(selectedCountry.dial, phoneValue);
 
-        if (sanitizedName.length < 2) {
-            setError('Name must be at least 2 characters');
-            return;
-        }
-
-        if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedEmail)) {
-            setError('Invalid email format');
+        const validationError = validateBookingFields({ name: formData.name, email: formData.email });
+        if (validationError) {
+            setError(validationError);
             return;
         }
 
@@ -226,77 +213,12 @@ const getFirstAvailableTime = (date: string) => {
                                                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
                                                     />
                                                 </div>
-                                                <div className="relative group flex gap-2">
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <button
-                                                                type="button"
-                                                                className="flex items-center gap-2 bg-slate-50 border-2 border-slate-100 rounded-2xl px-3 hover:bg-white hover:border-indigo-500/50 transition-all cursor-pointer h-[52px] sm:h-[60px]"
-                                                            >
-                                                                <span className="text-lg">{selectedCountry.flag}</span>
-                                                                <span className="text-xs font-bold text-slate-500">{selectedCountry.dial}</span>
-                                                                <ChevronDown className="w-3 h-3 text-slate-300" />
-                                                            </button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-68 p-0 bg-white border-slate-100 shadow-2xl rounded-2xl z-110 overflow-hidden" align="start">
-                                                            <div className="p-2 border-b border-slate-100 bg-slate-50/50">
-                                                                <div className="relative group/search">
-                                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/search:text-indigo-500 transition-colors" />
-                                                                    <input
-                                                                        autoFocus
-                                                                        type="text"
-                                                                        placeholder="Search country..."
-                                                                        value={countrySearch}
-                                                                        onChange={e => setCountrySearch(e.target.value)}
-                                                                        className="w-full bg-white border-2 border-slate-100 rounded-xl py-2 pl-9 pr-3 text-xs font-bold text-slate-700 focus:border-indigo-500/30 outline-none transition-all"
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 gap-1 max-h-60 overflow-y-auto p-2 scrollbar-thin">
-                                                                {filteredCountries.length > 0 ? (
-                                                                    filteredCountries.map(c => (
-                                                                        <button
-                                                                            key={c.code}
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setSelectedCountry(c);
-                                                                                setCountrySearch('');
-                                                                            }}
-                                                                            className={cn(
-                                                                                "flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all hover:bg-slate-50",
-                                                                                selectedCountry.code === c.code && "bg-indigo-50/50 text-indigo-700"
-                                                                            )}
-                                                                        >
-                                                                            <span className="text-xl">{c.flag}</span>
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-xs font-bold">{c.name}</span>
-                                                                                <span className="text-[10px] text-slate-400 font-medium">{c.dial}</span>
-                                                                            </div>
-                                                                        </button>
-                                                                    ))
-                                                                ) : (
-                                                                    <div className="p-8 text-center">
-                                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching country</p>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </PopoverContent>
-                                                    </Popover>
-
-                                                    <div className="relative flex-1 group/phone">
-                                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/phone:text-indigo-500 transition-colors">
-                                                            <Phone className="w-4 h-4" />
-                                                        </div>
-                                                        <input
-                                                            type="tel"
-                                                            maxLength={15}
-                                                            placeholder="Phone Number (Optional)"
-                                                            value={phoneValue}
-                                                            onChange={e => setPhoneValue(e.target.value.replace(/[^\d\s]/g, ''))}
-                                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
-                                                        />
-                                                    </div>
-                                                </div>
+                                                <CountryPhonePicker
+                                                    selectedCountry={selectedCountry}
+                                                    onCountryChange={setSelectedCountry}
+                                                    phoneValue={phoneValue}
+                                                    onPhoneChange={setPhoneValue}
+                                                />
                                                 <div className="relative group">
                                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
                                                         <Mail className="w-4 h-4" />
@@ -311,11 +233,7 @@ const getFirstAvailableTime = (date: string) => {
                                                     />
                                                 </div>
                                                 <div className="flex flex-wrap gap-2 mt-2">
-                                                    {[
-                                                        { code: 'fr', flag: '🇫🇷', label: 'Fr' },
-                                                        { code: 'en', flag: '🇬🇧', label: 'En' },
-                                                        { code: 'it', flag: '🇮🇹', label: 'It' },
-                                                    ].map(l => (
+                                                    {LANGUAGES.map(l => (
                                                         <button
                                                             key={l.code}
                                                             type="button"

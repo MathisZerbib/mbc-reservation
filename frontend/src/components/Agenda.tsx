@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
-import { CheckCircle2, XCircle, AlertTriangle, Search, Users } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Search, Users, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { cn } from '../lib/utils';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
 import { calculateAffluence, affluenceClassNames, formatTableLabels } from '../utils/bookingUtils';
 import { useBookingsContext } from '../context/useBookingsContext';
+import { EditBookingModal } from './EditBookingModal';
+import type { Booking } from '../types/index';
 interface AgendaProps {
   setHoveredBookingId: (id: string | null) => void;
   date: string;
@@ -17,6 +19,7 @@ interface AgendaProps {
 export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDate, className }) => {
   const { bookings, refresh } = useBookingsContext();
   const [showModal, setShowModal] = useState<{ id: string, name: string } | null>(null);
+  const [editBooking, setEditBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchName, setSearchName] = useState('');
   const [searchSize, setSearchSize] = useState<string>('');
@@ -221,13 +224,22 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
 
                 {/* Absolute Cancel Cross */}
                 {b.status !== 'CANCELLED' && b.status !== 'COMPLETED' && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowModal({ id: b.id, name: b.name }); }}
-                    className="absolute top-1.5 right-1.5 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-10"
-                    title="Cancel Reservation"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                  </button>
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowModal({ id: b.id, name: b.name }); }}
+                      className="absolute top-1.5 right-1.5 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-10"
+                      title="Cancel Reservation"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEditBooking(b); }}
+                      className="absolute top-1.5 right-8 p-1.5 text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-10"
+                      title="Edit Reservation"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -266,6 +278,12 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
           </div>
         </div>
       )}
+
+      {/* Edit Booking Modal */}
+      <EditBookingModal
+        booking={editBooking}
+        onClose={() => setEditBooking(null)}
+      />
     </div>
   );
 };

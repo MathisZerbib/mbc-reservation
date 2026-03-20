@@ -1,4 +1,4 @@
-import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, DailyAvailability } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload, UpdateBookingPayload, Analytics, DailyAvailability } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -88,6 +88,9 @@ export const api = {
 
     cancelBooking: (id: string) =>
         client.post<Booking>(`/bookings/${id}/cancel`, { auth: true }),
+
+    updateBooking: (id: string, data: UpdateBookingPayload) =>
+        client.patch<Booking>(`/bookings/${id}`, { body: data, auth: true }),
 
     autoConsec: (date: string) =>
         client.post<any>('/tests/auto-consec', { body: { date } }),

@@ -31,6 +31,16 @@ export interface CreateBookingPayload {
     notify?: boolean;
 }
 
+export interface UpdateBookingPayload {
+    name?: string;
+    phone?: string | null;
+    email?: string | null;
+    size?: number;
+    language?: string;
+    lowTable?: boolean;
+    startTime?: string;
+}
+
 
 export interface AvailabilityResponse {
     available: boolean;

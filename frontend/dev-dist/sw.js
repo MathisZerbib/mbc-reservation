@@ -82,13 +82,13 @@ define(['./workbox-6fc00345'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.uol85go5m5o"
+    "revision": "0.8kj9npp674s"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
     allowlist: [/^\/$/]
   }));
-  workbox.registerRoute(/http:\/\/localhost:3000\/api\/api\/.*/, new workbox.NetworkFirst({
+  workbox.registerRoute(/http:\/\/localhost:3000\/api\/.*/, new workbox.NetworkFirst({
     "cacheName": "api-cache",
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 10,

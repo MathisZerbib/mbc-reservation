@@ -117,6 +117,7 @@ export const bookingRoutes = (io: Server) => {
      */
     router.get('/bookings', isAuthenticated, controller.getAllBookings);
 
+    router.patch('/bookings/:id', isAuthenticated, controller.updateBooking);
     router.patch('/bookings/:id/tables', isAuthenticated, controller.updateAssignment);
     router.post('/bookings/:id/check-in', isAuthenticated, controller.checkIn);
     router.post('/bookings/:id/cancel', isAuthenticated, controller.cancelBooking);
