@@ -11,6 +11,7 @@ interface CountryPhonePickerProps {
     onCountryChange: (country: Country) => void;
     phoneValue: string;
     onPhoneChange: (value: string) => void;
+    inputClassName?: string;
 }
 
 export const CountryPhonePicker: React.FC<CountryPhonePickerProps> = ({
@@ -18,6 +19,7 @@ export const CountryPhonePicker: React.FC<CountryPhonePickerProps> = ({
     onCountryChange,
     phoneValue,
     onPhoneChange,
+    inputClassName,
 }) => {
     const [countrySearch, setCountrySearch] = useState('');
 
@@ -104,7 +106,7 @@ export const CountryPhonePicker: React.FC<CountryPhonePickerProps> = ({
                     placeholder="Phone Number (Optional)"
                     value={phoneValue}
                     onChange={e => onPhoneChange(e.target.value.replace(/[^\d\s]/g, ''))}
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
+                    className={inputClassName ?? "w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"}
                 />
             </div>
         </div>
