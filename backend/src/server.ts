@@ -20,33 +20,57 @@ const PORT = process.env.PORT || 3000;
 const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 
 
-const allowedOrigins = [
+const exactOrigins = [
     process.env.FRONTEND_URL,
     "http://localhost:5173",
     process.env.NODE_ENV === 'development' &&
     "http://localhost:3000"
 ].filter((origin): origin is string => Boolean(origin));
 
+// Vercel issues a fresh URL per preview deployment, so an exact allowlist
+// can never match them. Accept this project's Vercel deployments by pattern
+// (production + all previews). Scoped to our project slug so we don't open
+// CORS to arbitrary sites.
+const vercelDeployments =
+    /^https:\/\/mbc-reservation(-.*)?-mathiszerbibs-projects\.vercel\.app$/;
 
-const io = new Server(server, {
-    cors: {
-        origin: allowedOrigins,
-        methods: ["GET", "POST"]
-    },
-});
+export function isAllowedOrigin(origin: string | undefined): boolean {
+    if (!origin) return true; // same-origin, curl, mobile apps
+    if (exactOrigins.includes(origin)) return true;
+    if (vercelDeployments.test(origin)) return true;
+    return false;
+}
 
-// app.set('trust proxy', true); ?????? gemini generated
-
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+const corsOptions = {
+    origin: (
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void
+    ) => {
+        if (isAllowedOrigin(origin)) {
             callback(null, true);
         } else {
             callback(new Error("Not allowed by CORS"));
         }
     },
     credentials: true
-}));
+};
+
+const io = new Server(server, {
+    cors: {
+        origin: (origin, callback) => {
+            if (isAllowedOrigin(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
+        methods: ["GET", "POST"]
+    },
+});
+
+// app.set('trust proxy', true); ?????? gemini generated
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static('public'));
 
