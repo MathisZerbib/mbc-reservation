@@ -9,52 +9,14 @@ import { Analytics } from './components/Analytics';
 import { BookingPage } from './components/BookingPage';
 import { TableAssignmentPage } from './components/TableAssignmentPage';
 import { LanguageProvider } from './i18n/LanguageContext';
-import { DatePicker } from './components/ui/date-picker';
 import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
 import { BookingsProvider } from './context/BookingsContext';
 import { useBookingsContext } from './context/useBookingsContext';
-import { api } from './services/api';
+import { AutoConsecButton } from './components/AutoConsecButton';
+import { isDemoSession } from './utils/auth';
 import { Outlet } from 'react-router-dom';
-
-const AutoConsecButton: React.FC<{ date: string }> = ({ date }) => {
-  const { refresh } = useBookingsContext();
-  const [loading, setLoading] = useState(false);
-
-  const handleAutoConsec = async () => {
-    if (!window.confirm(`Are you sure you want to trigger auto-consecutive bookings for ${date}?`)) return;
-    
-    setLoading(true);
-    try {
-      await api.autoConsec(date);
-      refresh();
-      alert('Auto-consecutive bookings created successfully!');
-    } catch (error) {
-      console.error('Auto-consec failure:', error);
-      alert('Failed to create bookings: ' + (error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleAutoConsec}
-      disabled={loading}
-      className="w-full bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-100 active:scale-95 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
-    >
-      {loading ? (
-        <>
-          <div className="w-3 h-3 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
-          Processing...
-        </>
-      ) : (
-        '🔥 Auto-Consec'
-      )}
-    </button>
-  );
-};
 
 function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -62,7 +24,6 @@ function AdminDashboard() {
   
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(dateFromQuery || dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'));
-  const [testDate, setTestDate] = useState(selectedDate);
   const [isQuickResOpen, setIsQuickResOpen] = useState(false);
   const [showMobileFloorPlan, setShowMobileFloorPlan] = useState(false);
   const { bookings } = useBookingsContext();
@@ -78,11 +39,6 @@ function AdminDashboard() {
   });
   
   const occupancyRate = (occupiedTables.size / 36) * 100;
-
-  // Sync testDate with selectedDate by default when selectedDate changes
-  useEffect(() => {
-    setTestDate(selectedDate);
-  }, [selectedDate]);
 
   // Update URL when date changes to keep it in sync
   useEffect(() => {
@@ -169,19 +125,11 @@ function AdminDashboard() {
                     setDate={setSelectedDate}
                  />
             </div>
-            
-            {/* Auto-Consec Button */}
-            <div className="hidden lg:block p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex-none space-y-3">
-                <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Test Date</label>
-                    <DatePicker 
-                        date={dayjs(testDate).toDate()} 
-                        setDate={(d) => setTestDate(dayjs(d).format('YYYY-MM-DD'))}
-                        className="h-10 text-xs font-bold"
-                    />
-                </div>
-                <AutoConsecButton date={testDate} />
-            </div>
+            {isDemoSession() && (
+              <div className="hidden lg:block p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex-none">
+                <AutoConsecButton date={selectedDate} />
+              </div>
+            )}
           </div>
         </div>
       </div>

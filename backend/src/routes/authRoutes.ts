@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authController } from '../controllers/authController';
+import { isAuthenticated } from '../middleware/isAuthenticated';
 
 const router = Router();
 
@@ -77,6 +78,27 @@ router.post('/login', authController.login);
 
 /**
  * @swagger
+ * /auth/demo:
+ *   post:
+ *     summary: Log in with the shared demo account
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Demo login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ */
+router.post('/demo', authController.demoLogin);
+
+/**
+ * @swagger
  * /auth/refreshToken:
  *   post:
  *     summary: Refresh access token
@@ -100,6 +122,6 @@ router.post('/login', authController.login);
  */
 router.post('/refreshToken', authController.refreshToken);
 
-router.post('/revokeRefreshTokens', authController.revokeRefreshTokens);
+router.post('/revokeRefreshTokens', isAuthenticated, authController.revokeRefreshTokens);
 
 export default router;

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import type { AuthRequest } from '../middleware/isAuthenticated';
 
 // Extend Express Request type to include 'user'
 interface AuthenticatedRequest extends Request {
@@ -83,9 +84,33 @@ export const authController = {
     }
   },
 
+  demoLogin: async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Interim demo access: shared demo user with an unguessable password.
+      // Password login for this account is effectively disabled (random secret,
+      // never exposed). Full tenant-scoped demo sessions arrive in Sprint 3.
+      const email = process.env.DEMO_EMAIL || 'demo@example.com';
+      let user = await findUserByEmail(email);
+      if (!user) {
+        const { randomBytes } = await import('crypto');
+        user = await createUserByEmailAndPassword({
+          email,
+          password: randomBytes(32).toString('base64url'),
+        });
+      }
+      const { accessToken, refreshToken } = generateTokens(user, { isDemo: true });
+      await addRefreshTokenToWhitelist({ refreshToken, userId: user.id });
+      res.json({ accessToken, refreshToken });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   revokeRefreshTokens: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { userId } = req.body;
+      // Self-only: the user id comes from the verified access token, never the body.
+      const userId = (req as AuthRequest).payload?.userId;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
       await revokeTokens(userId);
       res.json({ message: `Tokens revoked for user with id #${userId}` });
     } catch (err) {

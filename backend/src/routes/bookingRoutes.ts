@@ -20,11 +20,13 @@ export const bookingRoutes = (io: Server) => {
      *   get:
      *     summary: Get booking analytics
      *     tags: [Bookings]
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       200:
      *         description: Booking statistics
      */
-    router.get('/analytics', controller.getAnalytics);
+    router.get('/analytics', isAuthenticated, controller.getAnalytics);
 
     /** 
      * @swagger

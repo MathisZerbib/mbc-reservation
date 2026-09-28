@@ -27,6 +27,15 @@ export function isAuthenticated(req: AuthRequest, res: Response, next: NextFunct
   }
 }
 
+// Allows only demo sessions (access tokens carrying `isDemo: true`,
+// issued by POST /auth/demo). Must run after isAuthenticated.
+export function requireDemo(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.payload?.isDemo !== true) {
+    return res.status(403).json({ error: 'Demo account required' });
+  }
+  next();
+}
+
 
 
 // export function requireAdmin(req: AdminSessionRequest, res: Response, next: NextFunction) {

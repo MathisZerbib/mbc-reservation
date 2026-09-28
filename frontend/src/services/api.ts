@@ -69,7 +69,7 @@ export const api = {
         client.get<Booking[]>('/bookings', { auth: true }),
 
     getAnalytics: (date: string) =>
-        client.get<Analytics>('/analytics', { params: { date } }),
+        client.get<Analytics>('/analytics', { params: { date }, auth: true }),
 
     checkAvailability: (date: string, time: string, size: number) =>
         client.get<AvailabilityResponse>('/availability', { params: { date, time, size } }),
@@ -89,6 +89,7 @@ export const api = {
     cancelBooking: (id: string) =>
         client.post<Booking>(`/bookings/${id}/cancel`, { auth: true }),
 
+    // Demo-only endpoint (backend enforces the demo session).
     autoConsec: (date: string) =>
-        client.post<any>('/tests/auto-consec', { body: { date } }),
+        client.post<unknown>('/tests/auto-consec', { body: { date }, auth: true }),
 };

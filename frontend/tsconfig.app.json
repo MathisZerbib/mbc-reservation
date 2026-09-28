@@ -9,12 +9,6 @@
       "DOM.Iterable"
     ],
     "module": "ESNext",
-    "types": [
-      "vite/client",
-      "vitest/globals",
-      "node",
-      "@testing-library/jest-dom"
-    ],
     "skipLibCheck": true,
     /* Bundler mode */
     "moduleResolution": "bundler",

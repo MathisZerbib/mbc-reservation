@@ -10,6 +10,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -34,9 +35,34 @@ export function LoginPage() {
           navigate('/admin/dashboard');
         }, 1800);
       }
-    } catch (err) {
+    } catch {
       setError('Network error');
       setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setError(null);
+    setDemoLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/auth/demo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Demo login failed');
+        setDemoLoading(false);
+      } else {
+        setShowLoader(true);
+        localStorage.setItem('token', data.accessToken);
+        setTimeout(() => {
+          navigate('/admin/dashboard');
+        }, 1800);
+      }
+    } catch {
+      setError('Network error');
+      setDemoLoading(false);
     }
   };
 
@@ -126,7 +152,7 @@ export function LoginPage() {
           <button
             type="submit"
             className="bg-slate-800 text-white rounded-lg py-2 font-semibold shadow-sm hover:bg-slate-700 transition-all duration-150 cursor-pointer mt-2 disabled:opacity-60 flex items-center justify-center gap-2"
-            disabled={loading}
+            disabled={loading || demoLoading}
           >
             {loading ? (
               <>
@@ -135,6 +161,19 @@ export function LoginPage() {
             ) : (
               'Login'
             )}
+          </button>
+          <div className="flex items-center gap-3 -mt-3">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-slate-400 text-xs font-medium">or</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            className="border border-slate-200 bg-slate-50 text-slate-700 rounded-lg py-2 font-semibold shadow-sm hover:bg-slate-100 transition-all duration-150 cursor-pointer -mt-3 disabled:opacity-60 flex items-center justify-center gap-2"
+            disabled={loading || demoLoading}
+          >
+            {demoLoading ? 'Preparing demo...' : 'Try the demo'}
           </button>
           <style>{`
             .animate-fade-in {

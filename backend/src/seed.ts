@@ -14,21 +14,26 @@ async function seed() {
     console.log('Starting seed check...');
 
     try {
-        // 1. Seed admin user if not exists
-        const adminEmail = 'admin@example.com';
-        const existingAdmin = await prisma.user.findUnique({
-            where: { email: adminEmail }
-        });
+        // 1. Seed admin user if not exists (credentials from env only — never hardcoded)
+        const adminEmail = process.env.SEED_ADMIN_EMAIL;
+        const adminPassword = process.env.SEED_ADMIN_PASSWORD;
 
-        if (!existingAdmin) {
-            const password = 'admin';
-            const hashed = await bcrypt.hash(password, 12);
-            await prisma.user.create({
-                data: { email: adminEmail, password: hashed },
-            });
-            console.log(`Created admin user: ${adminEmail}`);
+        if (!adminEmail || !adminPassword) {
+            console.log('SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD not set, skipping admin creation.');
         } else {
-            console.log('Admin user already exists, skipping user creation.');
+            const existingAdmin = await prisma.user.findUnique({
+                where: { email: adminEmail }
+            });
+
+            if (!existingAdmin) {
+                const hashed = await bcrypt.hash(adminPassword, 12);
+                await prisma.user.create({
+                    data: { email: adminEmail, password: hashed },
+                });
+                console.log(`Created admin user: ${adminEmail}`);
+            } else {
+                console.log('Admin user already exists, skipping user creation.');
+            }
         }
 
         // 2. Seed tables if none exist

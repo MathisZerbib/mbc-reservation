@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import { fullBookController } from '../controllers/fullbookController';
 import { fullBookWithConsecutive } from '../services/fullBookService';
+import { isAuthenticated, requireDemo } from '../middleware/isAuthenticated';
 
 const router = Router();
+
+// Dev/demo helpers (bulk booking). Demo sessions only — never anonymous.
+router.use(isAuthenticated, requireDemo);
 
 router.post('/fullbook', fullBookController);
 

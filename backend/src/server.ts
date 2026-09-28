@@ -8,6 +8,7 @@ import tableRoutes from './routes/tableRoutes';
 import authRoutes from './routes/authRoutes';
 import protectedRoutes from './routes/protectedRoutes';
 import testRoutes from './routes/testRoutes';
+import { prisma } from './lib/prisma';
 import swaggerUi from 'swagger-ui-express';
 import { startCleanupTask } from './services/cleanupService';
 import { swaggerSpec } from './docs/swagger';
@@ -66,10 +67,22 @@ app.use('/api', bookingRoutes(io));
 app.use('/api', tableRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', protectedRoutes);
-// app.use('/api/analytics', protectedRoutes); // Analytics route
+// Dev/demo helpers (bulk booking). Guarded by demo-session auth in testRoutes.
 app.use('/api/tests', testRoutes); // Tests routes
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+app.get('/health', async (_req, res) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.json({ status: 'ok' });
+    } catch {
+        res.status(503).json({ status: 'degraded', reason: 'database unreachable' });
+    }
+});
+app.get('/version', (_req, res) => {
+    res.json({
+        version: '1.0.0',
+        commit: process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || 'local',
+        environment: process.env.NODE_ENV || 'development',
+    });
 });
 
 
