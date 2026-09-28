@@ -211,6 +211,7 @@ npm run preview
 Both frontend and backend require environment variables. See the respective README files:
 - [Backend Environment Variables](./backend/README.md#environment-variables)
 - [Frontend Environment Variables](./frontend/README.md#environment-variables)
+- Render checklist: set `DATABASE_URL` to Neon pooler URL for runtime traffic, and set `DIRECT_DATABASE_URL` to Neon direct (non-pooler) URL for Prisma migrate/introspect.
 
 ## 📄 License
 

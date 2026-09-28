@@ -6,8 +6,10 @@ Frontend
 
 - Ajouter un parcours "gerer ma reservation" a partir d'un code de reservation.
 - Ajouter une action "annuler ma reservation" accessible depuis l'email de confirmation.
-- Dans le composant Quick Reservation, ajouter une case a cocher pour envoyer l'email de confirmation uniquement si elle est active.
-- Dans l'agenda et dans l'ecran d'assignation des tables, afficher le drapeau de la langue du client quand l'information est disponible.
+
+
+Done - Dans le composant Quick Reservation, ajouter une case a cocher pour envoyer l'email de confirmation uniquement si elle est active.
+Done - Dans l'agenda et dans l'ecran d'assignation des tables, afficher le drapeau de la langue du client quand l'information est disponible.
 
 Backend
 
