@@ -34,7 +34,31 @@ model Table {
   type     TableType @default(RECTANGULAR)
   x        Float?
   y        Float?
+  width    Float     @default(60)
+  height   Float     @default(60)
+  rotation Float     @default(0)
   bookings Booking[] @relation("BookingTables")
+  linksA   TableLink[] @relation("LinkA")
+  linksB   TableLink[] @relation("LinkB")
+}
+
+// Singleton row (id = 1) holding tenant-level settings for the restaurant.
+model RestaurantSettings {
+  id                Int      @id @default(1)
+  avgTicket         Float    @default(55)
+  floorPlanImageUrl String?
+  updatedAt         DateTime @updatedAt
+}
+
+// Undirected adjacency edge between two tables (stored canonically aId < bId).
+// Edited manually in the floor-plan editor; drives auto-assignment grouping.
+model TableLink {
+  aId Int
+  bId Int
+  a   Table @relation("LinkA", fields: [aId], references: [id], onDelete: Cascade)
+  b   Table @relation("LinkB", fields: [bId], references: [id], onDelete: Cascade)
+
+  @@id([aId, bId])
 }
 
 model Booking {
@@ -58,6 +82,7 @@ enum TableType {
   OCTAGONAL
   CAPSULE
   ROUND
+  SQUARE
   BAR
 }
 

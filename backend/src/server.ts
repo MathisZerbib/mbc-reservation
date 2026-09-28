@@ -4,7 +4,8 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { bookingRoutes } from './routes/bookingRoutes';
-import tableRoutes from './routes/tableRoutes';
+import { tableRoutes } from './routes/tableRoutes';
+import { settingsRoutes } from './routes/settingsRoutes';
 import authRoutes from './routes/authRoutes';
 import protectedRoutes from './routes/protectedRoutes';
 import testRoutes from './routes/testRoutes';
@@ -88,7 +89,8 @@ console.log(`📄 Swagger docs available at ${baseUrl}/api-docs`);
 
 // Routes
 app.use('/api', bookingRoutes(io));
-app.use('/api', tableRoutes);
+app.use('/api', tableRoutes(io));
+app.use('/api', settingsRoutes(io));
 app.use('/api/auth', authRoutes);
 app.use('/api', protectedRoutes);
 // Dev/demo helpers (bulk booking). Guarded by demo-session auth in testRoutes.

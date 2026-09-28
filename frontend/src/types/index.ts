@@ -38,13 +38,52 @@ export interface AvailabilityResponse {
     suggestions?: string[];
 }
 
+export interface HourlySlice {
+    hour: string; // e.g. "19:00"
+    bookings: number;
+    guests: number;
+    bookingsPct: number; // 0-100
+    guestsPct: number; // 0-100
+}
+
 export interface Analytics {
+    date: string;
     totalBookings: number;
-    turnover: number;
-    peakHour: string;
-    growth: string; // e.g. "+12%"
+    totalGuests: number;
+    avgPartySize: number;
+    turnover: number; // estimate = totalGuests * avgTicket
+    avgTicket: number;
+    peakHour: string; // "HH:00" arrival hour with most guests, or "—"
+    peakHourGuests: number;
+    occupancyRate: number; // 0-100
+    tablesUsed: number;
+    totalTables: number;
+    growth: string; // e.g. "+12.5%" or "—"
+    growthPct: number | null;
+    hourlyBreakdown: HourlySlice[];
 }
 export interface DailyAvailability {
     time: string;
     available: boolean;
+}
+
+export interface RestaurantSettings {
+    avgTicket: number;
+    floorPlanImageUrl: string | null;
+    updatedAt: string;
+}
+
+export type LayoutTableType = 'RECTANGULAR' | 'OCTAGONAL' | 'CAPSULE' | 'ROUND' | 'SQUARE' | 'BAR';
+
+export interface LayoutTable {
+    id: number;
+    name: string;
+    capacity: number;
+    type: LayoutTableType;
+    x: number | null;
+    y: number | null;
+    width: number;
+    height: number;
+    rotation: number;
+    adjacentNames: string[];
 }

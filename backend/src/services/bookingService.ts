@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { ADJACENCY_MAP } from '../utils/adjacency';
+import { getAdjacencyMap, type AdjacencyMap } from './floorPlanService';
 import { CreateReservationInput } from '../types/booking';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -88,6 +89,7 @@ export async function getAvailableTables(
 export async function createReservation(input: CreateReservationInput) {
     const { name, phone, email, language, size, startTime, lowTable } = input;
     const endTime = addMinutes(startTime, RESERVATION_DURATION);
+    const adjacency = await getAdjacencyMap();
 
     return prisma.$transaction(async (tx) => {
         // 1. Find all conflicting bookings inside the transaction
@@ -113,7 +115,7 @@ export async function createReservation(input: CreateReservationInput) {
 
         // 2. Find best table combination
         console.log(`🎯 [createReservation] Attempting auto-assignment for ${size} guests (Low Table: ${lowTable}) at ${startTime.toISOString()}`);
-        const combination = findTableCombination(size, availableTables);
+        const combination = findTableCombination(size, availableTables, adjacency);
 
         if (combination) {
             console.log(`✅ [createReservation] Found combination: ${combination.map((t: any) => t.name).join(', ')} (Total Capacity: ${combination.reduce((s: number, t: any) => s + t.capacity, 0)})`);
@@ -180,12 +182,13 @@ function bfsFromSeed(
     seed: any,
     size: number,
     tableMap: Map<string, any>,
+    adjacency: AdjacencyMap,
     allowedNames?: Set<string>
 ): any[] | null {
     const result: any[] = [seed];
     let capacity = seed.capacity;
     const visited = new Set([seed.name]);
-    const queue = [...(ADJACENCY_MAP[seed.name] || [])];
+    const queue = [...(adjacency[seed.name] || [])];
 
     while (queue.length > 0 && capacity < size) {
         const nextName = queue.shift();
@@ -200,14 +203,14 @@ function bfsFromSeed(
         if (neighbor) {
             result.push(neighbor);
             capacity += neighbor.capacity;
-            queue.push(...(ADJACENCY_MAP[nextName] || []));
+            queue.push(...(adjacency[nextName] || []));
         }
     }
 
     return capacity >= size ? result : null;
 }
 
-export function findTableCombination(size: number, availableTables: any[]) {
+export function findTableCombination(size: number, availableTables: any[], adjacency: AdjacencyMap = ADJACENCY_MAP) {
     // ── Step 1: Try a single table (best fit with slack limits) ──
     const single = availableTables
         .filter(t => {
@@ -246,7 +249,7 @@ export function findTableCombination(size: number, availableTables: any[]) {
             const seed = tableMap.get(startNode);
             if (!seed) continue;
 
-            const combo = bfsFromSeed(seed, size, tableMap, clusterSet);
+            const combo = bfsFromSeed(seed, size, tableMap, adjacency, clusterSet);
             if (combo) {
                 candidates.push(combo);
             }
@@ -264,7 +267,7 @@ export function findTableCombination(size: number, availableTables: any[]) {
     const globalCandidates: any[][] = [];
 
     for (const seed of availableTables) {
-        const combo = bfsFromSeed(seed, size, tableMap);
+        const combo = bfsFromSeed(seed, size, tableMap, adjacency);
         if (combo) {
             globalCandidates.push(combo);
         }
@@ -288,6 +291,7 @@ export function findTableCombination(size: number, availableTables: any[]) {
 export async function getSuggestions(date: string, size: number, requestedTime: string) {
     const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
     const suggestions: string[] = [];
+    const adjacency = await getAdjacencyMap();
 
     // Sort slots by proximity to requested time
     const requestedMinutes = timeToMinutes(requestedTime);
@@ -308,7 +312,7 @@ export async function getSuggestions(date: string, size: number, requestedTime: 
 
 
         const availableTables = await getAvailableTables(start.toDate(), end);
-        const combination = findTableCombination(size, availableTables);
+        const combination = findTableCombination(size, availableTables, adjacency);
 
         if (combination) {
             suggestions.push(slot);

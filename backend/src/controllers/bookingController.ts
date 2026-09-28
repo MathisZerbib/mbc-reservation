@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma';
 import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions, createReservation, MIN_BOOKING_ADVANCE_HOURS } from '../services/bookingService';
+import { getAdjacencyMap } from '../services/floorPlanService';
+import { getDailyAnalytics } from '../services/analyticsService';
 import { Server } from 'socket.io';
 import { emailService } from '../services/emailService';
 import { Booking } from '../types/booking';
@@ -54,7 +56,7 @@ export const bookingController = (io: Server) => ({
             const requestedEnd = addMinutes(requestedStart.toDate(), RESERVATION_DURATION);
 
             const available = await getAvailableTables(requestedStart.toDate(), requestedEnd);
-            const combination = findTableCombination(guestSize, available);
+            const combination = findTableCombination(guestSize, available, await getAdjacencyMap());
 
             let suggestions: string[] = [];
             if (!combination) {
@@ -81,6 +83,7 @@ export const bookingController = (io: Server) => ({
             const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
             const isAdmin = getIsAdmin(req);
+            const adjacency = await getAdjacencyMap();
             const results = await Promise.all(TIME_SLOTS.map(async (time) => {
                 const start = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ);
 
@@ -91,7 +94,7 @@ export const bookingController = (io: Server) => ({
 
                 const end = addMinutes(start.toDate(), RESERVATION_DURATION);
                 const available = await getAvailableTables(start.toDate(), end);
-                const combination = findTableCombination(guestSize, available);
+                const combination = findTableCombination(guestSize, available, adjacency);
                 return {
                     time,
                     available: !!combination
@@ -275,52 +278,16 @@ export const bookingController = (io: Server) => ({
     getAnalytics: async (req: Request, res: Response) => {
         try {
             const { date } = req.query;
-            if (!date) return res.status(400).json({ error: 'Missing date' });
+            if (!date || typeof date !== 'string') {
+                return res.status(400).json({ error: 'Missing date (YYYY-MM-DD)' });
+            }
 
-            const startOfDay = dayjs.tz(`${date}T00:00:00`, RESTAURANT_TZ).toDate();
-            const endOfDay = dayjs.tz(`${date}T23:59:59`, RESTAURANT_TZ).toDate();
-
-            const bookings = await prisma.booking.findMany({
-                where: {
-                    startTime: { gte: startOfDay, lte: endOfDay },
-                    status: { not: 'CANCELLED' }
-                },
-                select: {
-                    size: true,
-                    startTime: true,
-                    endTime: true
-                }
-            });
-
-            const totalBookings = bookings.length;
-            const totalGuests = bookings.reduce((sum, b) => sum + b.size, 0);
-            const turnover = totalGuests * 55;
-
-            // Calculate Peak Hour (Time with most guests arriving)
-            const arrivalCounts: Record<string, number> = {};
-            bookings.forEach(b => {
-                const slot = dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm');
-                arrivalCounts[slot] = (arrivalCounts[slot] || 0) + b.size;
-            });
-
-            let peakHour = '—';
-            let maxArrivals = 0;
-
-            Object.entries(arrivalCounts).forEach(([slot, count]) => {
-                if (count > maxArrivals) {
-                    maxArrivals = count;
-                    peakHour = slot;
-                }
-            });
-
-            res.json({
-                totalBookings,
-                turnover,
-                peakHour,
-                growth: "+12%"
-            });
+            res.json(await getDailyAnalytics(date));
         } catch (error) {
             console.error(error);
+            if ((error as Error).message?.startsWith('Invalid date')) {
+                return res.status(400).json({ error: 'Invalid date, expected YYYY-MM-DD' });
+            }
             res.status(500).json({ error: 'Internal server error' });
         }
     }

@@ -1,6 +1,7 @@
-import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, DailyAvailability } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, DailyAvailability, RestaurantSettings, LayoutTable } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const FILE_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
 type RequestOptions = {
     auth?: boolean;
@@ -60,6 +61,29 @@ class ApiClient {
     patch<T>(endpoint: string, options?: RequestOptions) {
         return this.request<T>('PATCH', endpoint, options);
     }
+
+    put<T>(endpoint: string, options?: RequestOptions) {
+        return this.request<T>('PUT', endpoint, options);
+    }
+
+    delete<T>(endpoint: string, options?: RequestOptions) {
+        return this.request<T>('DELETE', endpoint, options);
+    }
+
+    /** Multipart upload (no JSON content-type; browser sets the boundary). */
+    async upload<T>(endpoint: string, formData: FormData, auth = true): Promise<T> {
+        const headers: HeadersInit = {};
+        if (auth) {
+            const token = localStorage.getItem('token');
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch(`${this.baseUrl}${endpoint}`, { method: 'POST', headers, body: formData });
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.error || `Request failed with status ${res.status}`);
+        }
+        return res.json();
+    }
 }
 
 const client = new ApiClient(API_BASE_URL);
@@ -92,4 +116,31 @@ export const api = {
     // Demo-only endpoint (backend enforces the demo session).
     autoConsec: (date: string) =>
         client.post<unknown>('/tests/auto-consec', { body: { date }, auth: true }),
+
+    // ── Tenant settings ──
+    getSettings: () =>
+        client.get<RestaurantSettings>('/settings', { auth: true }),
+
+    updateSettings: (data: { avgTicket: number }) =>
+        client.patch<RestaurantSettings>('/settings', { body: data, auth: true }),
+
+    uploadFloorPlanImage: (file: File) => {
+        const formData = new FormData();
+        formData.append('image', file);
+        return client.upload<RestaurantSettings>('/settings/floor-plan-image', formData, true);
+    },
+
+    // ── Floor-plan layout (geometry + manual adjacency) ──
+    getLayout: () =>
+        client.get<LayoutTable[]>('/tables'),
+
+    saveLayout: (tables: LayoutTable[], deleteIds: number[]) =>
+        client.put<LayoutTable[]>('/tables/layout', { body: { tables, deleteIds }, auth: true }),
+};
+
+/** Absolute URL for a backend-served upload path (e.g. /uploads/…). */
+export const fileUrl = (path: string | null): string | null => {
+    if (!path) return null;
+    if (/^https?:\/\//.test(path)) return path;
+    return `${FILE_BASE_URL}${path}`;
 };

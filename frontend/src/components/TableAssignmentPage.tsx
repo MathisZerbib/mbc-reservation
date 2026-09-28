@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
-import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
+import { type TableConfig } from '../utils/floorPlanData';
+import { useLayoutTables } from '../hooks/useFloorPlan';
 import { ChevronLeft, Save, Users, Clock, Search, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -17,6 +18,7 @@ dayjs.extend(isBetween);
 
 export const TableAssignmentPage: React.FC = () => {
     const { bookings, refresh } = useBookingsContext();
+    const { tables: layoutTables, backgroundUrl } = useLayoutTables();
     const [searchParams] = useSearchParams();
     const initialDate = searchParams.get('date') || dayjs().format('YYYY-MM-DD');
 
@@ -429,8 +431,11 @@ export const TableAssignmentPage: React.FC = () => {
                                 </filter>
                             </defs>
                             <rect width="100%" height="100%" fill="url(#dots)" />
+                            {backgroundUrl && (
+                                <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="xMidYMid slice" opacity={0.4} />
+                            )}
 
-                            {FLOOR_PLAN_DATA.map((table) => {
+                            {layoutTables.map((table) => {
                                 const usageCount = selectedBooking ? countOverlapping(table.id) : filteredBookings.filter(b => b.tables.some(t => t.name === table.id)).length;
                                 const isFull = usageCount >= MAX_BOOKINGS_PER_TABLE;
                                 const isPartiallyOccupied = usageCount > 0 && usageCount < MAX_BOOKINGS_PER_TABLE;
