@@ -4,9 +4,9 @@ const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'MBC Reservation API',
+      title: 'Faci-Table Reservation API',
       version: '1.0.0',
-      description: 'API documentation for the MBC Reservation System',
+      description: 'API documentation for the Faci-Table reservation system',
       contact: {
         name: 'API Support',
         email: 'support@example.com',

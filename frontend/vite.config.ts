@@ -31,9 +31,9 @@ export default defineConfig({
         ]
       },
       manifest: {
-        name: 'MBC Reservation Manager',
-        short_name: 'MBC Manager',
-        description: 'Manage table reservations for MBC Restaurant',
+        name: 'Faci-Table — Reservation Manager',
+        short_name: 'Faci-Table',
+        description: 'Manage table reservations for Faci-Table',
         theme_color: '#4f46e5',
         background_color: '#ffffff',
         display: 'standalone',
