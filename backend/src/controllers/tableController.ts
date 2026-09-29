@@ -3,11 +3,12 @@ import { Server } from 'socket.io';
 
 import { getLayout, saveLayout, deleteTable } from '../services/floorPlanService';
 
-const toStatus = (error: unknown): number => {
+/** Maps known validation errors to 400/409; everything else is a generic 500 (no internal leaks). */
+const toStatus = (error: unknown): { status: number; message: string } => {
     const message = error instanceof Error ? error.message : '';
-    if (/upcoming bookings/i.test(message)) return 409;
-    if (/^(Table|Duplicate|Cannot delete|Invalid)/.test(message)) return 400;
-    return 500;
+    if (/upcoming bookings/i.test(message)) return { status: 409, message };
+    if (/^(Table|Duplicate|Cannot delete|Invalid|avgTicket)/.test(message)) return { status: 400, message };
+    return { status: 500, message: 'Internal server error' };
 };
 
 export const tableController = (io: Server) => ({
@@ -29,9 +30,8 @@ export const tableController = (io: Server) => ({
             res.json(layout);
         } catch (error) {
             console.error(error);
-            res.status(toStatus(error)).json({
-                error: error instanceof Error ? error.message : 'Failed to save layout',
-            });
+            const { status, message } = toStatus(error);
+            res.status(status).json({ error: message });
         }
     },
 
@@ -44,9 +44,8 @@ export const tableController = (io: Server) => ({
             res.json({ ok: true });
         } catch (error) {
             console.error(error);
-            res.status(toStatus(error)).json({
-                error: error instanceof Error ? error.message : 'Failed to delete table',
-            });
+            const { status, message } = toStatus(error);
+            res.status(status).json({ error: message });
         }
     },
 });

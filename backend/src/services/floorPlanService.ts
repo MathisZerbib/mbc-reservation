@@ -177,48 +177,51 @@ export async function saveLayout(rawTables: unknown[], rawDeleteIds: unknown[] =
         }
     }
 
-    await prisma.$transaction(async (tx) => {
-        if (deleteIds.length > 0) {
-            await tx.table.deleteMany({ where: { id: { in: deleteIds } } });
-        }
+    // NOTE: upserts run OUTSIDE the interactive transaction on purpose — an
+    // interactive tx pins a single pooled connection, so per-row queries
+    // serialize and blow the tx timeout over high-latency links. Rows are
+    // independent (payload names are pre-validated unique), the pool executes
+    // them concurrently, and only the edge rebuild below needs atomicity.
+    if (deleteIds.length > 0) {
+        await prisma.table.deleteMany({ where: { id: { in: deleteIds } } });
+    }
 
-        const idByName = new Map<string, number>();
-        for (const t of tables) {
-            const row = t.id !== undefined
-                ? await tx.table.upsert({
-                    where: { id: t.id },
-                    update: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
-                    create: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
-                })
-                : await tx.table.upsert({
-                    where: { name: t.name },
-                    update: { capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
-                    create: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
-                });
-            idByName.set(t.name, row.id);
-        }
+    const upsertRow = (t: LayoutTableInput) =>
+        (t.id !== undefined
+            ? prisma.table.upsert({
+                where: { id: t.id },
+                update: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
+                create: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
+            })
+            : prisma.table.upsert({
+                where: { name: t.name },
+                update: { capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
+                create: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
+            })
+        ).then(row => [t.name, row.id] as [string, number]);
 
-        // Rebuild edges from payload (canonical aId < bId, deduped).
-        await tx.tableLink.deleteMany();
-        const seenEdges = new Set<string>();
-        const edges: { aId: number; bId: number }[] = [];
-        for (const t of tables) {
-            const aId = idByName.get(t.name);
-            if (aId === undefined) continue;
-            for (const neighbor of t.adjacentNames) {
-                const bId = idByName.get(neighbor);
-                if (bId === undefined || bId === aId) continue;
-                const [lo, hi] = aId < bId ? [aId, bId] : [bId, aId];
-                const key = `${lo}-${hi}`;
-                if (seenEdges.has(key)) continue;
-                seenEdges.add(key);
-                edges.push({ aId: lo, bId: hi });
-            }
+    const idByName = new Map<string, number>(await Promise.all(tables.map(upsertRow)));
+
+    // Rebuild edges from payload (canonical aId < bId, deduped) atomically.
+    const seenEdges = new Set<string>();
+    const edges: { aId: number; bId: number }[] = [];
+    for (const t of tables) {
+        const aId = idByName.get(t.name);
+        if (aId === undefined) continue;
+        for (const neighbor of t.adjacentNames) {
+            const bId = idByName.get(neighbor);
+            if (bId === undefined || bId === aId) continue;
+            const [lo, hi] = aId < bId ? [aId, bId] : [bId, aId];
+            const key = `${lo}-${hi}`;
+            if (seenEdges.has(key)) continue;
+            seenEdges.add(key);
+            edges.push({ aId: lo, bId: hi });
         }
-        if (edges.length > 0) {
-            await tx.tableLink.createMany({ data: edges });
-        }
-    });
+    }
+    await prisma.$transaction([
+        prisma.tableLink.deleteMany(),
+        ...(edges.length > 0 ? [prisma.tableLink.createMany({ data: edges })] : []),
+    ]);
 
     return getLayout();
 }
