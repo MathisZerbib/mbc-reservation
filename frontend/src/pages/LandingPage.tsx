@@ -1,4 +1,4 @@
-import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
     Sparkles,
@@ -15,10 +15,6 @@ import { LangToggle } from '../components/LangToggle';
 import { useTranslation, type TranslationKey } from '../i18n/useTranslation';
 import { DEFAULT_TENANT_SLUG } from '../utils/tenant';
 import { BookingWidget } from '../components/BookingWidget';
-import { WakeProgress } from '../components/WakeProgress';
-import { wakeStageKey } from '../lib/wakeStage';
-import { useBackendWake } from '../hooks/useBackendStatus';
-import { cn } from '../lib/utils';
 
 /* ------------------------------------------------------------------ */
 /* Local data — i18n keys resolved at render through t()              */
@@ -368,17 +364,13 @@ const HowItWorks = () => {
 };
 
 /* ------------------------------------------------------------------ */
-/* Live booking teaser — the real BookingWidget. Mounting it here fires */
-/* the backend /health warmup on landing visit, so Render cold starts   */
-/* happen while the visitor reads the hero instead of mid-booking.      */
+/* Live booking teaser — the real BookingWidget, interactive as-is. An   */
+/* external uptime monitor keeps the API awake, so the browser never    */
+/* has to probe /health before showing a usable form.                    */
 /* ------------------------------------------------------------------ */
 
 const AvailabilityTeaser = () => {
     const { t } = useTranslation();
-    const { status, progress, isWaiting } = useBackendWake();
-    // Lock the widget only when the backend is genuinely slow: an in-flight
-    // health probe on a warm server must not grey out a usable form.
-    const blocked = isWaiting;
 
     return (
         <section id="availability" className="bg-slate-900 py-20 text-white sm:py-24">
@@ -396,38 +388,8 @@ const AvailabilityTeaser = () => {
                     <p className="mt-3 text-slate-400">{t('landing.teaser.subtitle')}</p>
                 </motion.div>
 
-                <motion.div variants={fadeUp} className="mt-10 flex flex-col items-center gap-4">
-                    <div className="relative w-full max-w-md">
-                        <div className={cn(blocked && "pointer-events-none select-none grayscale-[0.4] opacity-70")}>
-                            <BookingWidget slug={DEFAULT_TENANT_SLUG} />
-                        </div>
-                        <AnimatePresence>
-                            {blocked && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="absolute inset-0 z-10 flex items-start justify-center px-6 pt-14"
-                                >
-                                    <div className="absolute inset-0 rounded-3xl bg-slate-900/85" aria-hidden="true" />
-                                    <div
-                                        role="status"
-                                        className="relative w-full max-w-xs rounded-xl border border-slate-700 bg-slate-900 px-5 py-4 shadow-lg"
-                                    >
-                                        <WakeProgress
-                                            progress={progress}
-                                            label={t(wakeStageKey(progress, status === 'degraded'))}
-                                            percentLabel={t('server.warming').replace('{n}', String(progress))}
-                                        />
-                                        <p className="mt-3 text-[11px] font-bold leading-relaxed text-slate-400">
-                                            {status === 'degraded' ? t('server.unreachable') : t('landing.teaser.warming')}
-                                        </p>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
+                <motion.div variants={fadeUp} className="mx-auto mt-10 w-full max-w-md">
+                    <BookingWidget slug={DEFAULT_TENANT_SLUG} />
                 </motion.div>
             </motion.div>
         </section>

@@ -75,10 +75,6 @@ export const TRANSLATIONS = {
                 how: 'How it works',
                 availability: 'Availability',
             },
-            wake: {
-                waking: 'Waking the server up — the first load is the slow one.',
-                almost: 'Almost ready, warming the last tables…',
-            },
             features: {
                 title: 'A dining room that breathes',
                 subtitle: 'Faci-Table unites your reservations, floor plan and team in a single real-time flow.',
@@ -113,7 +109,6 @@ export const TRANSLATIONS = {
             teaser: {
                 title: 'Try the demo restaurant!',
                 subtitle: 'Pick a date and party size — the answer is instant.',
-                warming: 'The booking widget unlocks as soon as the server is awake.',
             },
             footer: {
                 rights: 'All rights reserved.',
@@ -398,11 +393,6 @@ export const TRANSLATIONS = {
             msg: 'This page doesn’t exist or has moved.',
             home: 'Back to home →',
         },
-        server: {
-            waking: 'Waking up the server — first load can take up to a minute.',
-            warming: '{n}%',
-            unreachable: 'Server unreachable. Check your connection and reload.',
-        },
     },
     fr: {
         intro: 'Réservez votre table en quelques clics',
@@ -472,10 +462,6 @@ export const TRANSLATIONS = {
                 how: 'Fonctionnement',
                 availability: 'Disponibilités',
             },
-            wake: {
-                waking: 'Réveil du serveur — le premier chargement est le plus lent.',
-                almost: 'Presque prêt, on réchauffe les dernières tables…',
-            },
             features: {
                 title: 'Une salle qui respire',
                 subtitle: 'Faci-Table réunit vos réservations, votre plan de salle et votre équipe dans un seul flux, en temps réel.',
@@ -510,7 +496,6 @@ export const TRANSLATIONS = {
             teaser: {
                 title: 'Testez la disponibilité du restaurant demo !',
                 subtitle: 'Choisissez une date et le nombre de couverts — la réponse est immédiate.',
-                warming: 'Le module de réservation se débloque dès que le serveur est prêt.',
             },
             footer: {
                 rights: 'Tous droits réservés.',
@@ -794,11 +779,6 @@ export const TRANSLATIONS = {
             title: 'Page introuvable',
             msg: 'Cette page n’existe pas ou a été déplacée.',
             home: 'Retour à l’accueil →',
-        },
-        server: {
-            waking: 'Démarrage du serveur — le premier chargement peut prendre jusqu’à une minute.',
-            warming: '{n} %',
-            unreachable: 'Serveur injoignable. Vérifiez votre connexion puis rechargez.',
         },
     },
 };
