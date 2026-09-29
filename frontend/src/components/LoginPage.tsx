@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import CanadianLeafLoader from './CanadianLeafLoader';
 import { Eye, EyeOff } from 'lucide-react';
+import { api } from '../services/api';
+import { useTranslation } from '../i18n/useTranslation';
+import { LangToggle } from './LangToggle';
+import { ServerWakeNotice } from './ServerWakeNotice';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resent, setResent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
@@ -17,6 +24,7 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNeedsVerification(false);
     setLoading(true);
     try {
       const res = await fetch(`${apiUrl}/auth/login`, {
@@ -26,23 +34,26 @@ export function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Login failed');
+        setError(data.error || t('login.loginFailed'));
+        setNeedsVerification(data.code === 'EMAIL_NOT_VERIFIED');
+        setResent(false);
         setLoading(false);
       } else {
         setShowLoader(true);
         localStorage.setItem('token', data.accessToken);
         setTimeout(() => {
-          navigate('/admin/dashboard');
+          navigate('/app/dashboard');
         }, 1800);
       }
     } catch {
-      setError('Network error');
+      setError(t('login.networkError'));
       setLoading(false);
     }
   };
 
   const handleDemoLogin = async () => {
     setError(null);
+    setNeedsVerification(false);
     setDemoLoading(true);
     try {
       const res = await fetch(`${apiUrl}/auth/demo`, {
@@ -51,17 +62,17 @@ export function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Demo login failed');
+        setError(data.error || t('login.demoFailed'));
         setDemoLoading(false);
       } else {
         setShowLoader(true);
         localStorage.setItem('token', data.accessToken);
         setTimeout(() => {
-          navigate('/admin/dashboard');
+          navigate('/app/dashboard');
         }, 1800);
       }
     } catch {
-      setError('Network error');
+      setError(t('login.networkError'));
       setDemoLoading(false);
     }
   };
@@ -71,6 +82,9 @@ export function LoginPage() {
       {/* Soft background shapes */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-50 rounded-full blur-3xl opacity-30 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-slate-200 rounded-full blur-2xl opacity-20 pointer-events-none" />
+      <div className="absolute top-4 right-4">
+        <LangToggle />
+      </div>
       {showLoader && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
           <CanadianLeafLoader />
@@ -90,13 +104,14 @@ export function LoginPage() {
               style={{ objectFit: 'contain' }}
             />
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight mb-1">
-              Faci-Table Booking System
+              {t('login.title')}
             </h1>
-            <span className="text-slate-500 text-sm">Sign in to your account</span>
+            <span className="text-slate-500 text-sm">{t('login.subtitle')}</span>
           </div>
+          <ServerWakeNotice />
           <div className="flex flex-col gap-2">
             <label htmlFor="email" className="text-slate-700 font-medium">
-              Email
+              {t('login.email')}
             </label>
             <input
               id="email"
@@ -113,14 +128,14 @@ export function LoginPage() {
           </div>
           <div className="flex flex-col gap-2 relative">
             <label htmlFor="password" className="text-slate-700 font-medium">
-              Password
+              {t('login.password')}
             </label>
             <div className="relative flex items-center">
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 className="border border-slate-200 rounded-lg px-3 pr-12 py-3 h-12 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition placeholder-slate-400 text-base bg-slate-50 w-full"
-                placeholder="Password"
+                placeholder={t('login.password')}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
@@ -147,6 +162,22 @@ export function LoginPage() {
           {error && (
             <div className="text-red-600 text-sm text-center border border-red-100 bg-red-50 rounded p-2 animate-shake">
               {error}
+              {needsVerification && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await api.resendVerification(email.trim());
+                      setResent(true);
+                    } catch {
+                      setResent(true);
+                    }
+                  }}
+                  className="block mx-auto mt-2 font-bold underline cursor-pointer"
+                >
+                  {resent ? t('login.resent') : t('login.resend')}
+                </button>
+              )}
             </div>
           )}
           <button
@@ -156,15 +187,15 @@ export function LoginPage() {
           >
             {loading ? (
               <>
-                Logging in...
+                {t('login.loggingIn')}
               </>
             ) : (
-              'Login'
+              t('login.login')
             )}
           </button>
           <div className="flex items-center gap-3 -mt-3">
             <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-slate-400 text-xs font-medium">or</span>
+            <span className="text-slate-400 text-xs font-medium">{t('login.or')}</span>
             <div className="flex-1 h-px bg-slate-200" />
           </div>
           <button
@@ -173,8 +204,19 @@ export function LoginPage() {
             className="border border-slate-200 bg-slate-50 text-slate-700 rounded-lg py-2 font-semibold shadow-sm hover:bg-slate-100 transition-all duration-150 cursor-pointer -mt-3 disabled:opacity-60 flex items-center justify-center gap-2"
             disabled={loading || demoLoading}
           >
-            {demoLoading ? 'Preparing demo...' : 'Try the demo'}
+            {demoLoading ? t('login.preparingDemo') : t('login.tryDemo')}
           </button>
+          <p className="text-center text-sm text-slate-500 -mt-3">
+            {t('login.noAccount')}{' '}
+            <Link to="/register" className="font-bold text-slate-800 hover:underline">
+              {t('login.trialCta')}
+            </Link>
+          </p>
+          <p className="text-center text-xs -mt-5">
+            <Link to="/" className="text-slate-400 hover:text-slate-600 hover:underline">
+              {t('login.backToSite')}
+            </Link>
+          </p>
           <style>{`
             .animate-fade-in {
               animation: fadeIn 0.7s cubic-bezier(.4,0,.2,1);

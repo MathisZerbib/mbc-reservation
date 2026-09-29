@@ -108,20 +108,23 @@ export function buildAdjacencyMap(
  * Adjacency used by auto-assignment. DB edges win; the shipped hardcoded map
  * is the fallback until the tenant saves their first layout.
  */
-export async function getAdjacencyMap(): Promise<AdjacencyMap> {
+export async function getAdjacencyMap(tenantId: string): Promise<AdjacencyMap> {
     const [tables, links] = await Promise.all([
-        prisma.table.findMany({ select: { id: true, name: true } }),
-        prisma.tableLink.findMany({ select: { aId: true, bId: true } }),
+        prisma.table.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+        prisma.tableLink.findMany({
+            where: { a: { tenantId } },
+            select: { aId: true, bId: true },
+        }),
     ]);
     if (links.length === 0) return FALLBACK_ADJACENCY_MAP;
     return buildAdjacencyMap(tables, links);
 }
 
 /** Full layout for the editor and map rendering (geometry + adjacency). */
-export async function getLayout(): Promise<LayoutTableDTO[]> {
+export async function getLayout(tenantId: string): Promise<LayoutTableDTO[]> {
     const [tables, links] = await Promise.all([
-        prisma.table.findMany({ orderBy: { name: 'asc' } }),
-        prisma.tableLink.findMany(),
+        prisma.table.findMany({ where: { tenantId }, orderBy: { name: 'asc' } }),
+        prisma.tableLink.findMany({ where: { a: { tenantId } } }),
     ]);
     const adjacency = buildAdjacencyMap(tables, links);
     return tables.map(t => ({
@@ -144,7 +147,7 @@ export async function getLayout(): Promise<LayoutTableDTO[]> {
  * from the payload. The editor always sends complete state, so full replace
  * keeps DB and UI trivially in sync (single-admin YAGNI).
  */
-export async function saveLayout(rawTables: unknown[], rawDeleteIds: unknown[] = []): Promise<LayoutTableDTO[]> {
+export async function saveLayout(rawTables: unknown[], rawDeleteIds: unknown[] = [], tenantId: string): Promise<LayoutTableDTO[]> {
     const tables = rawTables.map(parseLayoutTable);
 
     // Duplicate names within the payload would violate the unique constraint.
@@ -165,6 +168,7 @@ export async function saveLayout(rawTables: unknown[], rawDeleteIds: unknown[] =
         const now = new Date();
         const blockers = await prisma.booking.findMany({
             where: {
+                tenantId,
                 status: { not: 'CANCELLED' },
                 endTime: { gt: now },
                 tables: { some: { id: { in: deleteIds } } },
@@ -183,22 +187,41 @@ export async function saveLayout(rawTables: unknown[], rawDeleteIds: unknown[] =
     // independent (payload names are pre-validated unique), the pool executes
     // them concurrently, and only the edge rebuild below needs atomicity.
     if (deleteIds.length > 0) {
-        await prisma.table.deleteMany({ where: { id: { in: deleteIds } } });
+        await prisma.table.deleteMany({ where: { id: { in: deleteIds }, tenantId } });
     }
 
-    const upsertRow = (t: LayoutTableInput) =>
-        (t.id !== undefined
-            ? prisma.table.upsert({
-                where: { id: t.id },
-                update: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
-                create: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
-            })
-            : prisma.table.upsert({
-                where: { name: t.name },
-                update: { capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
-                create: { name: t.name, capacity: t.capacity, type: t.type as any, x: t.x, y: t.y, width: t.width, height: t.height, rotation: t.rotation },
-            })
-        ).then(row => [t.name, row.id] as [string, number]);
+    const tableData = (t: LayoutTableInput) => ({
+        name: t.name,
+        capacity: t.capacity,
+        type: t.type as any,
+        x: t.x,
+        y: t.y,
+        width: t.width,
+        height: t.height,
+        rotation: t.rotation,
+    });
+
+    const upsertRow = async (t: LayoutTableInput): Promise<[string, number]> => {
+        if (t.id !== undefined) {
+            // Id-path must resolve inside the tenant — never touch foreign rows.
+            const existing = await prisma.table.findFirst({ where: { id: t.id, tenantId } });
+            if (!existing) throw new Error(`Table id ${t.id} not found`);
+            if (t.name !== existing.name) {
+                const clash = await prisma.table.findUnique({
+                    where: { tenantId_name: { tenantId, name: t.name } },
+                });
+                if (clash) throw new Error(`Duplicate table name: "${t.name}"`);
+            }
+            const row = await prisma.table.update({ where: { id: t.id }, data: tableData(t) });
+            return [t.name, row.id];
+        }
+        const row = await prisma.table.upsert({
+            where: { tenantId_name: { tenantId, name: t.name } },
+            update: tableData(t),
+            create: { ...tableData(t), tenantId },
+        });
+        return [t.name, row.id];
+    };
 
     const idByName = new Map<string, number>(await Promise.all(tables.map(upsertRow)));
 
@@ -219,19 +242,22 @@ export async function saveLayout(rawTables: unknown[], rawDeleteIds: unknown[] =
         }
     }
     await prisma.$transaction([
-        prisma.tableLink.deleteMany(),
+        prisma.tableLink.deleteMany({ where: { aId: { in: [...idByName.values()] } } }),
         ...(edges.length > 0 ? [prisma.tableLink.createMany({ data: edges })] : []),
     ]);
 
-    return getLayout();
+    return getLayout(tenantId);
 }
 
 /** Deletes a single table (guarded against upcoming bookings). */
-export async function deleteTable(id: number): Promise<void> {
+export async function deleteTable(id: number, tenantId: string): Promise<void> {
     if (!Number.isInteger(id)) throw new Error('Invalid table id');
+    const existing = await prisma.table.findFirst({ where: { id, tenantId } });
+    if (!existing) throw new Error('Invalid table id');
     const now = new Date();
     const blockers = await prisma.booking.findMany({
         where: {
+            tenantId,
             status: { not: 'CANCELLED' },
             endTime: { gt: now },
             tables: { some: { id } },

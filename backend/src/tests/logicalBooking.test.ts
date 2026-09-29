@@ -8,9 +8,10 @@ import {
 } from '../services/bookingService';
 import { FLOOR_PLAN_DATA, getCapacity } from '../utils/floorPlanData';
 
-// Destructive suite: beforeAll/afterAll run deleteMany() on bookings AND tables.
+// Destructive suite: scoped to an isolated test tenant (created/deleted per run).
 // Opt-in only (RUN_DB_TESTS=1) so a plain `npm test` never touches a real DB.
 describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () => {
+    let tenantId: string;
     // Helper to create a booking date for "tomorrow" at a specific time
     const getTargetDate = (timeStr: string) => {
         const tomorrow = new Date();
@@ -21,9 +22,15 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
     };
 
     beforeAll(async () => {
-        // CLEANUP
-        await prisma.booking.deleteMany();
-        await prisma.table.deleteMany();
+        // Isolated tenant for this run (cascade-deleted afterwards)
+        const tenant = await prisma.tenant.create({
+            data: {
+                name: 'Test Tenant',
+                slug: `test-${Date.now()}`,
+                trialEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+        });
+        tenantId = tenant.id;
 
         // SEED FROM FLOOR PLAN DATA
         for (const t of FLOOR_PLAN_DATA) {
@@ -33,20 +40,20 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
                     capacity: getCapacity(t),
                     type: t.shape === 'BAR' ? 'BAR' : 'RECTANGULAR', // Mapping basic types
                     x: t.x,
-                    y: t.y
+                    y: t.y,
+                    tenantId,
                 }
             });
         }
     });
 
     afterAll(async () => {
-        await prisma.booking.deleteMany();
-        await prisma.table.deleteMany();
+        await prisma.tenant.deleteMany({ where: { id: tenantId } });
     });
 
     beforeEach(async () => {
         // Reset bookings between tests
-        await prisma.booking.deleteMany();
+        await prisma.booking.deleteMany({ where: { tenantId } });
     });
 
     describe('Scenario 1: Smart Assignment (Capacity Logic)', () => {
@@ -56,7 +63,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
             const endTime = addMinutes(startTime, RESERVATION_DURATION);
 
             // Fetch availability
-            const available = await getAvailableTables(startTime, endTime);
+            const available = await getAvailableTables(startTime, endTime, tenantId);
 
             // Logic being tested
             const assignment = findTableCombination(size, available);
@@ -71,7 +78,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
             const size = 6;
             const startTime = getTargetDate('19:00');
             const endTime = addMinutes(startTime, RESERVATION_DURATION);
-            const available = await getAvailableTables(startTime, endTime);
+            const available = await getAvailableTables(startTime, endTime, tenantId);
 
             const assignment = findTableCombination(size, available);
             expect(assignment).not.toBeNull();
@@ -88,7 +95,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
             const startTime = getTargetDate('20:00');
             const endTime = addMinutes(startTime, RESERVATION_DURATION);
 
-            const available = await getAvailableTables(startTime, endTime);
+            const available = await getAvailableTables(startTime, endTime, tenantId);
             const assignment = findTableCombination(size, available);
 
             expect(assignment).not.toBeNull();
@@ -103,8 +110,8 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
             const endTime = addMinutes(startTime, RESERVATION_DURATION);
 
             // Block big tables (11, 12, 1, 10)
-            const bigTables = await prisma.table.findMany({ 
-                where: { name: { in: ['11', '12', '1', '10'] } } 
+            const bigTables = await prisma.table.findMany({
+                where: { tenantId, name: { in: ['11', '12', '1', '10'] } }
             });
             for (const t of bigTables) {
                 await prisma.booking.create({
@@ -114,12 +121,13 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
                         size: 6,
                         startTime,
                         endTime,
+                        tenantId,
                         tables: { connect: { id: t.id } }
                     }
                 });
             }
 
-            const available = await getAvailableTables(startTime, endTime);
+            const available = await getAvailableTables(startTime, endTime, tenantId);
             const assignment = findTableCombination(size, available);
 
             expect(assignment).not.toBeNull();
@@ -131,7 +139,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
 
     describe('Scenario 3: Time Overlaps', () => {
         it('should detect unavailability correctly', async () => {
-            const table1 = await prisma.table.findFirstOrThrow({ where: { name: '10' } });
+            const table1 = await prisma.table.findFirstOrThrow({ where: { tenantId, name: '10' } });
             const startExisting = getTargetDate('18:00');
             const endExisting = addMinutes(startExisting, 120);
 
@@ -142,6 +150,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
                     size: 4,
                     startTime: startExisting,
                     endTime: endExisting,
+                    tenantId,
                     tables: { connect: { id: table1.id } }
                 }
             });
@@ -149,7 +158,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () =
             const reqStart = getTargetDate('19:00');
             const reqEnd = addMinutes(reqStart, 120);
 
-            const available = await getAvailableTables(reqStart, reqEnd);
+            const available = await getAvailableTables(reqStart, reqEnd, tenantId);
             const isTable1Available = available.some(t => t.id === table1.id);
             expect(isTable1Available).toBe(false);
         });

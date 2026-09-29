@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, fileUrl } from '../services/api';
 import { socket } from '../services/socket';
 import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
-import type { LayoutTable, RestaurantSettings } from '../types/index';
+import type { LayoutTable, RestaurantSettings, TenantContext } from '../types/index';
 
 /** DB layout row → renderer config (table names are the stable ids). */
 export const toTableConfig = (t: LayoutTable): TableConfig => ({
@@ -15,6 +15,31 @@ export const toTableConfig = (t: LayoutTable): TableConfig => ({
     rotation: t.rotation,
     seats: t.capacity,
 });
+
+/** Authenticated tenant context (slug, trial status) with live refresh. */
+export function useTenant() {
+    const [tenant, setTenant] = useState<TenantContext | null>(null);
+
+    const refresh = useCallback(async () => {
+        try {
+            setTenant(await api.getTenant());
+        } catch (e) {
+            console.error('Failed to fetch tenant', e);
+        }
+    }, []);
+
+    useEffect(() => {
+        // Fetch-on-mount: intentional data load, not derived state.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        refresh();
+        socket.on('settings-update', refresh);
+        return () => {
+            socket.off('settings-update', refresh);
+        };
+    }, [refresh]);
+
+    return { tenant, refresh };
+}
 
 /** Tenant settings with live refresh on `settings-update`. */
 export function useRestaurantSettings() {
@@ -32,6 +57,7 @@ export function useRestaurantSettings() {
     }, []);
 
     useEffect(() => {
+        // Fetch-on-mount: intentional data load, not derived state.
         refresh();
         socket.on('settings-update', refresh);
         return () => {
@@ -56,14 +82,16 @@ interface LayoutState {
  * no layout has been saved yet, so the map never renders blank.
  */
 export function useLayoutTables(): LayoutState {
+    const { tenant } = useTenant();
     const [raw, setRaw] = useState<LayoutTable[] | null>(null);
     const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     const refresh = useCallback(async () => {
+        if (!tenant) return;
         try {
             const [layout, settings] = await Promise.all([
-                api.getLayout(),
+                api.getLayout(tenant.slug),
                 api.getSettings().catch(() => null),
             ]);
             if (layout.length > 0) setRaw(layout);
@@ -73,9 +101,10 @@ export function useLayoutTables(): LayoutState {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [tenant]);
 
     useEffect(() => {
+        // Fetch-on-mount: intentional data load, not derived state.
         refresh();
         socket.on('floor-plan-update', refresh);
         socket.on('settings-update', refresh);

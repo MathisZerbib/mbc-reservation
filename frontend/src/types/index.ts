@@ -29,6 +29,7 @@ export interface CreateBookingPayload {
     lowTable?: boolean;
     startTime: string;
     notify?: boolean;
+    turnstileToken?: string | null;
 }
 
 
@@ -86,4 +87,13 @@ export interface LayoutTable {
     height: number;
     rotation: number;
     adjacentNames: string[];
+}
+
+export interface TenantContext {
+    id: string;
+    name: string;
+    slug: string;
+    trialEndsAt: string;
+    trialActive: boolean;
+    onboardingComplete: boolean;
 }

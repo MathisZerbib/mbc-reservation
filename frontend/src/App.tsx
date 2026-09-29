@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BrowserRouter, Routes, Route, Link, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useSearchParams, Navigate } from 'react-router-dom';
 import { Map as MapIcon, X, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from './utils/dayjs';
 import { FloorPlan } from './components/FloorPlan';
@@ -12,16 +12,23 @@ import { SettingsPage } from './components/SettingsPage';
 import { FloorPlanEditor } from './components/FloorPlanEditor';
 import LandingPage from './pages/LandingPage';
 import { LanguageProvider } from './i18n/LanguageContext';
+import { useTranslation } from './i18n/useTranslation';
 import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
+import { RegisterPage } from './components/RegisterPage';
+import { VerifyEmailPage } from './components/VerifyEmailPage';
+import { OnboardingPage } from './components/OnboardingPage';
+import { NotFound } from './components/NotFound';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
 import { BookingsProvider } from './context/BookingsContext';
 import { useBookingsContext } from './context/useBookingsContext';
 import { AutoConsecButton } from './components/AutoConsecButton';
+import { TrialBanner } from './components/TrialBanner';
 import { isDemoSession } from './utils/auth';
 import { Outlet } from 'react-router-dom';
 
 function AdminDashboard() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const dateFromQuery = searchParams.get('date');
   
@@ -64,8 +71,8 @@ function AdminDashboard() {
               <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl animate-pulse shadow-sm">
                 <AlertTriangle className="w-5 h-5 text-amber-500" />
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">High Capacity</span>
-                  <span className="text-xs font-bold">{Math.round(occupancyRate)}% of tables booked</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">{t('dashboard.highCapacity')}</span>
+                  <span className="text-xs font-bold">{t('dashboard.tablesBooked').replace('{n}', String(Math.round(occupancyRate)))}</span>
                 </div>
               </div>
             )}
@@ -74,7 +81,7 @@ function AdminDashboard() {
               {occupancyRate >= 70 && (
                 <div className="sm:hidden flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl animate-pulse shadow-sm">
                   <AlertTriangle className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-wider">{Math.round(occupancyRate)}% full</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider">{t('dashboard.fullShort').replace('{n}', String(Math.round(occupancyRate)))}</span>
                 </div>
               )}
               <button 
@@ -90,23 +97,25 @@ function AdminDashboard() {
               onClick={() => setIsQuickResOpen(true)}
               className="flex-1 sm:flex-none bg-slate-900 hover:bg-slate-800 text-white px-4 lg:px-6 py-3 rounded-2xl font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-sm"
             >
-              <span className="text-lg font-black">+</span> <span>Quick Res</span>
+              <span className="text-lg font-black">+</span> <span>{t('dashboard.quickRes')}</span>
             </button>
             <Link 
-              to={`/assign?date=${selectedDate}`} 
+              to={`/app/assign?date=${selectedDate}`} 
               className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-4 lg:px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center text-sm"
             >
-              Assign Tables
+              {t('dashboard.assignTables')}
             </Link>
             <Link
-              to="/admin/settings"
+              to="/app/settings"
               className="sm:flex-none p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-sm text-slate-500 hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center"
-              title="Settings"
+              title={t('dashboard.settingsTitle')}
             >
               <SettingsIcon className="w-5 h-5" />
             </Link>
           </div>
         </header>
+
+        <TrialBanner />
 
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Main Content: Maps & Analytics (Hidden on mobile by default) */}
@@ -154,8 +163,8 @@ function AdminDashboard() {
                   <MapIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Interactive Map</h3>
-                  <p className="text-[10px] text-slate-400 font-bold">Zoom/Pan to explore</p>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{t('dashboard.mapTitle')}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold">{t('dashboard.mapHint')}</p>
                 </div>
               </div>
               <button 
@@ -200,17 +209,25 @@ function App() {
     <LanguageProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/landing" element={<LandingPage />} />
+          {/* Public marketing + guest flows */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/book" element={<BookingPage />} />
+          <Route path="/b/:slug" element={<BookingPage />} />
+          {/* Authenticated product */}
           <Route element={<ProtectedRoutes />}>
             <Route element={<BookingsProvider><Outlet /></BookingsProvider>}>
-                <Route path="/assign" element={<TableAssignmentPage />} />
-                <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                <Route path="/admin/settings" element={<SettingsPage />} />
-                <Route path="/admin/floor-plan" element={<FloorPlanEditor />} />
+                <Route path="/onboarding" element={<OnboardingPage />} />
+                <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
+                <Route path="/app/dashboard" element={<AdminDashboard />} />
+                <Route path="/app/assign" element={<TableAssignmentPage />} />
+                <Route path="/app/settings" element={<SettingsPage />} />
+                <Route path="/app/floor-plan" element={<FloorPlanEditor />} />
             </Route>
           </Route>
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </LanguageProvider>

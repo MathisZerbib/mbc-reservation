@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { type TableConfig } from "../utils/floorPlanData";
 import { useLayoutTables } from "../hooks/useFloorPlan";
+import { useTranslation } from "../i18n/useTranslation";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { cn } from "../lib/utils";
@@ -23,6 +24,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   hideControls = false,
 }) => {
   const { bookings: allBookings } = useBookingsContext();
+  const { t } = useTranslation();
   const { tables: layoutTables, backgroundUrl } = useLayoutTables();
   const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>('OVERVIEW');
 
@@ -146,14 +148,14 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
         <div className="flex-none flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-4 lg:mb-6 px-4">
           <div className="flex flex-col lg:flex-row lg:items-center gap-3 w-full lg:w-auto">
             <h2 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight flex items-center justify-between lg:justify-start gap-3 w-full lg:w-auto">
-              Map View
+              {t('mapview.title')}
               <div className="flex bg-slate-200/50 backdrop-blur-sm p-1 rounded-xl border border-slate-200/50">
                 <button onClick={() => setViewMode('LIVE')} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5", viewMode === 'LIVE' ? "bg-white shadow-md text-indigo-600" : "text-slate-500 hover:text-slate-900")}>
                   {viewMode === 'LIVE' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></div>}
-                  Live
+                  {t('mapview.live')}
                 </button>
                 <button onClick={() => setViewMode('OVERVIEW')} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer", viewMode === 'OVERVIEW' ? "bg-white shadow-md text-indigo-600" : "text-slate-500 hover:text-slate-900")}>
-                  Overview
+                  {t('mapview.overview')}
                 </button>
               </div>
             </h2>
@@ -163,19 +165,19 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
             {viewMode === 'LIVE' ? (
               <>
                 <div className="flex items-center gap-2.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                  <div className="w-3 h-3 rounded-md bg-emerald-500 shadow-sm shadow-emerald-500/30"></div> FREE
+                  <div className="w-3 h-3 rounded-md bg-emerald-500 shadow-sm shadow-emerald-500/30"></div> {t('mapview.free')}
                 </div>
                 <div className="flex items-center gap-2.5 text-[10px] font-black text-amber-500 uppercase tracking-widest">
-                  <div className="w-3 h-3 rounded-md bg-amber-400"></div> RES (30m)
+                  <div className="w-3 h-3 rounded-md bg-amber-400"></div> {t('mapview.resSoon')}
                 </div>
               </>
             ) : (
               <>
                 <div className="flex items-center gap-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <div className="w-3 h-3 rounded-md bg-white border border-slate-300"></div> FREE
+                  <div className="w-3 h-3 rounded-md bg-white border border-slate-300"></div> {t('mapview.free')}
                 </div>
                 <div className="flex items-center gap-2.5 text-[10px] font-black text-blue-500 uppercase tracking-widest">
-                  <div className="w-3 h-3 rounded-md bg-blue-300 border border-blue-400"></div> OCCUPIED
+                  <div className="w-3 h-3 rounded-md bg-blue-300 border border-blue-400"></div> {t('mapview.occupied')}
                 </div>
               </>
             )}
@@ -246,7 +248,9 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                   strokeWidth={isHighlighted ? "4" : "2"}
                   onClick={(e) => {
                     e.stopPropagation();
-                    const rect = (e.currentTarget.ownerSVGElement as any).getBoundingClientRect();
+                    const ownerSvg = e.currentTarget.ownerSVGElement;
+                    if (!ownerSvg) return;
+                    const rect = ownerSvg.getBoundingClientRect();
                     setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
                     setHoveredTable(prev => prev === table.id ? null : table.id);
                   }}
@@ -281,18 +285,18 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
               <div className="flex justify-between items-center mb-4">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Table {hoveredTable}</span>
-                  <span className="text-xl font-black">Reservations</span>
+                  <span className="text-xl font-black">{t('mapview.reservations')}</span>
                 </div>
               </div>
               <div className="space-y-3">
                 {bookings.filter((b: Booking) => b.tables?.some((t: { name: string }) => t.name === hoveredTable)).length === 0 ? (
-                  <p className="text-xs text-slate-400">Available all day</p>
+                  <p className="text-xs text-slate-400">{t('mapview.availAllDay')}</p>
                 ) : (
                   bookings.filter((b: Booking) => b.tables?.some((t: { name: string }) => t.name === hoveredTable)).map((b: Booking) => (
                     <div key={b.id} className="p-3 bg-white/5 rounded-xl border border-white/10 flex justify-between items-center">
                       <div>
                         <p className="text-sm font-bold">{b.name}</p>
-                        <p className="text-[10px] text-slate-400">{b.size} guests</p>
+                        <p className="text-[10px] text-slate-400">{t('mapview.guestsFmt').replace('{n}', String(b.size))}</p>
                       </div>
                       <p className="text-xs font-black">{dayjs(b.startTime).format("HH:mm")}</p>
                     </div>

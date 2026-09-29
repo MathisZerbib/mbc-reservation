@@ -14,6 +14,7 @@ interface BookResult {
  * Core: create N consecutive bookings on given tables starting at a given time.
  */
 async function bookTables(
+    tenantId: string,
     tables: { id: number; name: string; capacity: number }[],
     start: dayjs.Dayjs,
     slots: number,
@@ -48,6 +49,7 @@ async function bookTables(
                         endTime: slotEnd.toDate(),
                         status: 'CONFIRMED',
                         language: 'en',
+                        tenantId,
                         tables: { connect: [{ id: table.id }] }
                     }
                 });
@@ -76,8 +78,8 @@ function parseStart(date: string, time: string): dayjs.Dayjs {
     return start;
 }
 
-async function resolveTables(names: string[]) {
-    const tables = await prisma.table.findMany({ where: { name: { in: names } } });
+async function resolveTables(tenantId: string, names: string[]) {
+    const tables = await prisma.table.findMany({ where: { tenantId, name: { in: names } } });
     const found = new Set(tables.map(t => t.name));
     const missing = names.filter(n => !found.has(n));
     if (missing.length) throw new Error(`Tables not found: ${missing.join(', ')}`);
@@ -87,11 +89,14 @@ async function resolveTables(names: string[]) {
 /**
  * Fill all (or limited) tables with a single booking each.
  */
-export async function fullBook(date: string, time: string = '19:00', limit?: number) {
+export async function fullBook(date: string, time: string = '19:00', limit?: number, tenantId?: string) {
     const start = parseStart(date, time);
-    let tables = await prisma.table.findMany({ orderBy: { id: 'asc' } });
+    let tables = await prisma.table.findMany({
+        where: tenantId ? { tenantId } : undefined,
+        orderBy: { id: 'asc' },
+    });
     if (limit) tables = tables.slice(0, limit);
-    return bookTables(tables, start, 1, 'Auto');
+    return bookTables(tenantId ?? '', tables, start, 1, 'Auto');
 }
 
 /**
@@ -102,11 +107,12 @@ export async function consecutiveBook(
     time: string,
     tableNames: string[],
     count: number,
-    guestName: string = 'Auto-Consec'
+    guestName: string = 'Auto-Consec',
+    tenantId: string = ''
 ) {
     const start = parseStart(date, time);
-    const tables = await resolveTables(tableNames);
-    return bookTables(tables, start, count, guestName);
+    const tables = await resolveTables(tenantId, tableNames);
+    return bookTables(tenantId, tables, start, count, guestName);
 }
 
 /**
@@ -118,22 +124,26 @@ export async function fullBookWithConsecutive(
     leaveEmpty: number,
     consecutiveTableNames: string[],
     extraSlots: number,
-    guestName: string = 'Auto-Consec'
+    guestName: string = 'Auto-Consec',
+    tenantId: string = ''
 ) {
     const start = parseStart(date, time);
 
     // Step 1: full book
-    const allTables = await prisma.table.findMany({ orderBy: { id: 'asc' } });
+    const allTables = await prisma.table.findMany({
+        where: tenantId ? { tenantId } : undefined,
+        orderBy: { id: 'asc' },
+    });
     const limit = Math.max(allTables.length - leaveEmpty, 0);
-    const full = await bookTables(allTables.slice(0, limit), start, 1, 'Auto');
+    const full = await bookTables(tenantId, allTables.slice(0, limit), start, 1, 'Auto');
 
     // Step 2: consecutive extras on selected tables (starting after the first slot)
-    const selectedTables = await resolveTables(consecutiveTableNames);
+    const selectedTables = await resolveTables(tenantId, consecutiveTableNames);
     const consec: BookResult = { success: 0, failed: 0, details: [] };
 
     for (const table of selectedTables) {
         const afterFirst = start.add(AUTO_BOOK_DURATION, 'minute');
-        const r = await bookTables([table], afterFirst, extraSlots, guestName);
+        const r = await bookTables(tenantId, [table], afterFirst, extraSlots, guestName);
         consec.success += r.success;
         consec.failed += r.failed;
         consec.details.push(...r.details);

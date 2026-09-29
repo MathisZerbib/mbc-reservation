@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { bookingController } from '../controllers/bookingController';
 import { Server } from 'socket.io';
-import { isAuthenticated } from '../middleware/isAuthenticated';
+import { isAuthenticated, requireTenant, requireActiveTrial, resolveTenantFromSlug } from '../middleware/isAuthenticated';
+import { availabilityLimiter, bookingLimiter } from '../middleware/rateLimit';
 
 export const bookingRoutes = (io: Server) => {
     const router = Router();
@@ -26,9 +27,9 @@ export const bookingRoutes = (io: Server) => {
      *       200:
      *         description: Booking statistics
      */
-    router.get('/analytics', isAuthenticated, controller.getAnalytics);
+    router.get('/analytics', isAuthenticated, requireTenant, controller.getAnalytics);
 
-    /** 
+    /**
      * @swagger
      * /daily-availability:
      *   get:
@@ -46,11 +47,17 @@ export const bookingRoutes = (io: Server) => {
      *         schema:
      *           type: integer
      *         description: Party size
+     *       - in: query
+     *         name: slug
+     *         schema:
+     *           type: string
+     *         required: true
+     *         description: Restaurant slug
      *     responses:
      *       200:
      *         description: Availability status
      */
-    router.get('/daily-availability', controller.getDailyAvailability);
+    router.get('/daily-availability', availabilityLimiter, resolveTenantFromSlug, controller.getDailyAvailability);
 
     /**
      * @swagger
@@ -75,11 +82,17 @@ export const bookingRoutes = (io: Server) => {
      *         schema:
      *           type: integer
      *         description: Party size
+     *       - in: query
+     *         name: slug
+     *         schema:
+     *           type: string
+     *         required: true
+     *         description: Restaurant slug
      *     responses:
      *       200:
      *         description: Availability status
      */
-    router.get('/availability', controller.checkAvailability);
+    router.get('/availability', availabilityLimiter, resolveTenantFromSlug, controller.checkAvailability);
 
     /**
      * @swagger
@@ -97,7 +110,7 @@ export const bookingRoutes = (io: Server) => {
      *       201:
      *         description: Booking created
      */
-    router.post('/bookings', controller.createBooking);
+    router.post('/bookings', bookingLimiter, resolveTenantFromSlug, requireActiveTrial, controller.createBooking);
 
     /**
      * @swagger
@@ -117,11 +130,11 @@ export const bookingRoutes = (io: Server) => {
      *               items:
      *                 $ref: '#/components/schemas/Booking'
      */
-    router.get('/bookings', isAuthenticated, controller.getAllBookings);
+    router.get('/bookings', isAuthenticated, requireTenant, controller.getAllBookings);
 
-    router.patch('/bookings/:id/tables', isAuthenticated, controller.updateAssignment);
-    router.post('/bookings/:id/check-in', isAuthenticated, controller.checkIn);
-    router.post('/bookings/:id/cancel', isAuthenticated, controller.cancelBooking);
+    router.patch('/bookings/:id/tables', isAuthenticated, requireTenant, requireActiveTrial, controller.updateAssignment);
+    router.post('/bookings/:id/check-in', isAuthenticated, requireTenant, requireActiveTrial, controller.checkIn);
+    router.post('/bookings/:id/cancel', isAuthenticated, requireTenant, requireActiveTrial, controller.cancelBooking);
 
     return router;
 };

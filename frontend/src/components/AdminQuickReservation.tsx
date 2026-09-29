@@ -11,6 +11,8 @@ import {
 import { COUNTRIES } from '../utils/countries';
 import { cn } from '../lib/utils';
 import { useBookingsContext } from '../context/useBookingsContext';
+import { useTenant } from '../hooks/useFloorPlan';
+import { useTranslation } from '../i18n/useTranslation';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 
 interface AdminQuickReservationProps {
@@ -34,6 +36,8 @@ const getFirstAvailableTime = (date: string) => {
 
 
     const { bookings, refresh } = useBookingsContext();
+    const { t } = useTranslation();
+    const { tenant } = useTenant();
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -77,10 +81,10 @@ const getFirstAvailableTime = (date: string) => {
 
     React.useEffect(() => {
         const fetchDaily = async () => {
-            if (!formData.date || !formData.size) return;
+            if (!formData.date || !formData.size || !tenant) return;
             setFetchingAvailability(true);
             try {
-                const data = await api.getDailyAvailability(formData.date, formData.size);
+                const data = await api.getDailyAvailability(formData.date, formData.size, tenant.slug);
                 const map: Record<string, boolean> = {};
                 data.forEach(item => {
                     map[item.time] = item.available;
@@ -93,7 +97,7 @@ const getFirstAvailableTime = (date: string) => {
             }
         };
         if (isOpen) fetchDaily();
-    }, [formData.date, formData.size, isOpen]);
+    }, [formData.date, formData.size, isOpen, tenant]);
 
     // Keep date in sync with selectedDate prop when dialog opens
     React.useEffect(() => {
@@ -112,12 +116,12 @@ const getFirstAvailableTime = (date: string) => {
         const sanitizedEmail = formData.email.trim().toLowerCase().substring(0, 24);
 
         if (sanitizedName.length < 2) {
-            setError('Name must be at least 2 characters');
+            setError(t('quickres.nameError'));
             return;
         }
 
         if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedEmail)) {
-            setError('Invalid email format');
+            setError(t('quickres.emailError'));
             return;
         }
 
@@ -125,6 +129,11 @@ const getFirstAvailableTime = (date: string) => {
         setError('');
 
         try {
+            if (!tenant) {
+                setError(t('quickres.tenantError'));
+                setLoading(false);
+                return;
+            }
             await api.createBooking({
                 name: sanitizedName,
                 phone: sanitizedPhone,
@@ -133,7 +142,7 @@ const getFirstAvailableTime = (date: string) => {
                 language: formData.language,
                 startTime: formData.date + ' ' + formData.time,
                 notify: formData.notify,
-            } as any);
+            }, tenant.slug);
             
             await refresh(); // Force refresh of context data before proceeding
             
@@ -152,9 +161,9 @@ const getFirstAvailableTime = (date: string) => {
             });
         } catch (err: unknown) {
             if (err instanceof Error) {
-                setError(err.message || 'Failed to create reservation');
+                setError(err.message || t('quickres.createFailed'));
             } else {
-                setError('Failed to create reservation');
+                setError(t('quickres.createFailed'));
             }
         } finally {
             setLoading(false);
@@ -186,7 +195,7 @@ const getFirstAvailableTime = (date: string) => {
                             <div className="flex justify-between items-center mb-4 sm:mb-8">
                                 <div>
                                     <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                        Quick Res
+                                        {t('quickres.title')}
                                         {currentOccupancyRate >= 70 && (
                                             <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-600 rounded-lg animate-pulse border border-amber-100">
                                                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -194,7 +203,7 @@ const getFirstAvailableTime = (date: string) => {
                                             </div>
                                         )}
                                     </h2>
-                                    <p className="text-sm font-medium text-slate-400">Add reservation manually</p>
+                                    <p className="text-sm font-medium text-slate-400">{t('quickres.subtitle')}</p>
                                 </div>
                                 <button
                                     onClick={onClose}
@@ -209,7 +218,7 @@ const getFirstAvailableTime = (date: string) => {
                                     {/* Left Column: Basic Info */}
                                     <div className="space-y-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Guest details</label>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{t('quickres.guestDetails')}</label>
                                             <div className="space-y-3">
                                                 <div className="relative group">
                                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors">
@@ -220,7 +229,7 @@ const getFirstAvailableTime = (date: string) => {
                                                         required
                                                         type="text"
                                                         maxLength={20}
-                                                        placeholder="Guest Name"
+                                                        placeholder={t('quickres.guestNamePh')}
                                                         value={formData.name}
                                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                                                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
@@ -245,7 +254,7 @@ const getFirstAvailableTime = (date: string) => {
                                                                     <input
                                                                         autoFocus
                                                                         type="text"
-                                                                        placeholder="Search country..."
+                                                                        placeholder={t('quickres.searchCountry')}
                                                                         value={countrySearch}
                                                                         onChange={e => setCountrySearch(e.target.value)}
                                                                         className="w-full bg-white border-2 border-slate-100 rounded-xl py-2 pl-9 pr-3 text-xs font-bold text-slate-700 focus:border-indigo-500/30 outline-none transition-all"
@@ -276,7 +285,7 @@ const getFirstAvailableTime = (date: string) => {
                                                                     ))
                                                                 ) : (
                                                                     <div className="p-8 text-center">
-                                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching country</p>
+                                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('quickres.noCountry')}</p>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -290,7 +299,7 @@ const getFirstAvailableTime = (date: string) => {
                                                         <input
                                                             type="tel"
                                                             maxLength={15}
-                                                            placeholder="Phone Number (Optional)"
+                                                            placeholder={t('quickres.phonePh')}
                                                             value={phoneValue}
                                                             onChange={e => setPhoneValue(e.target.value.replace(/[^\d\s]/g, ''))}
                                                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
@@ -304,7 +313,7 @@ const getFirstAvailableTime = (date: string) => {
                                                     <input
                                                         type="email"
                                                         maxLength={24}
-                                                        placeholder="Email Address (Optional)"
+                                                        placeholder={t('quickres.emailPh')}
                                                         value={formData.email}
                                                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                                                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
@@ -337,7 +346,7 @@ const getFirstAvailableTime = (date: string) => {
                                     {/* Right Column: DateTime and Options */}
                                     <div className="space-y-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Date & Time</label>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{t('quickres.dateTime')}</label>
                                             <div className="space-y-3">
                                                 <DatePicker 
                                                     date={dayjs(formData.date).toDate()} 
@@ -353,7 +362,7 @@ const getFirstAvailableTime = (date: string) => {
                                                 
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Guests</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{t('quickres.guests')}</label>
                                                         <div className="relative group">
                                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                                                                 <Users className="w-4 h-4" />
@@ -369,7 +378,7 @@ const getFirstAvailableTime = (date: string) => {
                                                     </div>
                                                     <div className="space-y-1.5">
                                                         <div className="flex justify-between items-center ml-1">
-                                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Time</label>
+                                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('quickres.time')}</label>
                                                         </div>
                                                         <div className="relative group">
                                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
@@ -384,11 +393,11 @@ const getFirstAvailableTime = (date: string) => {
                                                                     : 'border-slate-100 focus:border-indigo-500/50'
                                                                 }`}
                                                             >
-                                                                {TIME_SLOTS.map(t => {
-                                                                    const isFull = !fetchingAvailability && availableTimes[t] === false;
+                                                                {TIME_SLOTS.map(slot => {
+                                                                    const isFull = !fetchingAvailability && availableTimes[slot] === false;
                                                                     return (
-                                                                        <option key={t} value={t}>
-                                                                            {t} {isFull ? '(Full)' : ''}
+                                                                        <option key={slot} value={slot}>
+                                                                            {slot} {isFull ? t('quickres.fullSuffix') : ''}
                                                                         </option>
                                                                     );
                                                                 })}
@@ -408,8 +417,8 @@ const getFirstAvailableTime = (date: string) => {
                                                     {formData.notify ? <Bell className="w-4 h-4" /> : <MailCheck className="w-4 h-4" />}
                                                 </div>
                                                 <div className="flex-1">
-                                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Notifications</div>
-                                                    <div className="text-[9px] text-slate-400 font-bold">Automated confirmation</div>
+                                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{t('quickres.notifTitle')}</div>
+                                                    <div className="text-[9px] text-slate-400 font-bold">{t('quickres.notifSub')}</div>
                                                 </div>
                                                 <button
                                                     type="button"
@@ -456,7 +465,7 @@ const getFirstAvailableTime = (date: string) => {
                                             <Loader2 className="w-5 h-5 animate-spin" />
                                         ) : (
                                             <>
-                                                Create Reservation 
+                                                {t('quickres.create')}
                                                 <Check className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                             </>
                                         )}

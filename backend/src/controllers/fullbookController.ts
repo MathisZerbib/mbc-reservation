@@ -1,7 +1,8 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { fullBook } from '../services/fullBookService';
+import { AuthRequest } from '../middleware/isAuthenticated';
 
-export async function fullBookController(req: Request, res: Response) {
+export async function fullBookController(req: AuthRequest, res: Response) {
     try {
         const { date, time, limit } = req.body;
 
@@ -10,8 +11,8 @@ export async function fullBookController(req: Request, res: Response) {
         }
 
         const numLimit = limit ? parseInt(limit.toString()) : undefined;
-        
-        const result = await fullBook(date, time || '19:00', numLimit);
+
+        const result = await fullBook(date, time || '19:00', numLimit, req.tenant!.id);
         
         res.json({ 
             message: 'Full booking process completed',

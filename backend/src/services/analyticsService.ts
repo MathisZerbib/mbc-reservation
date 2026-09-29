@@ -150,7 +150,7 @@ export function computeAnalytics(
  * - previous day's active booking count (growth baseline)
  * - total table count (occupancy baseline)
  */
-export async function getDailyAnalytics(dateStr: string): Promise<DailyAnalytics> {
+export async function getDailyAnalytics(dateStr: string, tenantId: string): Promise<DailyAnalytics> {
     const parsed = dayjs.tz(dateStr, 'YYYY-MM-DD', RESTAURANT_TZ);
     if (!parsed.isValid()) throw new Error('Invalid date, expected YYYY-MM-DD');
 
@@ -162,6 +162,7 @@ export async function getDailyAnalytics(dateStr: string): Promise<DailyAnalytics
     const [today, previousDayBookingCount, totalTables, avgTicket] = await Promise.all([
         prisma.booking.findMany({
             where: {
+                tenantId,
                 startTime: { gte: startOfDay, lte: endOfDay },
                 status: { not: 'CANCELLED' },
             },
@@ -174,12 +175,13 @@ export async function getDailyAnalytics(dateStr: string): Promise<DailyAnalytics
         }),
         prisma.booking.count({
             where: {
+                tenantId,
                 startTime: { gte: prevStart, lte: prevEnd },
                 status: { not: 'CANCELLED' },
             },
         }),
-        prisma.table.count(),
-        getAvgTicket(),
+        prisma.table.count({ where: { tenantId } }),
+        getAvgTicket(tenantId),
     ]);
 
     return computeAnalytics(dateStr, today, previousDayBookingCount, totalTables, avgTicket);

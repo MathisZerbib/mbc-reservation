@@ -1,7 +1,8 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { Server } from 'socket.io';
 
 import { getLayout, saveLayout, deleteTable } from '../services/floorPlanService';
+import { AuthRequest } from '../middleware/isAuthenticated';
 
 /** Maps known validation errors to 400/409; everything else is a generic 500 (no internal leaks). */
 const toStatus = (error: unknown): { status: number; message: string } => {
@@ -12,20 +13,20 @@ const toStatus = (error: unknown): { status: number; message: string } => {
 };
 
 export const tableController = (io: Server) => ({
-    getAllTables: async (_req: Request, res: Response) => {
+    getAllTables: async (req: AuthRequest, res: Response) => {
         try {
-            res.json(await getLayout());
+            res.json(await getLayout(req.tenant!.id));
         } catch (error) {
             console.error(error);
             res.status(500).json({ error: 'Internal server error' });
         }
     },
 
-    saveLayout: async (req: Request, res: Response) => {
+    saveLayout: async (req: AuthRequest, res: Response) => {
         try {
             const { tables, deleteIds } = req.body as { tables: unknown[]; deleteIds?: unknown[] };
             if (!Array.isArray(tables)) return res.status(400).json({ error: 'tables must be an array' });
-            const layout = await saveLayout(tables, deleteIds ?? []);
+            const layout = await saveLayout(tables, deleteIds ?? [], req.tenant!.id);
             io.emit('floor-plan-update', { tables: layout });
             res.json(layout);
         } catch (error) {
@@ -35,11 +36,11 @@ export const tableController = (io: Server) => ({
         }
     },
 
-    deleteTable: async (req: Request, res: Response) => {
+    deleteTable: async (req: AuthRequest, res: Response) => {
         try {
             const id = Number(req.params.id);
             if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid table id' });
-            await deleteTable(id);
+            await deleteTable(id, req.tenant!.id);
             io.emit('floor-plan-update', { deletedId: id });
             res.json({ ok: true });
         } catch (error) {

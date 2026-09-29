@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { Server } from 'socket.io';
 import { tableController } from '../controllers/tableController';
-import { isAuthenticated } from '../middleware/isAuthenticated';
+import { isAuthenticated, requireTenant, requireActiveTrial, resolveTenantFromSlug } from '../middleware/isAuthenticated';
 
 export const tableRoutes = (io: Server) => {
     const router = Router();
@@ -24,7 +24,7 @@ export const tableRoutes = (io: Server) => {
      *       200:
      *         description: The table layout
      */
-    router.get('/tables', controller.getAllTables);
+    router.get('/tables', resolveTenantFromSlug, controller.getAllTables);
 
     /**
      * @swagger
@@ -38,8 +38,8 @@ export const tableRoutes = (io: Server) => {
      *       200:
      *         description: The saved table layout
      */
-    router.put('/tables/layout', isAuthenticated, controller.saveLayout);
-    router.delete('/tables/:id', isAuthenticated, controller.deleteTable);
+    router.put('/tables/layout', isAuthenticated, requireTenant, requireActiveTrial, controller.saveLayout);
+    router.delete('/tables/:id', isAuthenticated, requireTenant, requireActiveTrial, controller.deleteTable);
 
     return router;
 };

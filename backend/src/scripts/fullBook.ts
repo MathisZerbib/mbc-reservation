@@ -10,6 +10,15 @@ const ask = (q: string): Promise<string> => new Promise(r => rl.question(q, r));
 const AUTO_BOOK_DURATION = 120;
 const LAST_SEATING = '22:00';
 
+// Tenant scope for all CLI operations (resolved from --tenant slug or 'mbc').
+let TENANT_ID = '';
+
+async function resolveTenant(slug: string): Promise<string> {
+    const tenant = await prisma.tenant.findUnique({ where: { slug } });
+    if (!tenant) throw new Error(`Unknown tenant slug: "${slug}"`);
+    return tenant.id;
+}
+
 
 
 // ── Shared CLI helpers ──────────────────────────────────────────────
@@ -38,7 +47,7 @@ async function askLeaveEmpty(): Promise<number> {
 }
 
 async function askTableNames(): Promise<string[]> {
-    const allTables = await prisma.table.findMany({ orderBy: { id: 'asc' } });
+    const allTables = await prisma.table.findMany({ where: { tenantId: TENANT_ID }, orderBy: { id: 'asc' } });
     console.log('\nAvailable tables:');
     console.log(allTables.map(t => `  ${t.name} (capacity: ${t.capacity})`).join('\n'));
 
@@ -81,7 +90,7 @@ async function confirm(): Promise<boolean> {
 
 async function runFullBook(date: string, time: string) {
     const leaveEmpty = await askLeaveEmpty();
-    const total = await prisma.table.count();
+    const total = await prisma.table.count({ where: { tenantId: TENANT_ID } });
     const toBook = total - leaveEmpty;
     const start = dayjs(`${date}T${time}`);
 
@@ -91,7 +100,7 @@ async function runFullBook(date: string, time: string) {
     if (!await confirm()) return console.log('Aborted.');
 
     console.log('\n🚀 Starting full booking...');
-    const r = await fullBook(date, time, Math.max(toBook, 0));
+    const r = await fullBook(date, time, Math.max(toBook, 0), TENANT_ID);
     console.log('\n🎉 Completed!');
     printResult(r);
     console.log(`\nℹ️  Navigate to ${start.format('YYYY-MM-DD')} in dashboard.`);
@@ -105,7 +114,7 @@ async function runConsecutiveBook(date: string, time: string) {
     const guestName = (await ask('Guest name prefix [default: Auto-Consec]: ')) || 'Auto-Consec';
 
     const start = dayjs(`${date}T${time}`);
-    const allTables = await prisma.table.findMany({ orderBy: { id: 'asc' } });
+    const allTables = await prisma.table.findMany({ where: { tenantId: TENANT_ID }, orderBy: { id: 'asc' } });
 
     console.log(`\n📋 Preview — ${tableNames.join(', ')} × ${count} slots from ${start.format('dddd, D MMMM YYYY HH:mm')}`);
     for (const name of tableNames) {
@@ -118,7 +127,7 @@ async function runConsecutiveBook(date: string, time: string) {
     if (!await confirm()) return console.log('Aborted.');
 
     console.log('\n🚀 Creating consecutive bookings...');
-    const r = await consecutiveBook(date, time, tableNames, count, guestName);
+    const r = await consecutiveBook(date, time, tableNames, count, guestName, TENANT_ID);
     console.log('\n🎉 Completed!');
     printResult(r);
     console.log(`\nℹ️  Navigate to ${start.format('YYYY-MM-DD')} in dashboard.`);
@@ -134,8 +143,8 @@ async function runFullBookWithConsecutive(date: string, time: string) {
     const guestName = (await ask('Guest name prefix for consecutive slots [default: Auto-Consec]: ')) || 'Auto-Consec';
 
     const start = dayjs(`${date}T${time}`);
-    const total = await prisma.table.count();
-    const allTables = await prisma.table.findMany({ orderBy: { id: 'asc' } });
+    const total = await prisma.table.count({ where: { tenantId: TENANT_ID } });
+    const allTables = await prisma.table.findMany({ where: { tenantId: TENANT_ID }, orderBy: { id: 'asc' } });
 
     console.log(`\n📋 Preview:`);
     console.log(`Full book: ~${total - leaveEmpty} tables at ${start.format('dddd, D MMMM YYYY HH:mm')} (${leaveEmpty} empty)`);
@@ -152,7 +161,7 @@ async function runFullBookWithConsecutive(date: string, time: string) {
     if (!await confirm()) return console.log('Aborted.');
 
     console.log('\n🚀 Starting full book + consecutive...');
-    const r = await fullBookWithConsecutive(date, time, leaveEmpty, tableNames, extraSlots, guestName);
+    const r = await fullBookWithConsecutive(date, time, leaveEmpty, tableNames, extraSlots, guestName, TENANT_ID);
 
     console.log('\n🎉 Completed!');
     console.log('\n📦 Full book:');
@@ -186,12 +195,12 @@ function parseArgs(): Record<string, string> {
 
 async function runFullBookDirect(date: string, time: string, args: Record<string, string>) {
     const leaveEmpty = parseInt(args.empty || '0');
-    const total = await prisma.table.count();
+    const total = await prisma.table.count({ where: { tenantId: TENANT_ID } });
     const toBook = total - leaveEmpty;
     const start = dayjs(`${date}T${time}`);
 
     console.log(`\n🚀 Full book: ~${toBook} tables at ${start.format('dddd, D MMMM YYYY HH:mm')} (${leaveEmpty} empty)`);
-    const r = await fullBook(date, time, Math.max(toBook, 0));
+    const r = await fullBook(date, time, Math.max(toBook, 0), TENANT_ID);
     console.log('\n🎉 Completed!');
     printResult(r);
 }
@@ -205,7 +214,7 @@ async function runConsecutiveBookDirect(date: string, time: string, args: Record
     const start = dayjs(`${date}T${time}`);
 
     console.log(`\n🚀 Consecutive book: [${tableNames.join(', ')}] × ${count} slots from ${start.format('dddd, D MMMM YYYY HH:mm')}`);
-    const r = await consecutiveBook(date, time, tableNames, count, guestName);
+    const r = await consecutiveBook(date, time, tableNames, count, guestName, TENANT_ID);
     console.log('\n🎉 Completed!');
     printResult(r);
 }
@@ -218,13 +227,13 @@ async function runFullBookWithConsecutiveDirect(date: string, time: string, args
     const extraSlots = parseInt(args.extra || '1');
     const guestName = args.name || 'Auto-Consec';
     const start = dayjs(`${date}T${time}`);
-    const total = await prisma.table.count();
+    const total = await prisma.table.count({ where: { tenantId: TENANT_ID } });
 
     console.log(`\n🚀 Full book + consecutive:`);
     console.log(`  Full book: ~${total - leaveEmpty} tables at ${start.format('dddd, D MMMM YYYY HH:mm')} (${leaveEmpty} empty)`);
     console.log(`  Consecutive on: [${tableNames.join(', ')}] × ${extraSlots} extra slot(s)`);
 
-    const r = await fullBookWithConsecutive(date, time, leaveEmpty, tableNames, extraSlots, guestName);
+    const r = await fullBookWithConsecutive(date, time, leaveEmpty, tableNames, extraSlots, guestName, TENANT_ID);
     console.log('\n🎉 Completed!');
     console.log('\n📦 Full book:');
     printResult(r.full);
@@ -322,6 +331,11 @@ async function runDirect(args: Record<string, string>) {
 const cliArgs = parseArgs();
 const hasArgs = Object.keys(cliArgs).length > 0;
 
-(hasArgs ? runDirect(cliArgs) : runCli())
+TENANT_ID = '';
+resolveTenant(cliArgs.tenant || 'mbc')
+    .then(id => {
+        TENANT_ID = id;
+        return (hasArgs ? runDirect(cliArgs) : runCli());
+    })
     .catch(e => { console.error('Critical Error:', (e as Error).message); process.exit(1); })
     .finally(() => { rl.close(); prisma.$disconnect(); });

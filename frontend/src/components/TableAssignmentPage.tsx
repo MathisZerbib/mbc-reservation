@@ -4,6 +4,7 @@ import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import { type TableConfig } from '../utils/floorPlanData';
 import { useLayoutTables } from '../hooks/useFloorPlan';
+import { useTranslation } from '../i18n/useTranslation';
 import { ChevronLeft, Save, Users, Clock, Search, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -17,6 +18,7 @@ import type { Booking } from '../types';
 dayjs.extend(isBetween);
 
 export const TableAssignmentPage: React.FC = () => {
+    const { t } = useTranslation();
     const { bookings, refresh } = useBookingsContext();
     const { tables: layoutTables, backgroundUrl } = useLayoutTables();
     const [searchParams] = useSearchParams();
@@ -84,7 +86,7 @@ export const TableAssignmentPage: React.FC = () => {
 
     const MAX_BOOKINGS_PER_TABLE = 3;
 
-    const countOverlapping = (tableId: string) => {
+    const countOverlapping = React.useCallback((tableId: string) => {
         if (!selectedBooking) return 0;
         const buffer = 15;
         const requestedStart = dayjs(selectedBooking.startTime);
@@ -98,11 +100,11 @@ export const TableAssignmentPage: React.FC = () => {
                 bEnd.isAfter(requestedStart.subtract(buffer, 'minute'));
             return overlaps && b.tables.some(t => t.name === tableId);
         }).length;
-    };
+    }, [selectedBooking, bookings]);
 
-    const isOccupiedByOthers = (tableId: string) => {
+    const isOccupiedByOthers = React.useCallback((tableId: string) => {
         return countOverlapping(tableId) >= MAX_BOOKINGS_PER_TABLE;
-    };
+    }, [countOverlapping]);
 
     const toggleTable = React.useCallback((tableId: string) => {
         if (!selectedBooking || isOccupiedByOthers(tableId)) return;
@@ -122,7 +124,7 @@ export const TableAssignmentPage: React.FC = () => {
             refresh();
             setSelectedBookingId(null);
         } catch {
-            alert('Failed to save assignment');
+            alert(t('assign.saveFailed'));
         } finally {
             setLoading(false);
         }
@@ -242,10 +244,10 @@ export const TableAssignmentPage: React.FC = () => {
                 <div className="p-4 lg:p-6 border-b border-slate-100 bg-slate-900 text-white flex-none relative">
                     <div className="flex items-center justify-between mb-2 lg:mb-4">
                         <div className="flex items-center gap-2">
-                            <a href={`/admin/dashboard?date=${date}`} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
+                                <a href={`/app/dashboard?date=${date}`} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
                                 <ChevronLeft className="w-4 h-4" />
                             </a>
-                            <h1 className="text-lg font-bold tracking-tight">Table Assignments</h1>
+                            <h1 className="text-lg font-bold tracking-tight">{t('assign.title')}</h1>
                         </div>
                         <button 
                             onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
@@ -280,7 +282,7 @@ export const TableAssignmentPage: React.FC = () => {
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
                                         <input
                                             type="text"
-                                            placeholder="Search..."
+                                            placeholder={t('assign.searchPh')}
                                             value={searchName}
                                             onChange={e => setSearchName(e.target.value)}
                                             className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2 pl-8 pr-4 text-[11px] font-semibold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all placeholder:text-slate-500"
@@ -291,7 +293,7 @@ export const TableAssignmentPage: React.FC = () => {
                                         <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
                                         <input
                                             type="number"
-                                            placeholder="Size"
+                                            placeholder={t('assign.sizePh')}
                                             value={searchSize}
                                             onChange={e => setSearchSize(e.target.value)}
                                             className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2 pl-7 pr-1 text-[11px] font-black text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all placeholder:text-slate-500 appearance-none"
@@ -308,7 +310,7 @@ export const TableAssignmentPage: React.FC = () => {
                     !isSidebarExpanded && "opacity-0 pointer-events-none"
                 )}>
                     {filteredBookings.length === 0 ? (
-                        <div className="text-center py-20 text-slate-400 font-medium">No bookings for this date.</div>
+                        <div className="text-center py-20 text-slate-400 font-medium">{t('assign.noBookings')}</div>
                     ) : (
                         filteredBookings.map(b => (
                             <button
@@ -341,7 +343,7 @@ export const TableAssignmentPage: React.FC = () => {
                                             ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                                             : "bg-red-50 text-red-600 border-red-100"
                                     )}>
-                                        {b.tables.length > 0 ? "Mapped" : "Unmapped"}
+                                        {b.tables.length > 0 ? t('assign.mapped') : t('assign.unmapped')}
                                     </div>
                                 </div>
 
@@ -354,7 +356,7 @@ export const TableAssignmentPage: React.FC = () => {
                                         <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 border border-slate-100 rounded-md">
                                             <Users className="w-2.5 h-2.5 text-slate-400" />
                                             <span className="text-[9px] font-black text-slate-700">{b.size}</span>
-                                            {b.lowTable && <span className="text-[7px] font-black bg-indigo-600 text-white px-1 rounded-sm ml-0.5 tracking-tighter">LOW</span>}
+                                            {b.lowTable && <span className="text-[7px] font-black bg-indigo-600 text-white px-1 rounded-sm ml-0.5 tracking-tighter">{t('assign.lowBadge')}</span>}
                                         </div>
                                     </div>
                                     {b.tables.length > 0 && (
@@ -375,18 +377,18 @@ export const TableAssignmentPage: React.FC = () => {
                 {selectedBooking && isSidebarExpanded && (
                     <div className="p-4 bg-slate-50 border-t border-slate-200 animate-in slide-in-from-bottom duration-300">
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Selected Tables ({tempTables.length})</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('assign.selectedTables').replace('{n}', String(tempTables.length))}</span>
                             <button
                                 onClick={handleSave}
                                 disabled={loading}
                                 className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                             >
-                                <Save className="w-4 h-4" /> {loading ? 'Saving...' : 'Save'}
+                                <Save className="w-4 h-4" /> {loading ? t('assign.saving') : t('assign.save')}
                             </button>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {tempTables.length === 0 ? (
-                                <span className="text-xs text-slate-400 italic">None selected yet...</span>
+                                <span className="text-xs text-slate-400 italic">{t('assign.noneSelected')}</span>
                             ) : (
                                 tempTables.map(t => (
                                     <span key={t} className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold border border-indigo-200 shrink-0">{t}</span>
@@ -402,14 +404,14 @@ export const TableAssignmentPage: React.FC = () => {
 
                 <div className="p-3 lg:p-8 pb-2 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 flex-none">
                     <div>
-                        <h2 className="text-lg lg:text-3xl font-black text-slate-900 tracking-tight leading-none">Interactive <span className="text-indigo-600">Assigner</span></h2>
-                        {selectedBooking && <p className="text-[11px] lg:text-sm text-slate-500 font-medium mt-1">Assigning for <span className="text-slate-900 font-bold">{selectedBooking.name}</span> &middot; {selectedBooking.size} people</p>}
+                        <h2 className="text-lg lg:text-3xl font-black text-slate-900 tracking-tight leading-none">{t('assign.assignerA')} <span className="text-indigo-600">{t('assign.assignerB')}</span></h2>
+                        {selectedBooking && <p className="text-[11px] lg:text-sm text-slate-500 font-medium mt-1">{t('assign.assigningFor')} <span className="text-slate-900 font-bold">{selectedBooking.name}</span> &middot; {selectedBooking.size} {t('assign.people')}</p>}
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
-                        <div className="flex items-center gap-2 text-[9px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-white border border-slate-300"></div> AVAILABLE</div>
-                        <div className="flex items-center gap-2 text-[9px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-indigo-600 shadow-sm shadow-indigo-500/50"></div> SELECTED</div>
-                        <div className="flex items-center gap-2 text-[9px] lg:text-xs font-bold text-amber-500"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300"></div> SHARED</div>
-                        <div className="flex items-center gap-2 text-[9px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-slate-300 opacity-50"></div> FULL</div>
+                        <div className="flex items-center gap-2 text-[9px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-white border border-slate-300"></div> {t('assign.available')}</div>
+                        <div className="flex items-center gap-2 text-[9px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-indigo-600 shadow-sm shadow-indigo-500/50"></div> {t('assign.selected')}</div>
+                        <div className="flex items-center gap-2 text-[9px] lg:text-xs font-bold text-amber-500"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300"></div> {t('assign.shared')}</div>
+                        <div className="flex items-center gap-2 text-[9px] lg:text-xs font-bold text-slate-500"><div className="w-3 h-3 rounded bg-slate-300 opacity-50"></div> {t('assign.full')}</div>
                     </div>
                 </div>
 
@@ -488,8 +490,8 @@ export const TableAssignmentPage: React.FC = () => {
                                 >
                                     <div className="flex justify-between items-center mb-4">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] leading-none mb-1.5">Selected Table</span>
-                                            <span className="text-2xl font-black tracking-tight leading-none">Table {hoveredTable}</span>
+                                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] leading-none mb-1.5">{t('assign.selectedTable')}</span>
+                                            <span className="text-2xl font-black tracking-tight leading-none">{t('editor.tableTitle').replace('{name}', hoveredTable)}</span>
                                         </div>
                                         {selectedBooking && (
                                             <div className={cn(
@@ -504,7 +506,7 @@ export const TableAssignmentPage: React.FC = () => {
                                                     countOverlapping(hoveredTable) >= MAX_BOOKINGS_PER_TABLE ? "bg-red-400" :
                                                         countOverlapping(hoveredTable) > 0 ? "bg-amber-400" : "bg-emerald-400"
                                                 )} />
-                                                {countOverlapping(hoveredTable)}/{MAX_BOOKINGS_PER_TABLE} Capacity
+                                                {t('assign.capacityFmt').replace('{u}', String(countOverlapping(hoveredTable))).replace('{m}', String(MAX_BOOKINGS_PER_TABLE))}
                                             </div>
                                         )}
                                     </div>
@@ -514,8 +516,8 @@ export const TableAssignmentPage: React.FC = () => {
                                             b.tables?.some((t) => t.name === hoveredTable)
                                         ).length === 0 ? (
                                             <div className="py-6 border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center">
-                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Available All Day</p>
-                                                <p className="text-[10px] text-slate-600 font-medium mt-1">No overlapping reservations</p>
+                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{t('assign.availAllDay')}</p>
+                                                <p className="text-[10px] text-slate-600 font-medium mt-1">{t('assign.noOverlap')}</p>
                                             </div>
                                         ) : (
                                             <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
@@ -555,9 +557,9 @@ export const TableAssignmentPage: React.FC = () => {
                                                                 )}>
                                                                     <div className="flex items-center gap-2">
                                                                         <Users className="w-3 h-3" />
-                                                                        {b.size} guests
+                                                                        {t('assign.guestsFmt').replace('{n}', String(b.size))}
                                                                     </div>
-                                                                    <span className="opacity-70 italic text-[9px]">until {dayjs(b.endTime).tz(RESTAURANT_TZ).format('HH:mm')}</span>
+                                                                    <span className="opacity-70 italic text-[9px]">{t('assign.until').replace('{t}', dayjs(b.endTime).tz(RESTAURANT_TZ).format('HH:mm'))}</span>
                                                                 </div>
                                                             </div>
                                                         );

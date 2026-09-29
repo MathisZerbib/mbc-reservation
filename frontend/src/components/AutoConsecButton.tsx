@@ -1,21 +1,23 @@
 import { useState } from 'react';
 import { api } from '../services/api';
 import { useBookingsContext } from '../context/useBookingsContext';
+import { useTranslation } from '../i18n/useTranslation';
 
 export function AutoConsecButton({ date }: { date: string }) {
+  const { t } = useTranslation();
   const { refresh } = useBookingsContext();
   const [loading, setLoading] = useState(false);
 
   const handleAutoConsec = async () => {
-    if (!window.confirm(`Trigger auto-consecutive bookings for ${date}?`)) return;
+    if (!window.confirm(t('autoconsec.confirmMsg').replace('{date}', date))) return;
     setLoading(true);
     try {
       await api.autoConsec(date);
       refresh();
-      alert('Auto-consecutive bookings created successfully!');
+      alert(t('autoconsec.success'));
     } catch (error) {
       console.error('Auto-consec failure:', error);
-      alert('Failed to create bookings: ' + (error as Error).message);
+      alert(t('autoconsec.failedPre') + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -30,10 +32,10 @@ export function AutoConsecButton({ date }: { date: string }) {
       {loading ? (
         <>
           <div className="w-3 h-3 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
-          Processing...
+          {t('autoconsec.processing')}
         </>
       ) : (
-        '🔥 Auto-Consec'
+        t('autoconsec.label')
       )}
     </button>
   );

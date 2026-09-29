@@ -1,13 +1,15 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma';
 import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions, createReservation, MIN_BOOKING_ADVANCE_HOURS } from '../services/bookingService';
 import { getAdjacencyMap } from '../services/floorPlanService';
 import { getDailyAnalytics } from '../services/analyticsService';
+import { verifyTurnstile } from '../utils/turnstile';
 import { Server } from 'socket.io';
 import { emailService } from '../services/emailService';
 import { Booking } from '../types/booking';
+import { AuthRequest } from '../middleware/isAuthenticated';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -17,7 +19,7 @@ dayjs.extend(timezone);
 
 const RESTAURANT_TZ = 'Europe/Paris';
 
-const getIsAdmin = (req: Request) => {
+const getIsAdmin = (req: AuthRequest) => {
     const authHeader = req.headers?.authorization;
     if (!authHeader) return false;
     try {
@@ -29,23 +31,27 @@ const getIsAdmin = (req: Request) => {
     }
 };
 
+/** Tenant id guaranteed by requireTenant / resolveTenantFromSlug middleware. */
+const tenantId = (req: AuthRequest): string => req.tenant!.id;
+
 
 
 
 export const bookingController = (io: Server) => ({
-    checkAvailability: async (req: Request, res: Response) => {
+    checkAvailability: async (req: AuthRequest, res: Response) => {
         try {
             const { date, time, size } = req.query;
             if (!date || !time || !size) return res.status(400).json({ error: 'Missing parameters' });
 
             const guestSize = parseInt(size as string);
+            const tid = tenantId(req);
             // Parse requested time specifically in the restaurant's timezone
             const requestedStart = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ);
             if (isNaN(requestedStart.toDate().getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
             // 2h buffer check (admin bypass)
             if (!getIsAdmin(req) && requestedStart.isBefore(dayjs().add(MIN_BOOKING_ADVANCE_HOURS, 'hours'))) {
-                const suggestions = await getSuggestions(date as string, guestSize, time as string);
+                const suggestions = await getSuggestions(date as string, guestSize, time as string, tid);
                 return res.json({
                     available: false,
                     tables: [],
@@ -55,12 +61,12 @@ export const bookingController = (io: Server) => ({
 
             const requestedEnd = addMinutes(requestedStart.toDate(), RESERVATION_DURATION);
 
-            const available = await getAvailableTables(requestedStart.toDate(), requestedEnd);
-            const combination = findTableCombination(guestSize, available, await getAdjacencyMap());
+            const available = await getAvailableTables(requestedStart.toDate(), requestedEnd, tid);
+            const combination = findTableCombination(guestSize, available, await getAdjacencyMap(tid));
 
             let suggestions: string[] = [];
             if (!combination) {
-                suggestions = await getSuggestions(date as string, guestSize, time as string);
+                suggestions = await getSuggestions(date as string, guestSize, time as string, tid);
             }
 
             res.json({
@@ -74,7 +80,7 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    getDailyAvailability: async (req: Request, res: Response) => {
+    getDailyAvailability: async (req: AuthRequest, res: Response) => {
         try {
             const { date, size } = req.query;
             if (!date || !size) return res.status(400).json({ error: 'Missing parameters' });
@@ -83,7 +89,8 @@ export const bookingController = (io: Server) => ({
             const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
             const isAdmin = getIsAdmin(req);
-            const adjacency = await getAdjacencyMap();
+            const tid = tenantId(req);
+            const adjacency = await getAdjacencyMap(tid);
             const results = await Promise.all(TIME_SLOTS.map(async (time) => {
                 const start = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ);
 
@@ -93,7 +100,7 @@ export const bookingController = (io: Server) => ({
                 }
 
                 const end = addMinutes(start.toDate(), RESERVATION_DURATION);
-                const available = await getAvailableTables(start.toDate(), end);
+                const available = await getAvailableTables(start.toDate(), end, tid);
                 const combination = findTableCombination(guestSize, available, adjacency);
                 return {
                     time,
@@ -108,9 +115,15 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    createBooking: async (req: Request, res: Response) => {
+    createBooking: async (req: AuthRequest, res: Response) => {
         try {
-            let { name, phone, email, size, startTime, language, lowTable, notify } = req.body;
+            let { name, phone, email, size, startTime, language, lowTable, notify, turnstileToken } = req.body;
+
+            // Bot protection for anonymous bookings; signed-in staff bypass it.
+            if (!getIsAdmin(req)) {
+                const human = await verifyTurnstile({ token: turnstileToken, remoteIp: req.ip, expectedAction: 'booking' });
+                if (!human) return res.status(400).json({ error: 'Bot verification failed. Please try again.' });
+            }
 
             // 1. Mandatory Fields Guard
             const missingFields: string[] = [];
@@ -162,7 +175,8 @@ export const bookingController = (io: Server) => ({
                 language: language || 'fr',
                 size: guestSize,
                 startTime: requestedStart.toDate(),
-                lowTable: lowTable || false
+                lowTable: lowTable || false,
+                tenantId: tenantId(req)
             });
 
             // Send confirmation email
@@ -179,10 +193,16 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    checkIn: async (req: Request, res: Response) => {
+    checkIn: async (req: AuthRequest, res: Response) => {
         try {
             let { id } = req.params;
             if (Array.isArray(id)) id = id[0];
+            const tid = tenantId(req);
+            const existing = await prisma.booking.findFirst({
+                where: { id: id, tenantId: tid }
+            } as any);
+            if (!existing) return res.status(404).json({ error: 'Booking not found' });
+
             const updatedBooking = await prisma.booking.update({
                 where: { id: id },
                 data: { status: 'COMPLETED' }
@@ -211,11 +231,17 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    cancelBooking: async (req: Request, res: Response) => {
+    cancelBooking: async (req: AuthRequest, res: Response) => {
         try {
             let { id } = req.params;
             if (Array.isArray(id)) id = id[0];
-            const updatedBooking = await prisma.booking.update({
+            const tid = tenantId(req);
+            const existing = await prisma.booking.findFirst({
+                where: { id: id, tenantId: tid }
+            } as any);
+            if (!existing) return res.status(404).json({ error: 'Booking not found' });
+
+            await prisma.booking.update({
                 where: { id: id },
                 data: { status: 'CANCELLED' }
             } as any);
@@ -232,9 +258,10 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    getAllBookings: async (req: Request, res: Response) => {
+    getAllBookings: async (req: AuthRequest, res: Response) => {
         try {
             const bookings = await prisma.booking.findMany({
+                where: { tenantId: tenantId(req) },
                 include: { tables: true } as any
             });
             res.json(bookings);
@@ -243,14 +270,20 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    updateAssignment: async (req: Request, res: Response) => {
+    updateAssignment: async (req: AuthRequest, res: Response) => {
         try {
             let { id } = req.params;
             if (Array.isArray(id)) id = id[0];
             const { tableNames }: { tableNames: string[] } = req.body;
+            const tid = tenantId(req);
+
+            const existing = await prisma.booking.findFirst({
+                where: { id: id, tenantId: tid }
+            } as any);
+            if (!existing) return res.status(404).json({ error: 'Booking not found' });
 
             const prismaTables = await prisma.table.findMany({
-                where: { name: { in: tableNames } }
+                where: { tenantId: tid, name: { in: tableNames } }
             });
 
             await prisma.booking.update({
@@ -275,14 +308,14 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    getAnalytics: async (req: Request, res: Response) => {
+    getAnalytics: async (req: AuthRequest, res: Response) => {
         try {
             const { date } = req.query;
             if (!date || typeof date !== 'string') {
                 return res.status(400).json({ error: 'Missing date (YYYY-MM-DD)' });
             }
 
-            res.json(await getDailyAnalytics(date));
+            res.json(await getDailyAnalytics(date, tenantId(req)));
         } catch (error) {
             console.error(error);
             if ((error as Error).message?.startsWith('Invalid date')) {

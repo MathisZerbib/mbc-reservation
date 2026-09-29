@@ -4,8 +4,24 @@ frontend/node_modules/
 backend/node_modules/
 frontend/dist/
 backend/dist/
+# Vite PWA dev artifacts + TS build info
+frontend/dev-dist/
+backend/dev-dist/
+*.tsbuildinfo
+# Test & coverage artifacts
+frontend/coverage/
+backend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+backend/test-results/
+# Playwright browsers (pinned per-machine via `npx playwright install`)
+.ms-playwright/
 .env
 backend/.env
 .env.local
 .env.production
 backend/etc/secrets/ca.pem
+# Local tenant uploads (ephemeral disk on Render — never commit)
+backend/public/uploads/
+# Vercel CLI
+.vercel

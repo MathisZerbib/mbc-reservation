@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, Save, Plus, Trash2, MousePointer2, Link2, Loader2, X } from 'lucide-react';
 import { api } from '../services/api';
-import { useRestaurantSettings } from '../hooks/useFloorPlan';
+import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
+import { useTranslation } from '../i18n/useTranslation';
 import { FLOOR_PLAN_DATA, tableShapePath } from '../utils/floorPlanData';
 import type { LayoutTable, LayoutTableType } from '../types/index';
 import { cn } from '../lib/utils';
@@ -28,7 +29,9 @@ const fallbackCopy = (): LayoutTable[] =>
     }));
 
 export const FloorPlanEditor: React.FC = () => {
+    const { t: tr } = useTranslation();
     const { backgroundUrl } = useRestaurantSettings();
+    const { tenant } = useTenant();
     const [tables, setTables] = useState<LayoutTable[] | null>(null);
     const [deleteIds, setDeleteIds] = useState<number[]>([]);
     const [selected, setSelected] = useState<string | null>(null);
@@ -41,10 +44,11 @@ export const FloorPlanEditor: React.FC = () => {
     const dragRef = useRef<{ name: string; dx: number; dy: number } | null>(null);
 
     useEffect(() => {
-        api.getLayout()
+        if (!tenant) return;
+        api.getLayout(tenant.slug)
             .then(layout => setTables(layout.length > 0 ? layout : fallbackCopy()))
             .catch(() => setTables(fallbackCopy()));
-    }, []);
+    }, [tenant]);
 
     const byName = useMemo(() => new Map((tables ?? []).map(t => [t.name, t])), [tables]);
     const selectedTable = selected ? byName.get(selected) ?? null : null;
@@ -173,9 +177,9 @@ export const FloorPlanEditor: React.FC = () => {
             setTables(saved);
             setDeleteIds([]);
             setDirty(false);
-            flash('ok', 'Floor plan saved. Booking assignment uses the new layout.');
+            flash('ok', tr('editor.saved'));
         } catch (e) {
-            flash('err', e instanceof Error ? e.message : 'Failed to save layout');
+            flash('err', e instanceof Error ? e.message : tr('editor.saveFailed'));
         } finally {
             setSaving(false);
         }
@@ -220,15 +224,15 @@ export const FloorPlanEditor: React.FC = () => {
         <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex-none px-4 lg:px-6 py-3 flex items-center gap-2 lg:gap-3 bg-white border-b border-slate-200">
-                <Link to="/admin/settings" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <Link to="/app/settings" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                     <ChevronLeft className="w-5 h-5 text-slate-500" />
                 </Link>
                 <h1 className="text-base lg:text-xl font-black text-slate-900 tracking-tight mr-auto">
-                    Floor Plan <span className="text-indigo-600">Editor</span>
+                    {tr('editor.title')} <span className="text-indigo-600">{tr('editor.editorAccent')}</span>
                 </h1>
                 {dirty && (
                     <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                        Unsaved changes
+                        {tr('editor.unsaved')}
                     </span>
                 )}
                 <div className="flex bg-slate-200/50 p-1 rounded-xl border border-slate-200/50">
@@ -236,19 +240,19 @@ export const FloorPlanEditor: React.FC = () => {
                         onClick={() => { setTool('select'); setPendingLink(null); }}
                         className={cn("px-3 lg:px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5", tool === 'select' ? "bg-white shadow-md text-indigo-600" : "text-slate-500")}
                     >
-                        <MousePointer2 className="w-3.5 h-3.5" /> Select
+                        <MousePointer2 className="w-3.5 h-3.5" /> {tr('editor.select')}
                     </button>
                     <button
                         onClick={() => setTool('link')}
                         className={cn("px-3 lg:px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5", tool === 'link' ? "bg-white shadow-md text-indigo-600" : "text-slate-500")}
                     >
-                        <Link2 className="w-3.5 h-3.5" /> Link
+                        <Link2 className="w-3.5 h-3.5" /> {tr('editor.link')}
                     </button>
                 </div>
                 <button
                     onClick={handleAdd}
                     className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all cursor-pointer"
-                    title="Add table"
+                    title={tr('editor.addTable')}
                 >
                     <Plus className="w-4 h-4" />
                 </button>
@@ -258,7 +262,7 @@ export const FloorPlanEditor: React.FC = () => {
                     className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 lg:px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shadow-lg shadow-indigo-600/20"
                 >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    <span className="hidden sm:inline">Save</span>
+                    <span className="hidden sm:inline">{tr('editor.save')}</span>
                 </button>
             </div>
 
@@ -274,8 +278,8 @@ export const FloorPlanEditor: React.FC = () => {
             {tool === 'link' && (
                 <div className="flex-none mx-4 lg:mx-6 mt-3 px-4 py-2.5 rounded-2xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                     {pendingLink
-                        ? <>Linking from <span className="font-black">Table {pendingLink}</span> — click another table to link/unlink, or click it again to cancel.</>
-                        : 'Click a table, then click a second table to link or unlink them as combinable neighbours.'}
+                        ? <>{tr('editor.linkActivePre')} <span className="font-black">{tr('editor.tableTitle').replace('{name}', pendingLink)}</span> {tr('editor.linkActivePost')}</>
+                        : tr('editor.linkIdle')}
                 </div>
             )}
 
@@ -284,7 +288,7 @@ export const FloorPlanEditor: React.FC = () => {
                 <div className="flex-1 min-h-[50vh] lg:min-h-0 bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
                     {!tables ? (
                         <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold text-sm">
-                            <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading layout…
+                            <Loader2 className="w-5 h-5 animate-spin mr-2" /> {tr('editor.loading')}
                         </div>
                     ) : (
                         <svg
@@ -346,7 +350,7 @@ export const FloorPlanEditor: React.FC = () => {
                                             {t.name}
                                         </text>
                                         <text x={t.width / 2} y={t.height / 2 + 12} dy="0.35em" textAnchor="middle" fill={isSelected ? '#e0e7ff' : '#94a3b8'} fontSize="9" fontWeight="700" pointerEvents="none">
-                                            {t.capacity} seats
+                                            {t.capacity} {tr('editor.seatsSuffix')}
                                         </text>
                                     </g>
                                 );
@@ -359,24 +363,24 @@ export const FloorPlanEditor: React.FC = () => {
                 <div className="w-full lg:w-80 flex-none bg-white rounded-[2rem] shadow-xl border border-slate-200 p-5 overflow-y-auto max-h-[40vh] lg:max-h-none">
                     {!selectedTable ? (
                         <div className="h-full flex flex-col items-center justify-center text-center py-10">
-                            <p className="text-sm font-black text-slate-700">No table selected</p>
+                            <p className="text-sm font-black text-slate-700">{tr('editor.noSelection')}</p>
                             <p className="text-xs text-slate-400 font-medium mt-1">
-                                {tool === 'link' ? 'Click two tables to link them.' : 'Click a table to edit it, or drag it to move.'}
+                                {tool === 'link' ? tr('editor.hintLink') : tr('editor.hintSelect')}
                             </p>
                             <button onClick={handleAdd} className="mt-4 inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer">
-                                <Plus className="w-3.5 h-3.5" /> Add table
+                                <Plus className="w-3.5 h-3.5" /> {tr('editor.addTable')}
                             </button>
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-base font-black text-slate-900">Table {selectedTable.name}</h2>
+                                <h2 className="text-base font-black text-slate-900">{tr('editor.tableTitle').replace('{name}', selectedTable.name)}</h2>
                                 <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 cursor-pointer">
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
                             <label className="flex flex-col gap-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tr('editor.nameLabel')}</span>
                                 <input
                                     type="text"
                                     value={selectedTable.name}
@@ -386,9 +390,9 @@ export const FloorPlanEditor: React.FC = () => {
                                 />
                             </label>
                             <div className="grid grid-cols-2 gap-3">
-                                <NumField label="Seats" value={selectedTable.capacity} min={1} max={50} onChange={v => patchSelected({ capacity: Math.round(v) || 1 })} />
+                                <NumField label={tr('editor.seatsLabel')} value={selectedTable.capacity} min={1} max={50} onChange={v => patchSelected({ capacity: Math.round(v) || 1 })} />
                                 <label className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shape</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tr('editor.shapeLabel')}</span>
                                     <select
                                         value={selectedTable.type}
                                         onChange={e => patchSelected({ type: e.target.value as LayoutTableType })}
@@ -401,17 +405,17 @@ export const FloorPlanEditor: React.FC = () => {
                             <div className="grid grid-cols-2 gap-3">
                                 <NumField label="X" value={selectedTable.x ?? 0} min={0} max={2000} onChange={v => patchSelected({ x: v })} />
                                 <NumField label="Y" value={selectedTable.y ?? 0} min={0} max={2000} onChange={v => patchSelected({ y: v })} />
-                                <NumField label="Width" value={selectedTable.width} min={10} max={2000} onChange={v => patchSelected({ width: v })} />
-                                <NumField label="Height" value={selectedTable.height} min={10} max={2000} onChange={v => patchSelected({ height: v })} />
+                                <NumField label={tr('editor.widthLabel')} value={selectedTable.width} min={10} max={2000} onChange={v => patchSelected({ width: v })} />
+                                <NumField label={tr('editor.heightLabel')} value={selectedTable.height} min={10} max={2000} onChange={v => patchSelected({ height: v })} />
                             </div>
-                            <NumField label="Rotation°" value={selectedTable.rotation} min={-360} max={360} onChange={v => patchSelected({ rotation: v })} />
+                            <NumField label={tr('editor.rotationLabel')} value={selectedTable.rotation} min={-360} max={360} onChange={v => patchSelected({ rotation: v })} />
 
                             <div>
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    Linked tables ({selectedTable.adjacentNames.length})
+                                    {tr('editor.linked').replace('{n}', String(selectedTable.adjacentNames.length))}
                                 </span>
                                 {selectedTable.adjacentNames.length === 0 ? (
-                                    <p className="text-xs text-slate-400 font-medium mt-1">Not linked. Use the Link tool to combine with neighbours.</p>
+                                    <p className="text-xs text-slate-400 font-medium mt-1">{tr('editor.notLinked')}</p>
                                 ) : (
                                     <div className="flex flex-wrap gap-1.5 mt-2">
                                         {selectedTable.adjacentNames.map(n => (
@@ -430,7 +434,7 @@ export const FloorPlanEditor: React.FC = () => {
                                 onClick={handleDelete}
                                 className="mt-1 inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer"
                             >
-                                <Trash2 className="w-4 h-4" /> Delete table
+                                <Trash2 className="w-4 h-4" /> {tr('editor.deleteTable')}
                             </button>
                         </div>
                     )}

@@ -1,6 +1,5 @@
 import { prisma } from '../lib/prisma';
 
-export const SETTINGS_ID = 1;
 export const MIN_AVG_TICKET = 1;
 export const MAX_AVG_TICKET = 1000;
 
@@ -34,34 +33,34 @@ const toDTO = (row: { avgTicket: number; floorPlanImageUrl: string | null; updat
     updatedAt: row.updatedAt.toISOString(),
 });
 
-/** Singleton settings row; created on demand so reads never 404. */
-export async function getSettings(): Promise<RestaurantSettingsDTO> {
+/** Per-tenant settings row; created on demand so reads never 404. */
+export async function getSettings(tenantId: string): Promise<RestaurantSettingsDTO> {
     const row = await prisma.restaurantSettings.upsert({
-        where: { id: SETTINGS_ID },
+        where: { tenantId },
         update: {},
-        create: { id: SETTINGS_ID },
+        create: { tenantId },
     });
     return toDTO(row);
 }
 
-export async function updateSettings(input: { avgTicket?: unknown }): Promise<RestaurantSettingsDTO> {
+export async function updateSettings(tenantId: string, input: { avgTicket?: unknown }): Promise<RestaurantSettingsDTO> {
     const data: { avgTicket?: number } = {};
     if (input.avgTicket !== undefined) {
         data.avgTicket = parseAvgTicket(input.avgTicket);
     }
     const row = await prisma.restaurantSettings.upsert({
-        where: { id: SETTINGS_ID },
+        where: { tenantId },
         update: data,
-        create: { id: SETTINGS_ID, ...data },
+        create: { tenantId, ...data },
     });
     return toDTO(row);
 }
 
-export async function setFloorPlanImageUrl(url: string | null): Promise<RestaurantSettingsDTO> {
+export async function setFloorPlanImageUrl(tenantId: string, url: string | null): Promise<RestaurantSettingsDTO> {
     const row = await prisma.restaurantSettings.upsert({
-        where: { id: SETTINGS_ID },
+        where: { tenantId },
         update: { floorPlanImageUrl: url },
-        create: { id: SETTINGS_ID, floorPlanImageUrl: url },
+        create: { tenantId, floorPlanImageUrl: url },
     });
     return toDTO(row);
 }
@@ -72,8 +71,8 @@ export async function setFloorPlanImageUrl(url: string | null): Promise<Restaura
  * (no POS data), so turnover is an estimate: totalGuests × avgTicket,
  * echoed back as `avgTicket` so the frontend labels it honestly.
  */
-export async function getAvgTicket(): Promise<number> {
-    const row = await prisma.restaurantSettings.findUnique({ where: { id: SETTINGS_ID } });
+export async function getAvgTicket(tenantId: string): Promise<number> {
+    const row = await prisma.restaurantSettings.findUnique({ where: { tenantId } });
     if (row && Number.isFinite(row.avgTicket) && row.avgTicket > 0) return row.avgTicket;
     return DEFAULT_AVG_TICKET;
 }

@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2 } from 'lucide-react';
 import { api, fileUrl } from '../services/api';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
+import { useTranslation } from '../i18n/useTranslation';
 import { cn } from '../lib/utils';
 
 export const SettingsPage: React.FC = () => {
+    const { t } = useTranslation();
     const { settings, loading, refresh } = useRestaurantSettings();
     const [avgTicket, setAvgTicket] = useState('');
     const [saving, setSaving] = useState(false);
@@ -26,9 +28,9 @@ export const SettingsPage: React.FC = () => {
         try {
             await api.updateSettings({ avgTicket: Number(avgTicket) });
             await refresh();
-            flash('ok', 'Average ticket saved. Turnover estimates update instantly.');
+            flash('ok', t('settings.ticketSaved'));
         } catch (e) {
-            flash('err', e instanceof Error ? e.message : 'Failed to save');
+            flash('err', e instanceof Error ? e.message : t('settings.saveFailed'));
         } finally {
             setSaving(false);
         }
@@ -40,9 +42,9 @@ export const SettingsPage: React.FC = () => {
         try {
             await api.uploadFloorPlanImage(file);
             await refresh();
-            flash('ok', 'Seating chart image uploaded.');
+            flash('ok', t('settings.imageSaved'));
         } catch (e) {
-            flash('err', e instanceof Error ? e.message : 'Upload failed');
+            flash('err', e instanceof Error ? e.message : t('settings.uploadFailed'));
         } finally {
             setUploading(false);
         }
@@ -54,12 +56,12 @@ export const SettingsPage: React.FC = () => {
         <div className="min-h-screen bg-slate-100 p-4 lg:p-8">
             <div className="max-w-3xl mx-auto flex flex-col gap-4">
                 <div className="flex items-center gap-3">
-                    <Link to="/admin/dashboard" className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-900 transition-colors">
+                    <Link to="/app/dashboard" className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-900 transition-colors">
                         <ChevronLeft className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">Settings</h1>
-                        <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">Restaurant preferences</p>
+                        <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">{t('settings.title')}</h1>
+                        <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">{t('settings.subtitle')}</p>
                     </div>
                 </div>
 
@@ -80,10 +82,10 @@ export const SettingsPage: React.FC = () => {
                         <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                             <Euro className="w-5 h-5" />
                         </div>
-                        <h2 className="text-lg font-black text-slate-900 tracking-tight">Average ticket per guest</h2>
+                        <h2 className="text-lg font-black text-slate-900 tracking-tight">{t('settings.ticketTitle')}</h2>
                     </div>
                     <p className="text-xs text-slate-500 font-medium mb-4">
-                        Used to estimate turnover (guests × ticket). The dashboard labels it as an estimate.
+                        {t('settings.ticketMsg')}
                     </p>
                     {loading ? (
                         <div className="h-11 w-40 bg-slate-100 rounded-xl animate-pulse" />
@@ -104,7 +106,7 @@ export const SettingsPage: React.FC = () => {
                                 className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                             >
                                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                Save
+                                {saving ? t('common.saving') : t('common.save')}
                             </button>
                         </div>
                     )}
@@ -116,17 +118,17 @@ export const SettingsPage: React.FC = () => {
                         <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                             <ImageIcon className="w-5 h-5" />
                         </div>
-                        <h2 className="text-lg font-black text-slate-900 tracking-tight">Seating chart image</h2>
+                        <h2 className="text-lg font-black text-slate-900 tracking-tight">{t('settings.imageTitle')}</h2>
                     </div>
                     <p className="text-xs text-slate-500 font-medium mb-4">
-                        Your own floor image, shown behind the tables on the map. JPEG, PNG or WebP, max 5MB.
+                        {t('settings.imageMsg')}
                     </p>
                     {previewUrl && (
-                        <img src={previewUrl} alt="Seating chart" className="w-full max-h-64 object-contain bg-slate-50 rounded-2xl border border-slate-100 mb-4" />
+                        <img src={previewUrl} alt={t('settings.imageTitle')} className="w-full max-h-64 object-contain bg-slate-50 rounded-2xl border border-slate-100 mb-4" />
                     )}
                     <label className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition-all shadow-lg shadow-indigo-600/20">
                         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-                        {uploading ? 'Uploading…' : previewUrl ? 'Replace image' : 'Upload image'}
+                        {uploading ? t('settings.uploading') : previewUrl ? t('settings.replace') : t('settings.upload')}
                         <input
                             type="file"
                             accept="image/jpeg,image/png,image/webp"
@@ -139,15 +141,15 @@ export const SettingsPage: React.FC = () => {
 
                 {/* Floor plan editor */}
                 <Link
-                    to="/admin/floor-plan"
+                    to="/app/floor-plan"
                     className="bg-slate-900 rounded-[2rem] p-6 shadow-xl flex items-center gap-4 hover:bg-slate-800 active:scale-[0.99] transition-all group"
                 >
                     <div className="w-10 h-10 rounded-2xl bg-white/10 text-indigo-300 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <MapIcon className="w-5 h-5" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-black text-white tracking-tight">Floor plan editor</h2>
-                        <p className="text-xs text-slate-400 font-medium">Move tables, edit capacities, link adjacent tables</p>
+                        <h2 className="text-lg font-black text-white tracking-tight">{t('settings.editorTitle')}</h2>
+                        <p className="text-xs text-slate-400 font-medium">{t('settings.editorMsg')}</p>
                     </div>
                 </Link>
             </div>

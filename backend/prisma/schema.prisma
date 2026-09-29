@@ -7,10 +7,33 @@ datasource db {
   provider = "postgresql"
 }
 
+model Tenant {
+  id                 String    @id @default(uuid())
+  name               String
+  slug               String    @unique
+  trialEndsAt        DateTime
+  onboardingComplete Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  users              User[]
+  bookings           Booking[]
+  tables             Table[]
+  settings           RestaurantSettings?
+}
+
+enum Role {
+  OWNER
+  STAFF
+}
+
 model User {
   id            String         @id @unique @default(uuid())
   email         String         @unique
   password      String
+  emailVerified DateTime?
+  role          Role           @default(OWNER)
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
@@ -29,7 +52,7 @@ model RefreshToken {
 
 model Table {
   id       Int       @id @default(autoincrement())
-  name     String    @unique
+  name     String
   capacity Int
   type     TableType @default(RECTANGULAR)
   x        Float?
@@ -37,14 +60,20 @@ model Table {
   width    Float     @default(60)
   height   Float     @default(60)
   rotation Float     @default(0)
+  tenantId String
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bookings Booking[] @relation("BookingTables")
   linksA   TableLink[] @relation("LinkA")
   linksB   TableLink[] @relation("LinkB")
+
+  @@unique([tenantId, name])
 }
 
-// Singleton row (id = 1) holding tenant-level settings for the restaurant.
+// Per-tenant settings (one row per restaurant).
 model RestaurantSettings {
-  id                Int      @id @default(1)
+  id                Int      @id @default(autoincrement())
+  tenantId          String   @unique
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   avgTicket         Float    @default(55)
   floorPlanImageUrl String?
   updatedAt         DateTime @updatedAt
@@ -74,6 +103,8 @@ model Booking {
   name      String
   phone     String?
   lowTable  Boolean       @default(false)
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tables    Table[]       @relation("BookingTables")
 }
 

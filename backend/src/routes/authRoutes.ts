@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authController } from '../controllers/authController';
 import { isAuthenticated } from '../middleware/isAuthenticated';
+import { loginLimiter, registerLimiter, resendLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -37,7 +38,10 @@ const router = Router();
  *       400:
  *         description: Bad request
  */
-router.post('/register', authController.register);
+router.post('/register', registerLimiter, authController.register);
+
+router.post('/verify-email', authController.verifyEmail);
+router.post('/resend-verification', resendLimiter, authController.resendVerification);
 
 /**
  * @swagger
@@ -74,7 +78,7 @@ router.post('/register', authController.register);
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', authController.login);
+router.post('/login', loginLimiter, authController.login);
 
 /**
  * @swagger

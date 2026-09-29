@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { BookingsContext } from './BookingsContext';
+import { BookingsContext } from './BookingsContextInstance';
 
 export const useBookingsContext = () => {
   const ctx = useContext(BookingsContext);
