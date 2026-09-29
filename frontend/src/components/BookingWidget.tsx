@@ -19,6 +19,7 @@ import 'dayjs/locale/fr';
 import 'dayjs/locale/en';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { TURNSTILE_SITE_KEY } from '../utils/turnstile';
+import { NumberField } from './NumberField';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
 import type { Lang } from '../i18n/translations';
@@ -293,12 +294,12 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="relative flex-1">
-                        <input
-                          type="number"
-                          min="1"
-                          max="60"
+                        <NumberField
+                          min={1}
+                          max={60}
                           value={formData.size}
-                          onChange={e => setFormData({ ...formData, size: parseInt(e.target.value) || 1 })}
+                          onCommit={size => setFormData({ ...formData, size })}
+                          aria-label={t.guests}
                           className="w-full bg-slate-50/50 border-2 border-slate-100 hover:border-indigo-100 rounded-3xl p-6 text-5xl font-black text-center text-slate-900 focus:border-indigo-500/30 focus:bg-white focus:shadow-xl focus:shadow-indigo-500/5 transition-all outline-none"
                         />
                       </div>
