@@ -1,10 +1,6 @@
-import { useState } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import dayjs from 'dayjs';
 import {
-    CalendarCheck,
-    Loader2,
     Sparkles,
     Smartphone,
     Zap,
@@ -12,12 +8,10 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { DatePicker } from '../components/ui/date-picker';
 import { useTranslation, type TranslationKey } from '../i18n/useTranslation';
-import { api } from '../services/api';
 import { DEFAULT_TENANT_SLUG } from '../utils/tenant';
-import type { DailyAvailability } from '../types/index';
+import { BookingWidget } from '../components/BookingWidget';
+import { ServerWakeNotice } from '../components/ServerWakeNotice';
 
 /* ------------------------------------------------------------------ */
 /* Local data — i18n keys resolved at render through t()              */
@@ -256,32 +250,13 @@ const HowItWorks = () => {
 };
 
 /* ------------------------------------------------------------------ */
-/* Live availability teaser — real GET /daily-availability            */
-/* (public endpoint: no Turnstile needed here. Any booking written    */
-/*  from this page goes through /book, which already renders          */
-/*  <Turnstile> before submitting.)                                   */
+/* Live booking teaser — the real BookingWidget. Mounting it here fires */
+/* the backend /health warmup on landing visit, so Render cold starts   */
+/* happen while the visitor reads the hero instead of mid-booking.      */
 /* ------------------------------------------------------------------ */
-
-type CheckStatus = 'idle' | 'loading' | 'success' | 'error';
 
 const AvailabilityTeaser = () => {
     const { t } = useTranslation();
-    const [date, setDate] = useState<Date | undefined>(() => new Date());
-    const [guests, setGuests] = useState(2);
-    const [slots, setSlots] = useState<DailyAvailability[]>([]);
-    const [status, setStatus] = useState<CheckStatus>('idle');
-
-    const handleCheck = async () => {
-        if (!date) return;
-        setStatus('loading');
-        try {
-            const data = await api.getDailyAvailability(dayjs(date).format('YYYY-MM-DD'), guests, DEFAULT_TENANT_SLUG);
-            setSlots(data);
-            setStatus('success');
-        } catch {
-            setStatus('error');
-        }
-    };
 
     return (
         <section className="relative overflow-hidden bg-slate-950 py-20 text-white sm:py-24">
@@ -303,89 +278,9 @@ const AvailabilityTeaser = () => {
                     <p className="mt-3 text-slate-400">{t('landing.teaser.subtitle')}</p>
                 </motion.div>
 
-                <motion.div variants={fadeUp} className="mt-10">
-                    <Card className="rounded-3xl border-slate-800 bg-slate-900/60 p-6 text-white shadow-2xl backdrop-blur sm:p-8">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-slate-400">
-                                    {t('landing.teaser.datePlaceholder')}
-                                </label>
-                                <DatePicker
-                                    date={date}
-                                    setDate={setDate}
-                                    placeholder={t('landing.teaser.datePlaceholder')}
-                                    disabled={(d) => d.getTime() < dayjs().startOf('day').valueOf()}
-                                    className="border-slate-700 bg-slate-800 text-white hover:border-slate-600"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="teaser-guests" className="mb-2 block text-[11px] font-black uppercase tracking-widest text-slate-400">
-                                    {t('landing.teaser.guestsPlaceholder')}
-                                </label>
-                                <Input
-                                    id="teaser-guests"
-                                    type="number"
-                                    min={1}
-                                    max={20}
-                                    inputMode="numeric"
-                                    value={guests}
-                                    aria-label={t('landing.teaser.guestsPlaceholder')}
-                                    onChange={(e) => {
-                                        const next = Number(e.target.value);
-                                        if (!Number.isNaN(next)) setGuests(Math.min(20, Math.max(1, next)));
-                                    }}
-                                    className="h-12 rounded-2xl border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                                />
-                            </div>
-                        </div>
-
-                        <Button
-                            onClick={handleCheck}
-                            disabled={status === 'loading' || !date}
-                            className="mt-4 h-12 w-full rounded-2xl bg-indigo-500 text-base font-black text-white hover:bg-indigo-400"
-                        >
-                            {status === 'loading' ? <Loader2 className="animate-spin" /> : <CalendarCheck />}
-                            {status === 'loading' ? t('landing.teaser.loading') : t('landing.teaser.check')}
-                        </Button>
-
-                        {status === 'error' && (
-                            <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm font-bold text-red-300">
-                                {t('landing.teaser.error')}
-                            </p>
-                        )}
-
-                        {status === 'success' && (
-                            <div className="mt-6">
-                                <p className="mb-3 text-[11px] font-black uppercase tracking-widest text-slate-400">
-                                    {t('landing.teaser.slotsTitle')}
-                                </p>
-                                {slots.length === 0 ? (
-                                    <p className="text-sm text-slate-400">{t('no_slots')}</p>
-                                ) : (
-                                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                                        {slots.map((slot) =>
-                                            slot.available ? (
-                                                <Link
-                                                    key={slot.time}
-                                                    to={`/b/${DEFAULT_TENANT_SLUG}`}
-                                                    className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-center text-sm font-black text-emerald-300 transition-colors hover:bg-emerald-500/20"
-                                                >
-                                                    {slot.time}
-                                                </Link>
-                                            ) : (
-                                                <span
-                                                    key={slot.time}
-                                                    className="cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-center text-sm font-black text-slate-600"
-                                                >
-                                                    {slot.time}
-                                                </span>
-                                            )
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </Card>
+                <motion.div variants={fadeUp} className="mt-10 flex flex-col items-center gap-4">
+                    <ServerWakeNotice className="w-full max-w-md border-white/10 bg-white/5 text-slate-200" />
+                    <BookingWidget slug={DEFAULT_TENANT_SLUG} />
                 </motion.div>
             </motion.div>
         </section>
