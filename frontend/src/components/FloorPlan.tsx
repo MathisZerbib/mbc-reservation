@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { FLOOR_PLAN_DATA, type TableConfig } from "../utils/floorPlanData";
+import { type TableConfig } from "../utils/floorPlanData";
+import { useLayoutTables } from "../hooks/useFloorPlan";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { cn } from "../lib/utils";
@@ -22,6 +23,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   hideControls = false,
 }) => {
   const { bookings: allBookings } = useBookingsContext();
+  const { tables: layoutTables, backgroundUrl } = useLayoutTables();
   const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>('OVERVIEW');
 
   const bookings = allBookings.filter(
@@ -216,8 +218,11 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           </defs>
           <rect width="100%" height="100%" fill="url(#floorGrad)" />
           <rect width="100%" height="100%" fill="url(#grid)" />
+          {backgroundUrl && (
+            <image href={backgroundUrl} x={-20} y={20} width={920} height={670} preserveAspectRatio="xMidYMid slice" opacity={0.4} />
+          )}
 
-          {FLOOR_PLAN_DATA.map((table) => {
+          {layoutTables.map((table) => {
             const status = getTableStatus(table.id);
             const count = getTableReservationCount(table.id);
             const tableBookings = bookings.filter((b: Booking) =>

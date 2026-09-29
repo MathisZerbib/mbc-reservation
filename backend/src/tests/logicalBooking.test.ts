@@ -8,7 +8,9 @@ import {
 } from '../services/bookingService';
 import { FLOOR_PLAN_DATA, getCapacity } from '../utils/floorPlanData';
 
-describe('Real-Life Booking Logic', () => {
+// Destructive suite: beforeAll/afterAll run deleteMany() on bookings AND tables.
+// Opt-in only (RUN_DB_TESTS=1) so a plain `npm test` never touches a real DB.
+describe.runIf(process.env.RUN_DB_TESTS === '1')('Real-Life Booking Logic', () => {
     // Helper to create a booking date for "tomorrow" at a specific time
     const getTargetDate = (timeStr: string) => {
         const tomorrow = new Date();

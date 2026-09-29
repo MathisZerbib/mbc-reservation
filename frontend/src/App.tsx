@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserRouter, Routes, Route, Link, useSearchParams } from 'react-router-dom';
-import { Map as MapIcon, X, AlertTriangle } from 'lucide-react';
+import { Map as MapIcon, X, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from './utils/dayjs';
 import { FloorPlan } from './components/FloorPlan';
 import { Agenda } from './components/Agenda';
 import { Analytics } from './components/Analytics';
 import { BookingPage } from './components/BookingPage';
 import { TableAssignmentPage } from './components/TableAssignmentPage';
+import { SettingsPage } from './components/SettingsPage';
+import { FloorPlanEditor } from './components/FloorPlanEditor';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
@@ -95,6 +97,13 @@ function AdminDashboard() {
             >
               Assign Tables
             </Link>
+            <Link
+              to="/admin/settings"
+              className="sm:flex-none p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-sm text-slate-500 hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center"
+              title="Settings"
+            >
+              <SettingsIcon className="w-5 h-5" />
+            </Link>
           </div>
         </header>
 
@@ -105,13 +114,7 @@ function AdminDashboard() {
               <Analytics date={selectedDate} />
             </div>
 
-            <div className="flex-1 min-h-0 overflow-hidden relative rounded-[2.5rem] bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 group/floorplan">
-              <div className="absolute top-8 left-10 z-10 transition-transform duration-500 group-hover/floorplan:scale-105">
-                <div className="flex items-center gap-2.5 px-4 py-2 bg-white/90 backdrop-blur-xl rounded-full border border-slate-100 shadow-lg shadow-slate-200/20">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">Live Floor Plan</span>
-                </div>
-              </div>
+            <div className="flex-1 min-h-0 overflow-hidden relative rounded-[2.5rem] bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60">
               <FloorPlan hoveredBookingId={hoveredBookingId} selectedDate={selectedDate} />
             </div>
           </div>
@@ -202,6 +205,8 @@ function App() {
             <Route element={<BookingsProvider><Outlet /></BookingsProvider>}>
                 <Route path="/assign" element={<TableAssignmentPage />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/settings" element={<SettingsPage />} />
+                <Route path="/admin/floor-plan" element={<FloorPlanEditor />} />
             </Route>
           </Route>
         </Routes>

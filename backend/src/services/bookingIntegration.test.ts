@@ -14,8 +14,10 @@ vi.mock('./emailService', () => ({
 }));
 
 // We do NOT mock bookingService or prisma anymore. We test the Full Flow.
-
-describe('bookingController Integration (Real DB)', () => {
+//
+// Destructive suite: beforeAll/afterAll run deleteMany() on bookings AND tables.
+// Opt-in only (RUN_DB_TESTS=1) so a plain `npm test` never touches a real DB.
+describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration (Real DB)', () => {
     let req: Partial<Request>;
     let res: Partial<Response>;
     let json: any;

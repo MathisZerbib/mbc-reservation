@@ -11,6 +11,37 @@ export interface TableConfig {
     seats?: number;
 }
 
+/** Shared SVG path renderer for table shapes (single source of truth). */
+export const tableShapePath = (table: Pick<TableConfig, 'width' | 'height' | 'shape'>): string => {
+    const { width, height, shape } = table;
+    switch (shape) {
+        case 'OCTAGONAL': {
+            const corner = Math.min(width, height) * 0.3;
+            return `M ${corner} 0 H ${width - corner} L ${width} ${corner} V ${height - corner} L ${width - corner} ${height} H ${corner} L 0 ${height - corner} V ${corner} Z`;
+        }
+        case 'ROUND':
+            return `M ${width / 2}, 0 A ${width / 2} ${height / 2} 0 1,1 ${width / 2} ${height} A ${width / 2} ${height / 2} 0 1,1 ${width / 2} 0`;
+        case 'CAPSULE': {
+            const r = Math.min(width, height) / 2;
+            if (width > height) {
+                return `M ${r} 0 H ${width - r} A ${r} ${r} 0 0 1 ${width - r} ${height} H ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`;
+            }
+            return `M 0 ${r} V ${height - r} A ${r} ${r} 0 0 0 ${width} ${height - r} V ${r} A ${r} ${r} 0 0 0 0 ${r} Z`;
+        }
+        case 'BAR': {
+            const r = Math.max(width, height) * 0.65;
+            const cx = width / 2;
+            const cy = height / 2;
+            return `M ${cx}, ${cy - r} A ${r} ${r} 0 1,1 ${cx} ${cy + r} A ${r} ${r} 0 1,1 ${cx} ${cy - r}`;
+        }
+        case 'SQUARE':
+            return `M 0 0 H ${width} V ${width} H 0 Z`;
+        case 'RECTANGULAR':
+        default:
+            return `M 0 0 H ${width} V ${height} H 0 Z`;
+    }
+};
+
 // Coordinate system: 1000x800 canvas
 export const FLOOR_PLAN_DATA: TableConfig[] = [
     // --- TOP ROW ---

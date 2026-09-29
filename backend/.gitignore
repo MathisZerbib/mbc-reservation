@@ -10,5 +10,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Uploaded tenant files (local disk is ephemeral on Render — never commit)
+public/uploads/
+
 # OS files
 .DS_Store

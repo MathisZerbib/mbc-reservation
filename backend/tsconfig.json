@@ -13,6 +13,7 @@
         "node_modules",
         "dist",
         "prisma.config.ts",
+        "vitest.config.ts",
         "src/types/**/*.ts"
     ]
 }
