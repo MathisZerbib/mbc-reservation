@@ -168,9 +168,19 @@ export const authController = {
           password: randomBytes(32).toString('base64url'),
           tenantId: demoTenant.id,
         });
-        // Sandbox account: pre-verified and pre-onboarded so demo login lands on the app.
+        // Pre-verified: password login is disabled anyway, but the address is
+        // kept in a usable state for anyone inspecting the sandbox tenant.
         await markEmailVerified(user.id);
-        await prisma.tenant.update({ where: { id: demoTenant.id }, data: { onboardingComplete: true } });
+      }
+      // Sandbox account: pre-onboarded on every login, not just at creation.
+      // The flag only lives on the tenant, so a tenant that predates the column
+      // or was reset elsewhere would otherwise bounce the demo to /onboarding
+      // forever. Idempotent, and scoped to the demo tenant only.
+      if (user.tenantId) {
+        await prisma.tenant.updateMany({
+          where: { id: user.tenantId, onboardingComplete: false },
+          data: { onboardingComplete: true },
+        });
       }
       const { accessToken, refreshToken } = generateTokens(user, { isDemo: true });
       await addRefreshTokenToWhitelist({ refreshToken, userId: user.id });
