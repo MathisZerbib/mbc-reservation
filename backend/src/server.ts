@@ -71,7 +71,11 @@ const io = new Server(server, {
     },
 });
 
-// app.set('trust proxy', true); ?????? gemini generated
+// Trust the Render proxy (exactly one hop) so req.ip reflects the real
+// client behind X-Forwarded-For. Required for express-rate-limit
+// (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR) and Turnstile remoteip.
+// A count — not `true` — so clients cannot spoof their IP past the proxy.
+app.set('trust proxy', 1);
 
 app.use(cors(corsOptions));
 app.use(express.json());
