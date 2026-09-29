@@ -1,5 +1,11 @@
 export type Lang = 'en' | 'fr' | 'it' | 'es' | 'ru';
 
+/** Shipped locales, in menu order. Native names: a French speaker reads "Français", not "French". */
+export const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
+    { code: 'fr', label: 'Français', flag: '🇫🇷' },
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+];
+
 export const TRANSLATIONS = {
     en: {
         intro: 'Book a Table in a few clicks',
