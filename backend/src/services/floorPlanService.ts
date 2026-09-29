@@ -70,7 +70,9 @@ export function parseLayoutTable(input: any): LayoutTableInput {
     )].slice(0, 50);
 
     return {
-        ...(isFiniteNumber(input?.id) ? { id: input.id } : {}),
+        // Only positive integers reference real rows (autoincrement ids).
+        // Non-positive ids are client-side temp ids for new tables → treat as absent.
+        ...(Number.isInteger(input?.id) && (input.id as number) > 0 ? { id: input.id } : {}),
         name,
         capacity,
         type,

@@ -108,7 +108,10 @@ export const OnboardingPage: React.FC = () => {
         setSaving(true);
         try {
             if (count !== null) {
-                await api.saveLayout(gridTables(count), []);
+                // Strip client-side temp ids (negative) so the backend
+                // upserts newcomers by name — same convention as the editor.
+                const payload = gridTables(count).map(({ id: _tempId, ...rest }) => rest);
+                await api.saveLayout(payload, []);
                 setTablesChoice(count);
             }
             go(3);
