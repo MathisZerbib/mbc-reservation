@@ -8,7 +8,7 @@ test.describe('landing and public routes', () => {
             'href',
             '/register',
         );
-        await expect(page.getByRole('link', { name: /espace manager|manager area/i })).toHaveAttribute(
+        await expect(page.getByRole('link', { name: /ouvrir l'app|open the app/i })).toHaveAttribute(
             'href',
             '/login',
         );
