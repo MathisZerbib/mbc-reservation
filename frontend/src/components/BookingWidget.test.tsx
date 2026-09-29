@@ -21,6 +21,13 @@ vi.mock('../i18n/useLanguage', () => ({
         date_passed: 'Date passed',
         check: 'Book',
         checking: 'Checking...',
+        no_service: 'No more service for today',
+        verify_needed: 'Please complete the verification',
+        fill_fields: 'Please fill all required fields correctly',
+        search_country: 'Search country...',
+        no_country: 'No matching country',
+        language_label: 'Language',
+        n_guests: '{n} guests',
     }
 });
 
@@ -34,7 +41,7 @@ globalThis.fetch = vi.fn().mockImplementation(() =>
 
 describe('BookingWidget', () => {
     it('renders the initial state correctly', () => {
-        render(<BookingWidget />);
+        render(<BookingWidget slug="mbc" />);
         expect(screen.getByText(/Book a Table/i)).toBeInTheDocument();
         expect(screen.getByText(/Select Party Size/i)).toBeInTheDocument();
     });
@@ -57,7 +64,7 @@ describe('BookingWidget', () => {
             });
         });
 
-        render(<BookingWidget />);
+        render(<BookingWidget slug="mbc" />);
         
         // Simulating date picking might be complex depending on the library (DayPicker)
         // Usually we look for a date cell. Let's assume current month is visible.

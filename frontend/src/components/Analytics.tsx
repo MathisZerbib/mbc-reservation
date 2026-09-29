@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { socket } from '../services/socket';
 import { TrendingUp, TrendingDown, Minus, Users, Clock, Euro, Armchair } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useTranslation } from '../i18n/useTranslation';
 import type { Analytics as AnalyticsData } from '../types/index';
 
 interface AnalyticsProps {
@@ -10,10 +11,11 @@ interface AnalyticsProps {
 }
 
 const GrowthSub = ({ growth, growthPct }: { growth?: string; growthPct?: number | null }) => {
+  const { t } = useTranslation();
   if (!growth || growth === '—' || growthPct === null || growthPct === undefined) {
     return (
       <span className="text-[10px] text-slate-400 font-bold mt-0.5 flex items-center gap-1">
-        <Minus className="w-2.5 h-2.5" /> no prior day
+        <Minus className="w-2.5 h-2.5" /> {t('analytics.noPrior')}
       </span>
     );
   }
@@ -25,12 +27,13 @@ const GrowthSub = ({ growth, growthPct }: { growth?: string; growthPct?: number 
       up ? "text-emerald-500" : flat ? "text-slate-400" : "text-red-500"
     )}>
       {up ? <TrendingUp className="w-2.5 h-2.5" /> : flat ? <Minus className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-      {growth} vs yesterday
+      {growth} {t('analytics.vsYesterday')}
     </span>
   );
 };
 
 export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
+  const { t } = useTranslation();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -88,35 +91,41 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <Card
-            label="Bookings"
+            label={t('analytics.bookings')}
             value={data?.totalBookings ?? 0}
             sub={loading ? undefined : <GrowthSub growth={data?.growth} growthPct={data?.growthPct} />}
             icon={Users}
             color="bg-indigo-50 text-indigo-600"
         />
         <Card
-            label={`Turnover (est. ${data?.avgTicket ?? '–'}€/guest)`}
+            label={t('analytics.turnover').replace('{ticket}', String(data?.avgTicket ?? '–'))}
             value={data ? `${data.turnover.toLocaleString('fr-FR')}€` : '0€'}
             sub={loading || !data ? undefined : (
-              <span className="text-[10px] text-slate-400 font-bold mt-0.5">{data.totalGuests} guests · avg {data.avgPartySize}/booking</span>
+              <span className="text-[10px] text-slate-400 font-bold mt-0.5">
+                {t('analytics.guestsAvg').replace('{g}', String(data.totalGuests)).replace('{a}', String(data.avgPartySize))}
+              </span>
             )}
             icon={Euro}
             color="bg-emerald-50 text-emerald-600"
         />
         <Card
-            label="Peak Hour"
+            label={t('analytics.peakHour')}
             value={data?.peakHour ?? '—'}
             sub={loading || !data || data.peakHour === '—' ? undefined : (
-              <span className="text-[10px] text-slate-400 font-bold mt-0.5">{data.peakHourGuests} guests arriving</span>
+              <span className="text-[10px] text-slate-400 font-bold mt-0.5">
+                {t('analytics.peakArriving').replace('{n}', String(data.peakHourGuests))}
+              </span>
             )}
             icon={Clock}
             color="bg-amber-50 text-amber-600"
         />
         <Card
-            label="Occupancy"
+            label={t('analytics.occupancy')}
             value={data ? `${data.occupancyRate}%` : '0%'}
             sub={loading || !data ? undefined : (
-              <span className="text-[10px] text-slate-400 font-bold mt-0.5">{data.tablesUsed}/{data.totalTables} tables used</span>
+              <span className="text-[10px] text-slate-400 font-bold mt-0.5">
+                {t('analytics.tablesUsed').replace('{u}', String(data.tablesUsed)).replace('{t}', String(data.totalTables))}
+              </span>
             )}
             icon={Armchair}
             color="bg-violet-50 text-violet-600"
@@ -126,7 +135,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
       {!loading && data && data.hourlyBreakdown.length > 0 && (
         <div className="bg-white rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100">
           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-            Bookings per hour <span className="normal-case font-bold text-slate-300">· % of day's guests</span>
+            {t('analytics.perHour')} <span className="normal-case font-bold text-slate-300">{t('analytics.perHourSub')}</span>
           </div>
           <div className="flex flex-col gap-2">
             {data.hourlyBreakdown.map(h => (
@@ -144,7 +153,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
                   />
                 </div>
                 <span className="text-[11px] font-bold text-slate-500 w-24 shrink-0 text-right tabular-nums">
-                  {h.bookings} res · {h.guestsPct}%
+                  {t('analytics.resFmt').replace('{b}', String(h.bookings)).replace('{p}', String(h.guestsPct))}
                 </span>
               </div>
             ))}

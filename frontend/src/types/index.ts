@@ -87,3 +87,12 @@ export interface LayoutTable {
     rotation: number;
     adjacentNames: string[];
 }
+
+export interface TenantContext {
+    id: string;
+    name: string;
+    slug: string;
+    trialEndsAt: string;
+    trialActive: boolean;
+    onboardingComplete: boolean;
+}

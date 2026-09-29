@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check,
@@ -17,7 +17,8 @@ import { cn } from '../lib/utils';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import 'dayjs/locale/en';
-import { Turnstile } from '@marsidev/react-turnstile';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { TURNSTILE_SITE_KEY } from '../utils/turnstile';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
 import type { Lang } from '../i18n/translations';
@@ -30,12 +31,11 @@ import {
 } from "./ui/popover";
 import { COUNTRIES } from '../utils/countries';
 
-const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Standard Testing Key (use env in prod)
 const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
 
 
-export const BookingWidget: React.FC = () => {
+export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
   const { lang, setLang, t } = useLanguage();
   dayjs.locale(lang);
 
@@ -87,6 +87,7 @@ export const BookingWidget: React.FC = () => {
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [token, setToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
   const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
   const [fetchingAvailability, setFetchingAvailability] = useState(false);
 
@@ -96,7 +97,7 @@ export const BookingWidget: React.FC = () => {
       if (!formData.date || !formData.size) return;
       setFetchingAvailability(true);
       try {
-        const data = await api.getDailyAvailability(formData.date, formData.size);
+        const data = await api.getDailyAvailability(formData.date, formData.size, slug);
         if (!isMounted) return;
         const map: Record<string, boolean> = {};
         data.forEach(item => {
@@ -111,7 +112,7 @@ export const BookingWidget: React.FC = () => {
     };
     fetchDaily();
     return () => { isMounted = false; };
-  }, [formData.date, formData.size]);
+  }, [formData.date, formData.size, slug]);
 
   const nextStep = useCallback((next: number) => {
     setDirection(1);
@@ -128,7 +129,7 @@ export const BookingWidget: React.FC = () => {
     setError('');
     setSuggestions([]);
     try {
-      const data = await api.checkAvailability(formData.date, formData.startTime || '', formData.size);
+      const data = await api.checkAvailability(formData.date, formData.startTime || '', formData.size, slug);
       if (data.available) {
         nextStep(3);
       } else {
@@ -145,11 +146,11 @@ export const BookingWidget: React.FC = () => {
 
   const handleBook = async () => {
     if (!validation.isStep3Valid) {
-      setError('Please fill all required fields correctly');
+      setError(t.fill_fields);
       return;
     }
     if (!token) {
-      setError('Please complete the verification');
+      setError(t.verify_needed);
       return;
     }
     setLoading(true);
@@ -167,14 +168,19 @@ export const BookingWidget: React.FC = () => {
         email: formData.email.trim().toLowerCase().substring(0, 24),
         startTime,
         notify: true,
+        turnstileToken: token,
       };
 
-      await api.createBooking(payload as any);
+      await api.createBooking(payload as any, slug);
       nextStep(4);
     } catch (e: any) {
       setError(e.message || t.error);
       console.error('[Booking Execution Error]:', e);
     } finally {
+      // Server-side tokens are single-use: always reset so the next
+      // attempt (retry or new booking) solves a fresh challenge.
+      setToken(null);
+      turnstileRef.current?.reset();
       setLoading(false);
     }
   };
@@ -280,7 +286,7 @@ export const BookingWidget: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
                       <span>{t.step1}</span>
-                      <span className="text-indigo-600 font-black">{formData.size} guests</span>
+                      <span className="text-indigo-600 font-black">{t.n_guests.replace('{n}', String(formData.size))}</span>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="relative flex-1">
@@ -369,7 +375,7 @@ export const BookingWidget: React.FC = () => {
                       {!getFirstAvailableTime(formData.date) && dayjs(formData.date).isSame(dayjs(), 'day') ? (
                         <div className="p-8 bg-red-50/30 border-2 border-dashed border-red-100 rounded-3xl text-center">
                           <p className="text-sm font-bold text-red-600">{t.no_slots}</p>
-                          <p className="text-[10px] text-red-400 mt-1 uppercase font-black tracking-widest">No more service for today</p>
+                          <p className="text-[10px] text-red-400 mt-1 uppercase font-black tracking-widest">{t.no_service}</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-3 gap-2">
@@ -508,7 +514,7 @@ export const BookingWidget: React.FC = () => {
                                 <input
                                   autoFocus
                                   type="text"
-                                  placeholder="Search country..."
+                                  placeholder={t.search_country}
                                   value={countrySearch}
                                   onChange={e => setCountrySearch(e.target.value)}
                                   className="w-full bg-white border-2 border-slate-100 rounded-xl py-2 pl-9 pr-3 text-xs font-bold text-slate-700 focus:border-indigo-500/30 outline-none transition-all"
@@ -539,7 +545,7 @@ export const BookingWidget: React.FC = () => {
                                 ))
                               ) : (
                                 <div className="p-8 text-center">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching country</p>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.no_country}</p>
                                 </div>
                               )}
                             </div>
@@ -619,7 +625,9 @@ export const BookingWidget: React.FC = () => {
 
                     <div className="pt-2 flex justify-center scale-[0.85] sm:scale-100 origin-center sm:origin-left">
                       <Turnstile
+                        ref={turnstileRef}
                         siteKey={TURNSTILE_SITE_KEY}
+                        options={{ action: 'booking' }}
                         onSuccess={setToken}
                         className="w-full"
                       />
@@ -742,7 +750,7 @@ export const BookingWidget: React.FC = () => {
                           })()}
                         </div>
                         <div className="text-left flex-1 min-w-0">
-                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-1.5">Language</p>
+                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-1.5">{t.language_label}</p>
                           <p className="capitalize text-sm font-bold text-slate-800 truncate">
                             {(() => {
                               const l = formData.language;
@@ -755,7 +763,7 @@ export const BookingWidget: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-1.5">{t.guests}</p>
-                          <p className="text-sm font-black text-indigo-600">{formData.size} guests</p>
+                          <p className="text-sm font-black text-indigo-600">{t.n_guests.replace('{n}', String(formData.size))}</p>
                         </div>
                       </div>
 
@@ -772,7 +780,7 @@ export const BookingWidget: React.FC = () => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-1.5">Time</p>
+                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-1.5">{t.time}</p>
                           <p className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">{formData.startTime}</p>
                         </div>
                       </div>

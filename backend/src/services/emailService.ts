@@ -15,6 +15,53 @@ const logoBuffer = fs.readFileSync(
 
 
 export const emailService = {
+    sendVerificationEmail: async (email: string, link: string) => {
+        if (!process.env.RESEND_API_KEY) {
+            console.log('--- MOCK VERIFICATION EMAIL (No Resend API key) ---');
+            console.log('To:', email);
+            console.log('Verify link:', link);
+            console.log('---------------------------------------------------');
+            return;
+        }
+
+        try {
+            const { data, error } = await resend.emails.send({
+                from: `${APP_NAME} <${FROM_EMAIL}>`,
+                to: email,
+                subject: `Verify your email — ${APP_NAME}`,
+                html: `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; color: #222; padding: 0; margin: 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px #0001; overflow: hidden;">
+                    <tr>
+                      <td style="background: #23272f; padding: 32px 24px; text-align: center;">
+                        <h1 style="color: #fff; font-size: 1.6rem; margin: 0;">${APP_NAME}</h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 32px 24px; text-align: center;">
+                        <h2 style="color: #4f46e5; margin-top: 0;">Confirm your email</h2>
+                        <p>Click the button below to activate your restaurant account. This link expires in 24 hours.</p>
+                        <div style="margin: 32px 0;">
+                          <a href="${link}" style="background: #4f46e5; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.1rem;">Verify email</a>
+                        </div>
+                        <p style="font-size: 0.9rem; color: #6b7280;">If you did not create this account, you can safely ignore this email.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                `,
+            });
+
+            if (error) {
+                console.error('Resend API returned error:', error);
+            } else {
+                console.log(`Verification email sent to ${email}. ID: ${data?.id}`);
+            }
+        } catch (error) {
+            console.error('Failed to send verification email:', error);
+        }
+    },
+
     sendConfirmationEmail: async (booking: any) => {
         // Skip if no email provided
         if (!booking.email) {

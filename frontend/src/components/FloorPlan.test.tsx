@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { FloorPlan } from '../components/FloorPlan';
 import { useBookingsContext } from '../context/useBookingsContext';
+import { LanguageProvider } from '../i18n/LanguageContext';
 
 vi.mock('../context/useBookingsContext', () => ({
     useBookingsContext: vi.fn(),
@@ -11,7 +12,11 @@ vi.mock('../context/useBookingsContext', () => ({
 
 describe('FloorPlan', () => {
     it('renders tables correctly', () => {
-        render(<FloorPlan hoveredBookingId={null} selectedDate="2024-01-01" />);
+        render(
+            <LanguageProvider>
+                <FloorPlan hoveredBookingId={null} selectedDate="2024-01-01" />
+            </LanguageProvider>
+        );
 
         // Check for specific tables from floorPlanData
         // e.g. Table 10, 11, etc. 

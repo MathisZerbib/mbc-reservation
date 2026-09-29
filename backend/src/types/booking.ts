@@ -31,4 +31,5 @@ export interface CreateReservationInput {
     size: number;
     startTime: Date;
     lowTable?: boolean;
+    tenantId: string;
 }

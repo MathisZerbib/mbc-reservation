@@ -1,99 +1,79 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import CanadianLeafLoader from './CanadianLeafLoader';
-import { Eye, EyeOff } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Eye, EyeOff, MailCheck } from 'lucide-react';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { TURNSTILE_SITE_KEY } from '../utils/turnstile';
 import { api } from '../services/api';
 import { useTranslation } from '../i18n/useTranslation';
 import { LangToggle } from './LangToggle';
 
-export function LoginPage() {
-  const navigate = useNavigate();
+export function RegisterPage() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [restaurantName, setRestaurantName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsVerification, setNeedsVerification] = useState(false);
-  const [resent, setResent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
-  const [showLoader, setShowLoader] = useState(false);
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setNeedsVerification(false);
+    if (password.length < 12) {
+      setError(t('register.errPassword'));
+      return;
+    }
+    if (restaurantName.trim().length < 2) {
+      setError(t('register.errRestaurant'));
+      return;
+    }
+    if (!turnstileToken) {
+      setError(t('register.errBot'));
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch(`${apiUrl}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || t('login.loginFailed'));
-        setNeedsVerification(data.code === 'EMAIL_NOT_VERIFIED');
-        setResent(false);
-        setLoading(false);
-      } else {
-        setShowLoader(true);
-        localStorage.setItem('token', data.accessToken);
-        setTimeout(() => {
-          navigate('/admin/dashboard');
-        }, 1800);
-      }
-    } catch {
-      setError(t('login.networkError'));
+      await api.register(email.trim(), password, restaurantName.trim(), turnstileToken);
+      setRegisteredEmail(email.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('register.failed'));
+      // Server-side tokens are single-use: reset so the retry solves a fresh challenge.
+      setTurnstileToken(null);
+      turnstileRef.current?.reset();
       setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    setError(null);
-    setNeedsVerification(false);
-    setDemoLoading(true);
-    try {
-      const res = await fetch(`${apiUrl}/auth/demo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || t('login.demoFailed'));
-        setDemoLoading(false);
-      } else {
-        setShowLoader(true);
-        localStorage.setItem('token', data.accessToken);
-        setTimeout(() => {
-          navigate('/admin/dashboard');
-        }, 1800);
-      }
-    } catch {
-      setError(t('login.networkError'));
-      setDemoLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden">
-      {/* Soft background shapes */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-50 rounded-full blur-3xl opacity-30 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-slate-200 rounded-full blur-2xl opacity-20 pointer-events-none" />
       <div className="absolute top-4 right-4">
         <LangToggle />
       </div>
-      {showLoader && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
-          <CanadianLeafLoader />
+      {registeredEmail ? (
+        <div className="relative bg-white/90 backdrop-blur-md p-10 rounded-2xl shadow-xl w-full max-w-md flex flex-col items-center gap-4 border border-slate-100 animate-fade-in text-center">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <MailCheck className="w-7 h-7" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">
+            {t('register.checkTitle')}
+          </h1>
+          <p className="text-slate-500 text-sm">
+            {t('register.checkMsg').replace('{email}', registeredEmail)}
+          </p>
+          <Link to="/login" className="mt-2 font-bold text-slate-800 hover:underline text-sm">
+            {t('register.goSignin')}
+          </Link>
         </div>
-      )}
-      {!showLoader && (
+      ) : (
         <form
           onSubmit={handleSubmit}
           className="relative bg-white/90 backdrop-blur-md p-10 rounded-2xl shadow-xl w-full max-w-md flex flex-col gap-7 border border-slate-100 animate-fade-in"
-          aria-label="Login form"
+          aria-label="Registration form"
         >
           <div className="flex flex-col items-center mb-2">
             <img
@@ -103,13 +83,32 @@ export function LoginPage() {
               style={{ objectFit: 'contain' }}
             />
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight mb-1">
-              {t('login.title')}
+              {t('register.title')}
             </h1>
-            <span className="text-slate-500 text-sm">{t('login.subtitle')}</span>
+            <span className="text-slate-500 text-sm">{t('register.subtitle')}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="restaurant" className="text-slate-700 font-medium">
+              {t('register.restaurant')}
+            </label>
+            <input
+              id="restaurant"
+              type="text"
+              className="border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition placeholder-slate-400 text-base bg-slate-50"
+              placeholder={t('register.restaurantPh')}
+              value={restaurantName}
+              onChange={e => setRestaurantName(e.target.value)}
+              required
+              minLength={2}
+              maxLength={60}
+              autoComplete="organization"
+              disabled={loading}
+              spellCheck={false}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <label htmlFor="email" className="text-slate-700 font-medium">
-              {t('login.email')}
+              {t('register.email')}
             </label>
             <input
               id="email"
@@ -126,18 +125,19 @@ export function LoginPage() {
           </div>
           <div className="flex flex-col gap-2 relative">
             <label htmlFor="password" className="text-slate-700 font-medium">
-              {t('login.password')}
+              {t('register.password')}
             </label>
             <div className="relative flex items-center">
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 className="border border-slate-200 rounded-lg px-3 pr-12 py-3 h-12 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition placeholder-slate-400 text-base bg-slate-50 w-full"
-                placeholder={t('login.password')}
+                placeholder={t('register.passwordPh')}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                autoComplete="current-password"
+                minLength={12}
+                autoComplete="new-password"
                 disabled={loading}
               />
               <button
@@ -160,59 +160,22 @@ export function LoginPage() {
           {error && (
             <div className="text-red-600 text-sm text-center border border-red-100 bg-red-50 rounded p-2 animate-shake">
               {error}
-              {needsVerification && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await api.resendVerification(email.trim());
-                      setResent(true);
-                    } catch {
-                      setResent(true);
-                    }
-                  }}
-                  className="block mx-auto mt-2 font-bold underline cursor-pointer"
-                >
-                  {resent ? t('login.resent') : t('login.resend')}
-                </button>
-              )}
             </div>
           )}
+          <div className="flex justify-center">
+            <Turnstile ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} options={{ action: 'signup' }} onSuccess={setTurnstileToken} />
+          </div>
           <button
             type="submit"
             className="bg-slate-800 text-white rounded-lg py-2 font-semibold shadow-sm hover:bg-slate-700 transition-all duration-150 cursor-pointer mt-2 disabled:opacity-60 flex items-center justify-center gap-2"
-            disabled={loading || demoLoading}
+            disabled={loading || !turnstileToken}
           >
-            {loading ? (
-              <>
-                {t('login.loggingIn')}
-              </>
-            ) : (
-              t('login.login')
-            )}
-          </button>
-          <div className="flex items-center gap-3 -mt-3">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-slate-400 text-xs font-medium">{t('login.or')}</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            className="border border-slate-200 bg-slate-50 text-slate-700 rounded-lg py-2 font-semibold shadow-sm hover:bg-slate-100 transition-all duration-150 cursor-pointer -mt-3 disabled:opacity-60 flex items-center justify-center gap-2"
-            disabled={loading || demoLoading}
-          >
-            {demoLoading ? t('login.preparingDemo') : t('login.tryDemo')}
+            {loading ? t('register.creating') : t('register.create')}
           </button>
           <p className="text-center text-sm text-slate-500 -mt-3">
-            {t('login.noAccount')}{' '}
-            <Link to="/register" className="font-bold text-slate-800 hover:underline">
-              {t('login.trialCta')}
-            </Link>
-          </p>
-          <p className="text-center text-xs -mt-5">
-            <Link to="/" className="text-slate-400 hover:text-slate-600 hover:underline">
-              {t('login.backToSite')}
+            {t('register.haveAccount')}{' '}
+            <Link to="/login" className="font-bold text-slate-800 hover:underline">
+              {t('register.signin')}
             </Link>
           </p>
           <style>{`

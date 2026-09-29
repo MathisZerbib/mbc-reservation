@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/isAuthenticated';
 import { bookingController } from '../controllers/bookingController';
 import { prisma } from '../lib/prisma'; // Real prisma
 import { emailService } from './emailService';
@@ -15,41 +16,49 @@ vi.mock('./emailService', () => ({
 
 // We do NOT mock bookingService or prisma anymore. We test the Full Flow.
 //
-// Destructive suite: beforeAll/afterAll run deleteMany() on bookings AND tables.
+// Destructive suite scoped to an isolated test tenant (created/deleted per run).
 // Opt-in only (RUN_DB_TESTS=1) so a plain `npm test` never touches a real DB.
 describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration (Real DB)', () => {
-    let req: Partial<Request>;
+    let req: Partial<AuthRequest>;
     let res: Partial<Response>;
     let json: any;
     let status: any;
     let io: any;
+    let tenantId: string;
+    const tenant = () => ({ id: tenantId, slug: 'test', name: 'Test', trialEndsAt: new Date(Date.now() + 86400000), onboardingComplete: false });
 
     beforeAll(async () => {
-        // CLEANUP & SEED
-        await prisma.booking.deleteMany();
-        await prisma.table.deleteMany();
+        // ISOLATED TENANT + SEED
+        const t = await prisma.tenant.create({
+            data: {
+                name: 'Test Tenant',
+                slug: `test-${Date.now()}`,
+                trialEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+        });
+        tenantId = t.id;
 
         for (const t of FLOOR_PLAN_DATA) {
-            await prisma.table.create({ 
-                data: { 
+            await prisma.table.create({
+                data: {
                     name: t.id,
                     capacity: getCapacity(t),
                     type: t.shape === 'BAR' ? 'BAR' : 'RECTANGULAR',
                     x: t.x,
-                    y: t.y
-                } 
+                    y: t.y,
+                    tenantId,
+                }
             });
         }
     });
 
     afterAll(async () => {
-        await prisma.booking.deleteMany();
-        await prisma.table.deleteMany();
+        await prisma.tenant.deleteMany({ where: { id: tenantId } });
     });
 
     beforeEach(async () => {
         // Reset bookings only
-        await prisma.booking.deleteMany();
+        await prisma.booking.deleteMany({ where: { tenantId } });
         vi.clearAllMocks();
 
         json = vi.fn();
@@ -61,6 +70,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
     describe('createBooking (Quick Reservation)', () => {
         it('should create a booking successfully in DB and assign a real table', async () => {
             req = {
+                tenant: tenant(),
                 body: {
                     name: 'John Doe',
                     phone: '123456789',
@@ -79,7 +89,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
             tomorrow.setHours(19, 0, 0, 0);
             req.body.startTime = tomorrow.toISOString();
 
-            await bookingController(io).createBooking(req as Request, res as Response);
+            await bookingController(io).createBooking(req as AuthRequest, res as Response);
 
             // 1. Check HTTP Response
             if (json.mock.calls[0][0].error) {
@@ -105,12 +115,13 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
 
         it('should return 400 if missing required fields', async () => {
             req = {
+                tenant: tenant(),
                 body: {
                     name: 'Bad Request',
                     // Missing size/time
                 }
             };
-            await bookingController(io).createBooking(req as Request, res as Response);
+            await bookingController(io).createBooking(req as AuthRequest, res as Response);
             expect(status).toHaveBeenCalledWith(400);
             expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Missing fields' }));
         });
@@ -119,6 +130,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
     describe('updateAssignment (Manual Override)', () => {
         it('should manually re-assign tables from existing floor plan', async () => {
             // 1. Create a booking first
+            const table30 = await prisma.table.findFirstOrThrow({ where: { tenantId, name: '30' } });
             const existing = await prisma.booking.create({
                 data: {
                     name: 'Manual Mover',
@@ -126,17 +138,19 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
                     startTime: new Date(),
                     endTime: new Date(),
                     language: 'en',
-                    tables: { connect: { name: '30' } } // Connect to '30' initially
+                    tenantId,
+                    tables: { connect: { id: table30.id } }
                 }
             });
 
             // 2. Request to move to '10' and '9'
             req = {
+                tenant: tenant(),
                 params: { id: existing.id },
                 body: { tableNames: ['10', '9'] }
             };
 
-            await bookingController(io).updateAssignment(req as Request, res as Response);
+            await bookingController(io).updateAssignment(req as AuthRequest, res as Response);
 
             // 3. Verify in DB
             const updated = await prisma.booking.findUnique({
@@ -161,13 +175,14 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
                     startTime: new Date(),
                     endTime: new Date(),
                     language: 'en',
-                    status: 'CONFIRMED'
+                    status: 'CONFIRMED',
+                    tenantId,
                 }
             });
 
-            req = { params: { id: existing.id } };
+            req = { tenant: tenant(), params: { id: existing.id } };
 
-            await bookingController(io).cancelBooking(req as Request, res as Response);
+            await bookingController(io).cancelBooking(req as AuthRequest, res as Response);
 
             const dbBooking = await prisma.booking.findUnique({ where: { id: existing.id } });
             expect(dbBooking?.status).toBe('CANCELLED');
@@ -175,13 +190,12 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
             expect(json).toHaveBeenCalled();
         });
         
-        it('should return 500/Error if ID not found (prisma throws)', async () => {
-             req = { params: { id: 'non-existent-uuid' } };
-             // Prisma throws "Record to update not found." usually
-             
-             await bookingController(io).cancelBooking(req as Request, res as Response);
-             
-             expect(status).toHaveBeenCalledWith(500);
+        it('should return 404 if ID not found (scoped lookup)', async () => {
+             req = { tenant: tenant(), params: { id: 'non-existent-uuid' } };
+
+             await bookingController(io).cancelBooking(req as AuthRequest, res as Response);
+
+             expect(status).toHaveBeenCalledWith(404);
         });
     });
 });

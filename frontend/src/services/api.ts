@@ -1,4 +1,4 @@
-import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, DailyAvailability, RestaurantSettings, LayoutTable } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, DailyAvailability, RestaurantSettings, LayoutTable, TenantContext } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
@@ -89,20 +89,35 @@ class ApiClient {
 const client = new ApiClient(API_BASE_URL);
 
 export const api = {
+    register: (email: string, password: string, restaurantName: string, turnstileToken?: string) =>
+        client.post<{ message: string; tenant: { slug: string; trialEndsAt: string } }>('/auth/register', { body: { email, password, restaurantName, turnstileToken } }),
+
+    verifyEmail: (token: string) =>
+        client.post<{ accessToken: string; refreshToken: string; tenant: { slug: string; trialEndsAt: string } | null }>('/auth/verify-email', { body: { token } }),
+
+    resendVerification: (email: string) =>
+        client.post<{ message: string }>('/auth/resend-verification', { body: { email } }),
+
+    getTenant: () =>
+        client.get<TenantContext>('/tenants/me', { auth: true }),
+
+    updateTenant: (data: { name?: string; onboardingComplete?: boolean }) =>
+        client.patch<TenantContext>('/tenants/me', { body: data, auth: true }),
+
     fetchBookings: () =>
         client.get<Booking[]>('/bookings', { auth: true }),
 
     getAnalytics: (date: string) =>
         client.get<Analytics>('/analytics', { params: { date }, auth: true }),
 
-    checkAvailability: (date: string, time: string, size: number) =>
-        client.get<AvailabilityResponse>('/availability', { params: { date, time, size } }),
+    checkAvailability: (date: string, time: string, size: number, slug: string) =>
+        client.get<AvailabilityResponse>('/availability', { params: { date, time, size, slug } }),
 
-    getDailyAvailability: (date: string, size: number) =>
-        client.get<DailyAvailability[]>('/daily-availability', { params: { date, size } }),
+    getDailyAvailability: (date: string, size: number, slug: string) =>
+        client.get<DailyAvailability[]>('/daily-availability', { params: { date, size, slug } }),
 
-    createBooking: (data: Partial<CreateBookingPayload>) =>
-        client.post<Booking>('/bookings', { body: data }),
+    createBooking: (data: Partial<CreateBookingPayload>, slug: string) =>
+        client.post<Booking>('/bookings', { body: { ...data, slug } }),
 
     updateAssignment: (id: string, tableNames: string[]) =>
         client.patch<Booking>(`/bookings/${id}/tables`, { body: { tableNames }, auth: true }),
@@ -131,8 +146,8 @@ export const api = {
     },
 
     // ── Floor-plan layout (geometry + manual adjacency) ──
-    getLayout: () =>
-        client.get<LayoutTable[]>('/tables'),
+    getLayout: (slug: string) =>
+        client.get<LayoutTable[]>('/tables', { params: { slug } }),
 
     saveLayout: (tables: LayoutTable[], deleteIds: number[]) =>
         client.put<LayoutTable[]>('/tables/layout', { body: { tables, deleteIds }, auth: true }),

@@ -3,7 +3,6 @@ import { motion, type Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import {
-    ArrowDown,
     CalendarCheck,
     Loader2,
     Sparkles,
@@ -17,6 +16,7 @@ import { Input } from '../components/ui/input';
 import { DatePicker } from '../components/ui/date-picker';
 import { useTranslation, type TranslationKey } from '../i18n/useTranslation';
 import { api } from '../services/api';
+import { DEFAULT_TENANT_SLUG } from '../components/BookingPage';
 import type { DailyAvailability } from '../types/index';
 
 /* ------------------------------------------------------------------ */
@@ -115,19 +115,24 @@ const Hero = () => {
                         size="lg"
                         className="h-12 rounded-2xl bg-indigo-500 px-8 text-base font-black text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
                     >
-                        <a href="#features">
-                            {t('landing.hero.cta')}
-                            <ArrowDown />
-                        </a>
+                        <Link to="/register">
+                            {t('landing.hero.trial')}
+                        </Link>
                     </Button>
+                    <a
+                        href="#features"
+                        className="text-sm font-bold text-slate-200 underline-offset-4 transition-colors hover:text-white hover:underline"
+                    >
+                        {t('landing.hero.cta')} →
+                    </a>
                     <Link
-                        to="/book"
+                        to={`/b/${DEFAULT_TENANT_SLUG}`}
                         className="text-sm font-bold text-slate-200 underline-offset-4 transition-colors hover:text-white hover:underline"
                     >
                         {t('landing.hero.book')} →
                     </Link>
                     <Link
-                        to="/"
+                        to="/login"
                         className="text-sm font-bold text-slate-400 transition-colors hover:text-white"
                     >
                         {t('landing.hero.login')} →
@@ -270,7 +275,7 @@ const AvailabilityTeaser = () => {
         if (!date) return;
         setStatus('loading');
         try {
-            const data = await api.getDailyAvailability(dayjs(date).format('YYYY-MM-DD'), guests);
+            const data = await api.getDailyAvailability(dayjs(date).format('YYYY-MM-DD'), guests, DEFAULT_TENANT_SLUG);
             setSlots(data);
             setStatus('success');
         } catch {
@@ -362,7 +367,7 @@ const AvailabilityTeaser = () => {
                                             slot.available ? (
                                                 <Link
                                                     key={slot.time}
-                                                    to="/book"
+                                                    to={`/b/${DEFAULT_TENANT_SLUG}`}
                                                     className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-center text-sm font-black text-emerald-300 transition-colors hover:bg-emerald-500/20"
                                                 >
                                                     {slot.time}

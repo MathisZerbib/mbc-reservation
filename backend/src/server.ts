@@ -1,11 +1,13 @@
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { bookingRoutes } from './routes/bookingRoutes';
 import { tableRoutes } from './routes/tableRoutes';
 import { settingsRoutes } from './routes/settingsRoutes';
+import tenantRoutes from './routes/tenantRoutes';
 import authRoutes from './routes/authRoutes';
 import protectedRoutes from './routes/protectedRoutes';
 import testRoutes from './routes/testRoutes';
@@ -73,6 +75,8 @@ const io = new Server(server, {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+// CSP disabled: swagger-ui serves inline assets; other helmet protections on.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.static('public'));
 
 // Socket.io connection
@@ -91,6 +95,7 @@ console.log(`📄 Swagger docs available at ${baseUrl}/api-docs`);
 app.use('/api', bookingRoutes(io));
 app.use('/api', tableRoutes(io));
 app.use('/api', settingsRoutes(io));
+app.use('/api', tenantRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', protectedRoutes);
 // Dev/demo helpers (bulk booking). Guarded by demo-session auth in testRoutes.

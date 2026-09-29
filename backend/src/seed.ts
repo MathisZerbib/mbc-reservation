@@ -29,6 +29,21 @@ async function seed() {
     console.log('Starting seed check...');
 
     try {
+        // 0. Ensure the default (pre-tenancy) tenant exists.
+        let defaultTenant = await prisma.tenant.findUnique({ where: { slug: 'mbc' } });
+        if (!defaultTenant) {
+            defaultTenant = await prisma.tenant.create({
+                data: {
+                    name: 'MBC',
+                    slug: 'mbc',
+                    trialEndsAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+                    settings: { create: {} },
+                },
+            });
+            console.log('Created default tenant (mbc).');
+        }
+        const tenantId = defaultTenant.id;
+
         // 1. Seed admin user if not exists (credentials from env only — never hardcoded)
         const adminEmail = process.env.SEED_ADMIN_EMAIL;
         const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -43,7 +58,7 @@ async function seed() {
             if (!existingAdmin) {
                 const hashed = await bcrypt.hash(adminPassword, 12);
                 await prisma.user.create({
-                    data: { email: adminEmail, password: hashed },
+                    data: { email: adminEmail, password: hashed, tenantId, role: 'OWNER', emailVerified: new Date() },
                 });
                 console.log(`Created admin user: ${adminEmail}`);
             } else {
@@ -52,7 +67,7 @@ async function seed() {
         }
 
         // 2. Seed tables if none exist
-        const tableCount = await prisma.table.count();
+        const tableCount = await prisma.table.count({ where: { tenantId } });
 
         if (tableCount === 0) {
             console.log('No tables found, seeding tables from floor plan...');
@@ -66,6 +81,7 @@ async function seed() {
                 width: t.width,
                 height: t.height,
                 rotation: t.rotation ?? 0,
+                tenantId,
             }));
 
             await prisma.table.createMany({
@@ -82,7 +98,7 @@ async function seed() {
         //    defaults" uniquely identifies pre-geometry rows. Never touches editor changes.
         for (const t of FLOOR_PLAN_DATA) {
             await prisma.table.updateMany({
-                where: { name: t.id, width: 60, height: 60, rotation: 0 },
+                where: { tenantId, name: t.id, width: 60, height: 60, rotation: 0 },
                 data: {
                     x: t.x,
                     y: t.y,
@@ -95,19 +111,19 @@ async function seed() {
         }
         console.log('Backfilled table geometry from floor plan constants.');
 
-        // 4. Ensure singleton settings row exists.
+        // 4. Ensure settings row exists for the default tenant.
         await prisma.restaurantSettings.upsert({
-            where: { id: 1 },
+            where: { tenantId },
             update: {},
-            create: { id: 1 },
+            create: { tenantId },
         });
         console.log('Ensured restaurant settings row.');
 
         // 5. Backfill adjacency edges from the canonical map (idempotent).
         //    Only seeds when no manual edges exist yet — never overwrites editor changes.
-        const linkCount = await prisma.tableLink.count();
+        const linkCount = await prisma.tableLink.count({ where: { a: { tenantId } } });
         if (linkCount === 0) {
-            const dbTables = await prisma.table.findMany({ select: { id: true, name: true } });
+            const dbTables = await prisma.table.findMany({ where: { tenantId }, select: { id: true, name: true } });
             const idByName = new Map(dbTables.map(t => [t.name, t.id]));
             const seen = new Set<string>();
             const edges: { aId: number; bId: number }[] = [];

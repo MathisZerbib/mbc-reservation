@@ -36,13 +36,15 @@ export const MAX_BOOKINGS_PER_TABLE = 3;
  */
 export async function getAvailableTables(
     requestedStart: Date,
-    requestedEnd: Date
+    requestedEnd: Date,
+    tenantId: string
 ) {
-    const allTables = await prisma.table.findMany();
+    const allTables = await prisma.table.findMany({ where: { tenantId } });
 
     // Fetch ALL overlapping bookings in one query
     const overlappingBookings = await prisma.booking.findMany({
         where: {
+            tenantId,
             status: { not: 'CANCELLED' },
             AND: [
                 { startTime: { lt: requestedEnd } },
@@ -87,14 +89,15 @@ export async function getAvailableTables(
  * the same table as free.
  */
 export async function createReservation(input: CreateReservationInput) {
-    const { name, phone, email, language, size, startTime, lowTable } = input;
+    const { name, phone, email, language, size, startTime, lowTable, tenantId } = input;
     const endTime = addMinutes(startTime, RESERVATION_DURATION);
-    const adjacency = await getAdjacencyMap();
+    const adjacency = await getAdjacencyMap(tenantId);
 
     return prisma.$transaction(async (tx) => {
         // 1. Find all conflicting bookings inside the transaction
         const conflictingBookings = await tx.booking.findMany({
             where: {
+                tenantId,
                 status: { not: 'CANCELLED' },
                 AND: [
                     { startTime: { lt: endTime } },
@@ -110,7 +113,7 @@ export async function createReservation(input: CreateReservationInput) {
             )
         );
 
-        const allTables = await tx.table.findMany();
+        const allTables = await tx.table.findMany({ where: { tenantId } });
         const availableTables = allTables.filter(t => !occupiedIds.has(t.id));
 
         // 2. Find best table combination
@@ -134,6 +137,7 @@ export async function createReservation(input: CreateReservationInput) {
                 startTime,
                 endTime,
                 lowTable: lowTable || false,
+                tenantId,
                 tables: {
                     connect: combination ? combination.map((t: any) => ({ id: t.id })) : []
                 }
@@ -288,10 +292,10 @@ export function findTableCombination(size: number, availableTables: any[], adjac
 // 4️⃣  SUGGESTION ENGINE
 // ──────────────────────────────────────────
 
-export async function getSuggestions(date: string, size: number, requestedTime: string) {
+export async function getSuggestions(date: string, size: number, requestedTime: string, tenantId: string) {
     const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
     const suggestions: string[] = [];
-    const adjacency = await getAdjacencyMap();
+    const adjacency = await getAdjacencyMap(tenantId);
 
     // Sort slots by proximity to requested time
     const requestedMinutes = timeToMinutes(requestedTime);
@@ -311,7 +315,7 @@ export async function getSuggestions(date: string, size: number, requestedTime: 
         const end = addMinutes(start.toDate(), RESERVATION_DURATION);
 
 
-        const availableTables = await getAvailableTables(start.toDate(), end);
+        const availableTables = await getAvailableTables(start.toDate(), end, tenantId);
         const combination = findTableCombination(size, availableTables, adjacency);
 
         if (combination) {
