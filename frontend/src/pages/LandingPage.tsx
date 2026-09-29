@@ -120,7 +120,7 @@ const Hero = () => {
                         {t('landing.hero.cta')} →
                     </a>
                     <Link
-                        to={`/b/${DEFAULT_TENANT_SLUG}`}
+                        to={`/${DEFAULT_TENANT_SLUG}`}
                         className="text-sm font-bold text-slate-200 underline-offset-4 transition-colors hover:text-white hover:underline"
                     >
                         {t('landing.hero.book')} →

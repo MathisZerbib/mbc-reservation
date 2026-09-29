@@ -18,10 +18,7 @@ export const ServerWakeNotice: React.FC<{ className?: string }> = ({ className }
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
-        if (status !== 'waking' && status !== 'checking') {
-            setProgress(100);
-            return;
-        }
+        if (status !== 'waking' && status !== 'checking') return;
         const startedAt = Date.now();
         const timer = window.setInterval(() => {
             const elapsed = Date.now() - startedAt;

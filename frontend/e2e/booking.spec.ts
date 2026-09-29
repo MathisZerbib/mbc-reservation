@@ -7,11 +7,11 @@ test.describe('public booking (read-only probes)', () => {
     });
     test('/book redirects to the default restaurant page', async ({ page }) => {
         await page.goto('/book');
-        await expect(page).toHaveURL(/\/b\/[^/]+$/);
+        await expect(page).toHaveURL(/\/mbc$/);
     });
 
     test('restaurant booking page renders the widget', async ({ page }) => {
-        await page.goto('/b/mbc');
+        await page.goto('/mbc');
         await expect(page.getByText(/book a table|réserver/i).first()).toBeVisible({ timeout: 60_000 });
     });
 

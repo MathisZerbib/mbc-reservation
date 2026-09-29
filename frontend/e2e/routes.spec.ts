@@ -22,7 +22,12 @@ test.describe('landing and public routes', () => {
     });
 
     test('unknown paths show the 404 page', async ({ page }) => {
-        await page.goto('/nope-not-a-route');
+        await page.goto('/nope/not-a-route');
+        await expect(page.getByText('404')).toBeVisible();
+    });
+
+    test('reserved words are not treated as restaurants', async ({ page }) => {
+        await page.goto('/landing');
         await expect(page.getByText('404')).toBeVisible();
     });
 

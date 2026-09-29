@@ -28,7 +28,7 @@ describe('LandingPage', () => {
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Vos réservations, enfin Faci-Table');
         expect(screen.getByRole('link', { name: /Essai gratuit/i })).toHaveAttribute('href', '/register');
         expect(screen.getByRole('link', { name: /Découvrir Faci-Table/i })).toHaveAttribute('href', '#features');
-        expect(screen.getByRole('link', { name: /Réserver une table/i })).toHaveAttribute('href', '/b/mbc');
+        expect(screen.getByRole('link', { name: /Réserver une table/i })).toHaveAttribute('href', '/mbc');
         expect(screen.getByRole('link', { name: /Espace manager/i })).toHaveAttribute('href', '/login');
 
         // Features + How it works

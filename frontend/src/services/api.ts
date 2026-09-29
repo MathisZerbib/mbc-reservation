@@ -104,8 +104,11 @@ export const api = {
     getTenant: () =>
         client.get<TenantContext>('/tenants/me', { auth: true }),
 
-    updateTenant: (data: { name?: string; onboardingComplete?: boolean }) =>
+    updateTenant: (data: { name?: string; slug?: string; onboardingComplete?: boolean }) =>
         client.patch<TenantContext>('/tenants/me', { body: data, auth: true }),
+
+    checkSlug: (slug: string) =>
+        client.get<{ slug: string; available: boolean }>('/tenants/slug-available', { params: { slug } }),
 
     fetchBookings: () =>
         client.get<Booking[]>('/bookings', { auth: true }),

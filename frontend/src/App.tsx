@@ -215,7 +215,8 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/book" element={<BookingPage />} />
-          <Route path="/b/:slug" element={<BookingPage />} />
+          {/* Clean public booking URL: mbc-reservation.vercel.app/le-petit-cafe */}
+          <Route path="/:slug" element={<BookingPage />} />
           {/* Authenticated product */}
           <Route element={<ProtectedRoutes />}>
             <Route element={<BookingsProvider><Outlet /></BookingsProvider>}>
