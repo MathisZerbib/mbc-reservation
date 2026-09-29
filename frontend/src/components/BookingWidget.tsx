@@ -233,7 +233,7 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                 className="flex items-center gap-1.5 text-indigo-600 font-bold tracking-widest text-[9px] uppercase"
               >
                 <Sparkles className="w-2.5 h-2.5" />
-                Premium Experience
+                {t.premium_experience}
               </motion.div>
               <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none">{t.title}</h2>
             </div>

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
+import { LangToggle } from '../components/LangToggle';
 import { useTranslation, type TranslationKey } from '../i18n/useTranslation';
 import { DEFAULT_TENANT_SLUG } from '../utils/tenant';
 import { BookingWidget } from '../components/BookingWidget';
@@ -99,12 +100,15 @@ const SiteHeader = () => {
                     ))}
                 </div>
 
-                <Link
-                    to="/login"
-                    className="text-[13px] font-bold text-slate-300 transition-colors hover:text-white"
-                >
-                    {t('landing.hero.login')}
-                </Link>
+                <div className="flex items-center gap-3 sm:gap-5">
+                    <LangToggle variant="dark" />
+                    <Link
+                        to="/login"
+                        className="text-[13px] font-bold text-slate-300 transition-colors hover:text-white"
+                    >
+                        {t('landing.hero.login')}
+                    </Link>
+                </div>
             </nav>
         </header>
     );
@@ -180,7 +184,7 @@ const Hero = () => {
                     className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-indigo-300 backdrop-blur"
                 >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Restaurant reservations · real-time
+                    {t('landing.hero.badge')}
                 </motion.span>
 
                 <motion.h1

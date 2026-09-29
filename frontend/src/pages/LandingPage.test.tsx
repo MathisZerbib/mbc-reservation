@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, it, expect, beforeAll } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import LandingPage from './LandingPage';
@@ -14,15 +15,22 @@ beforeAll(() => {
     } as unknown as typeof IntersectionObserver;
 });
 
+// The language now persists, so each case starts from a known state.
+beforeEach(() => window.localStorage.clear());
+afterEach(() => window.localStorage.clear());
+
+const renderLanding = () =>
+    render(
+        <MemoryRouter>
+            <LanguageProvider>
+                <LandingPage />
+            </LanguageProvider>
+        </MemoryRouter>
+    );
+
 describe('LandingPage', () => {
     it('renders the hero headline, CTA and feature sections', () => {
-        render(
-            <MemoryRouter>
-                <LanguageProvider>
-                    <LandingPage />
-                </LanguageProvider>
-            </MemoryRouter>
-        );
+        renderLanding();
 
         // Hero (default language is French)
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Vos réservations, enfin Faci-Table');
@@ -43,13 +51,7 @@ describe('LandingPage', () => {
     });
 
     it('keeps a single primary call to action, the rest is navigation', () => {
-        const { container } = render(
-            <MemoryRouter>
-                <LanguageProvider>
-                    <LandingPage />
-                </LanguageProvider>
-            </MemoryRouter>
-        );
+        const { container } = renderLanding();
 
         // The booking widget owns buttons of its own, so the rule is scoped to
         // the hero: one filled CTA plus one supporting link, and no manager
@@ -70,5 +72,39 @@ describe('LandingPage', () => {
                 .getAllByRole('link')
                 .map(link => link.getAttribute('href'))
         ).toContain('/login');
+    });
+
+    it('switches the whole page to English and remembers the choice', async () => {
+        const user = userEvent.setup();
+        const { unmount } = renderLanding();
+
+        // The landing page was French-only in practice: the switcher existed
+        // on the form pages but not here.
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+            'Vos réservations, enfin Faci-Table'
+        );
+
+        await user.click(screen.getByRole('button', { name: 'English' }));
+
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+            'Your reservations, finally Faci-Table'
+        );
+        expect(screen.getByRole('link', { name: /Start free trial/i })).toHaveAttribute(
+            'href',
+            '/register'
+        );
+        expect(screen.getByRole('link', { name: /Manager area/i })).toHaveAttribute('href', '/login');
+        expect(
+            screen.getByRole('heading', { level: 2, name: 'Try the demo restaurant!' })
+        ).toBeInTheDocument();
+        expect(screen.getByText('Party Size')).toBeInTheDocument();
+        expect(screen.queryByText('Testez la disponibilité du restaurant demo !')).toBeNull();
+
+        // A reload must not bounce the visitor back to French.
+        unmount();
+        renderLanding();
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+            'Your reservations, finally Faci-Table'
+        );
     });
 });
