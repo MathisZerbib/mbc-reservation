@@ -36,7 +36,9 @@ describe('LandingPage', () => {
         expect(screen.getByRole('heading', { level: 2, name: 'Opérationnel en 3 étapes' })).toBeInTheDocument();
 
         // Live booking teaser embeds the real widget
-        expect(screen.getByRole('heading', { level: 2, name: 'Testez la disponibilité' })).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { level: 2, name: 'Testez la disponibilité du restaurant demo !' })
+        ).toBeInTheDocument();
         expect(screen.getByText('Taille du groupe')).toBeInTheDocument();
     });
 

@@ -104,7 +104,7 @@ export const TRANSLATIONS = {
                 },
             },
             teaser: {
-                title: 'Check availability live',
+                title: 'Try the demo restaurant!',
                 subtitle: 'Pick a date and party size — the answer is instant.',
                 warming: 'The booking widget unlocks as soon as the server is awake.',
             },
@@ -500,7 +500,7 @@ export const TRANSLATIONS = {
                 },
             },
             teaser: {
-                title: 'Testez la disponibilité',
+                title: 'Testez la disponibilité du restaurant demo !',
                 subtitle: 'Choisissez une date et le nombre de couverts — la réponse est immédiate.',
                 warming: 'Le module de réservation se débloque dès que le serveur est prêt.',
             },
