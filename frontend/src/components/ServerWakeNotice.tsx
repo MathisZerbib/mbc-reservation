@@ -7,15 +7,18 @@ import { useTranslation } from '../i18n/useTranslation';
 import { cn } from '../lib/utils';
 
 /**
- * Slim banner shown while the Render backend is cold-starting
+ * Slim banner shown only when the Render backend is genuinely cold-starting
  * (up to ~50s). A determinate bar with staged copy, capped at 90%, so the
  * wait reads as progress; it only completes when /health actually answers.
+ *
+ * Renders nothing while the health probe is still in flight: on a warm
+ * server this banner must never appear, not even for a frame.
  */
 export const ServerWakeNotice: React.FC<{ className?: string }> = ({ className }) => {
-    const { status, progress } = useBackendWake();
+    const { status, progress, isWaiting } = useBackendWake();
     const { t } = useTranslation();
 
-    if (status === 'ready') return null;
+    if (!isWaiting) return null;
     const degraded = status === 'degraded';
 
     return (

@@ -50,4 +50,23 @@ test.describe('landing and public routes', () => {
         // …and lifts once /health finally answers.
         await expect(page.getByText(/débloque|unlocks/i)).toBeHidden({ timeout: 30_000 });
     });
+
+    test('a healthy backend shows no loading state at all', async ({ page }) => {
+        // /health answers immediately: neither the landing widget nor the
+        // login notice may show a progress bar, even for a frame.
+        await page.goto('/');
+        await expect(page.getByRole('progressbar')).toHaveCount(0);
+        await expect(page.getByText(/débloque|unlocks/i)).toHaveCount(0);
+        // Give the probe time to resolve and settle, then check again.
+        await page.waitForTimeout(4_000);
+        await expect(page.getByRole('progressbar')).toHaveCount(0);
+        await expect(page.getByText(/débloque|unlocks/i)).toHaveCount(0);
+
+        await page.goto('/login');
+        await page.waitForTimeout(4_000);
+        await expect(page.getByRole('progressbar')).toHaveCount(0);
+        await expect(page.getByText(/réveil du serveur|waking/i)).toHaveCount(0);
+        // The form is usable straight away.
+        await expect(page.getByLabel(/email/i)).toBeVisible();
+    });
 });

@@ -26,8 +26,9 @@ describe('WakeProgress', () => {
 
 describe('wakeStageKey', () => {
     it('advances the copy as the estimate climbs', () => {
-        expect(wakeStageKey(0, false)).toBe('landing.wake.connecting');
-        expect(wakeStageKey(30, false)).toBe('landing.wake.waking');
+        // The UI only appears once the wait is long, so it never says "connecting".
+        expect(wakeStageKey(0, false)).toBe('landing.wake.waking');
+        expect(wakeStageKey(45, false)).toBe('landing.wake.waking');
         expect(wakeStageKey(80, false)).toBe('landing.wake.almost');
     });
 

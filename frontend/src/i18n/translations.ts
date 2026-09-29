@@ -76,7 +76,6 @@ export const TRANSLATIONS = {
                 availability: 'Availability',
             },
             wake: {
-                connecting: 'Reaching the reservation server…',
                 waking: 'Waking the server up — the first load is the slow one.',
                 almost: 'Almost ready, warming the last tables…',
             },
@@ -474,7 +473,6 @@ export const TRANSLATIONS = {
                 availability: 'Disponibilités',
             },
             wake: {
-                connecting: 'Connexion au serveur de réservation…',
                 waking: 'Réveil du serveur — le premier chargement est le plus lent.',
                 almost: 'Presque prêt, on réchauffe les dernières tables…',
             },
