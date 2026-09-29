@@ -3,11 +3,12 @@ import dayjs from 'dayjs';
 import fs from 'fs';
 import path from 'path';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const APP_NAME = 'Faci-Table';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 const GOOGLE_MAPS_REVIEW_URL = 'https://maps.app.goo.gl/i3thQjdrRsSruqNN9';
+
+/** Lazily constructed so importing this module never requires a live API key. */
+const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
 const logoBuffer = fs.readFileSync(
     path.join(__dirname, '../../public/images/mbc-logo.png')
@@ -25,7 +26,7 @@ export const emailService = {
         }
 
         try {
-            const { data, error } = await resend.emails.send({
+            const { data, error } = await getResend().emails.send({
                 from: `${APP_NAME} <${FROM_EMAIL}>`,
                 to: email,
                 subject: `Verify your email — ${APP_NAME}`,
@@ -172,7 +173,7 @@ export const emailService = {
         }
 
         try {
-            const { data, error } = await resend.emails.send({
+            const { data, error } = await getResend().emails.send({
                 from: `Micro-brasserie de Chamonix <${FROM_EMAIL}>`,
                 to: booking.email,
                 subject: c.subject,
@@ -294,7 +295,7 @@ export const emailService = {
         };
         const c = content[lang as Lang] || content['fr'];
         try {
-            const { data, error } = await resend.emails.send({
+            const { data, error } = await getResend().emails.send({
                 from: `Micro-brasserie de Chamonix <${FROM_EMAIL}>`,
                 to: booking.email,
                 subject: c.subject,
