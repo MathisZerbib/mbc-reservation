@@ -78,13 +78,12 @@ const SiteHeader = () => {
     const { t } = useTranslation();
 
     return (
-        <header className="sticky top-0 z-50 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
+        <header className="sticky top-0 z-50 border-b border-slate-200 bg-slate-50">
             <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
                 <a
                     href="#top"
-                    className="flex items-center gap-2 text-sm font-black tracking-tight text-white"
+                    className="text-sm font-black tracking-tight text-slate-900"
                 >
-                    <span className="h-2 w-2 rounded-full bg-indigo-400 shadow-[0_0_12px_2px_rgba(129,140,248,0.7)]" />
                     Faci-Table
                 </a>
 
@@ -93,7 +92,7 @@ const SiteHeader = () => {
                         <a
                             key={href}
                             href={href}
-                            className="text-[13px] font-bold text-slate-400 transition-colors hover:text-white"
+                            className="text-[13px] font-bold text-slate-600 transition-colors hover:text-slate-900"
                         >
                             {t(key)}
                         </a>
@@ -101,10 +100,10 @@ const SiteHeader = () => {
                 </div>
 
                 <div className="flex items-center gap-3 sm:gap-5">
-                    <LangToggle variant="dark" />
+                    <LangToggle />
                     <Link
                         to="/login"
-                        className="text-[13px] font-bold text-slate-300 transition-colors hover:text-white"
+                        className="text-[13px] font-bold text-slate-600 transition-colors hover:text-slate-900"
                     >
                         {t('landing.hero.login')}
                     </Link>
@@ -150,9 +149,7 @@ const HeroTitle = ({ text }: { text: string }) => {
         <>
             {lead}
             {lead ? ' ' : null}
-            <span className="bg-gradient-to-r from-indigo-300 via-sky-200 to-emerald-300 bg-clip-text text-transparent">
-                {accent}
-            </span>
+            <span className="text-indigo-600">{accent}</span>
         </>
     );
 };
@@ -163,15 +160,13 @@ const Hero = () => {
     return (
         <section
             id="top"
-            className="relative flex min-h-[calc(100svh-4rem)] flex-col overflow-hidden bg-slate-950 text-white"
+            className="relative flex min-h-[calc(100svh-4rem)] flex-col overflow-hidden border-b border-slate-200 bg-slate-50 text-slate-900"
         >
-            {/* Decorative background: drifting aurora + dot grid + film grain */}
-            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-                <div className="absolute -top-40 -left-32 h-96 w-96 animate-drift rounded-full bg-indigo-600/30 blur-3xl motion-reduce:animate-none" />
-                <div className="absolute top-1/3 -right-40 h-[28rem] w-[28rem] animate-drift rounded-full bg-emerald-500/10 blur-3xl motion-reduce:animate-none [animation-delay:-6s]" />
-                <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:28px_28px]" />
-                <div className="absolute inset-0 opacity-[0.035] mix-blend-overlay [background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>')]" />
-            </div>
+            {/* Structural grid: a single hairline lattice, no ornament on top. */}
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,theme(colors.slate.200)_1px,transparent_1px),linear-gradient(to_bottom,theme(colors.slate.200)_1px,transparent_1px)] [background-size:72px_72px] opacity-60"
+            />
 
             <motion.div
                 variants={stagger}
@@ -181,22 +176,21 @@ const Hero = () => {
             >
                 <motion.span
                     variants={fadeUp}
-                    className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-indigo-300 backdrop-blur"
+                    className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-slate-600"
                 >
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     {t('landing.hero.badge')}
                 </motion.span>
 
                 <motion.h1
                     variants={fadeUp}
-                    className="max-w-4xl text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl"
+                    className="max-w-4xl text-5xl font-black leading-[1.05] tracking-tight text-slate-900 sm:text-6xl lg:text-7xl"
                 >
                     <HeroTitle text={t('landing.hero.title')} />
                 </motion.h1>
 
                 <motion.p
                     variants={fadeUp}
-                    className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg"
+                    className="mt-6 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg"
                 >
                     {t('landing.hero.subtitle')}
                 </motion.p>
@@ -206,15 +200,15 @@ const Hero = () => {
                     <Button
                         asChild
                         size="lg"
-                        className="h-13 rounded-full bg-indigo-500 px-9 text-base font-black text-white shadow-[0_18px_45px_-15px_rgba(99,102,241,0.9)] transition-transform hover:bg-indigo-400 active:scale-[0.98]"
+                        className="h-13 rounded-lg bg-indigo-600 px-9 text-base font-black text-white shadow-sm transition-colors hover:bg-indigo-700"
                     >
                         <Link to="/register">{t('landing.hero.trial')}</Link>
                     </Button>
                     <Link
                         to={`/${DEFAULT_TENANT_SLUG}`}
-                        className="group text-sm font-bold text-slate-300 underline-offset-8 transition-colors hover:text-white"
+                        className="group text-sm font-bold text-slate-600 underline-offset-8 transition-colors hover:text-slate-900"
                     >
-                        <span className="underline decoration-white/20 decoration-1 underline-offset-8 transition-colors group-hover:decoration-white/60">
+                        <span className="underline decoration-slate-300 decoration-1 underline-offset-8 transition-colors group-hover:decoration-slate-500">
                             {t('landing.hero.book')}
                         </span>
                         <span className="inline-block transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0">
@@ -231,15 +225,15 @@ const Hero = () => {
                         <motion.div
                             key={titleKey}
                             variants={fadeUp}
-                            className="group flex flex-col items-start gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-left backdrop-blur transition-colors duration-500 hover:border-indigo-400/30 hover:bg-white/[0.06]"
+                            className="flex flex-col items-start gap-3 rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm"
                         >
-                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-slate-900/60 text-indigo-300 transition-transform duration-500 group-hover:-translate-y-0.5 group-hover:text-indigo-200 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
-                                <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                                <Icon className="h-5 w-5" aria-hidden="true" />
                             </span>
-                            <dt className="text-sm font-black tracking-tight text-white">
+                            <dt className="text-sm font-black tracking-tight text-slate-900">
                                 {t(titleKey)}
                             </dt>
-                            <dd className="text-xs leading-relaxed text-slate-400">{t(descKey)}</dd>
+                            <dd className="text-xs leading-relaxed text-slate-600">{t(descKey)}</dd>
                         </motion.div>
                     ))}
                 </motion.dl>
@@ -250,11 +244,11 @@ const Hero = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1, duration: 0.8 }}
-                className="relative z-10 mx-auto mb-10 hidden flex-col items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 transition-colors hover:text-white sm:flex"
+                className="relative z-10 mx-auto mb-10 hidden flex-col items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 transition-colors hover:text-slate-700 sm:flex"
             >
                 {t('landing.hero.scroll')}
-                <span className="relative block h-10 w-px overflow-hidden bg-white/15">
-                    <span className="absolute inset-x-0 top-0 h-4 animate-scroll-cue bg-gradient-to-b from-transparent via-indigo-300 to-transparent motion-reduce:animate-none" />
+                <span className="relative block h-10 w-px overflow-hidden bg-slate-200">
+                    <span className="absolute inset-x-0 top-0 h-4 animate-scroll-cue bg-slate-500 motion-reduce:animate-none" />
                 </span>
             </motion.a>
         </section>
@@ -385,17 +379,13 @@ const AvailabilityTeaser = () => {
     const blocked = status !== 'ready';
 
     return (
-        <section id="availability" className="relative overflow-hidden bg-slate-950 py-20 text-white sm:py-24">
-            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-                <div className="absolute -bottom-40 left-1/4 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
-            </div>
-
+        <section id="availability" className="bg-slate-900 py-20 text-white sm:py-24">
             <motion.div
                 variants={stagger}
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true, margin: '-80px' }}
-                className="relative z-10 mx-auto max-w-3xl px-4 sm:px-6"
+                className="mx-auto max-w-3xl px-4 sm:px-6"
             >
                 <motion.div variants={fadeUp} className="text-center">
                     <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
@@ -418,10 +408,10 @@ const AvailabilityTeaser = () => {
                                     transition={{ duration: 0.3 }}
                                     className="absolute inset-0 z-10 flex items-start justify-center px-6 pt-14"
                                 >
-                                    <div className="absolute inset-0 rounded-3xl bg-slate-950/70 backdrop-blur-[3px]" aria-hidden="true" />
+                                    <div className="absolute inset-0 rounded-3xl bg-slate-900/85" aria-hidden="true" />
                                     <div
                                         role="status"
-                                        className="relative w-full max-w-xs rounded-2xl border border-white/10 bg-slate-900/90 px-5 py-4 shadow-2xl backdrop-blur"
+                                        className="relative w-full max-w-xs rounded-xl border border-slate-700 bg-slate-900 px-5 py-4 shadow-lg"
                                     >
                                         <WakeProgress
                                             progress={progress}

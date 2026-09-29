@@ -220,9 +220,7 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
         animate={{ opacity: 1, y: 0 }}
         className="relative group box-glow"
       >
-        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-emerald-500/20 rounded-[3rem] blur-xl opacity-50 group-hover:opacity-100 transition duration-1000"></div>
-
-        <div className="relative bg-white/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border border-white/50 overflow-hidden flex flex-col">
+        <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
 
           {/* Header */}
           <div className="p-6 pb-2 flex justify-between items-start">
@@ -300,15 +298,14 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                           value={formData.size}
                           onCommit={size => setFormData({ ...formData, size })}
                           aria-label={t.guests}
-                          className="w-full bg-slate-50/50 border-2 border-slate-100 hover:border-indigo-100 rounded-3xl p-6 text-5xl font-black text-center text-slate-900 focus:border-indigo-500/30 focus:bg-white focus:shadow-xl focus:shadow-indigo-500/5 transition-all outline-none"
+                          className="w-full bg-slate-50/50 border-2 border-slate-100 hover:border-indigo-100 rounded-3xl p-6 text-5xl font-black text-center text-slate-900 focus:border-indigo-500/30 focus:bg-white focus:border-indigo-500 transition-colors outline-none"
                         />
                       </div>
                       <button
                         onClick={() => nextStep(2)}
                         disabled={formData.size < 1 || formData.size > 60}
-                        className="bg-slate-900 text-white p-6 rounded-3xl font-black hover:bg-indigo-600 disabled:opacity-20 transition-all shadow-xl active:scale-95 group/btn h-20 aspect-square flex items-center justify-center cursor-pointer overflow-hidden relative"
+                        className="bg-slate-900 text-white p-6 rounded-3xl font-black hover:bg-indigo-600 disabled:opacity-20 transition-colors active:scale-95 group/btn h-20 aspect-square flex items-center justify-center cursor-pointer overflow-hidden relative"
                       >
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
                         <ArrowRight className="w-8 h-8 group-hover/btn:translate-x-1 transition-transform" />
                       </button>
                     </div>
@@ -460,9 +457,8 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                     <button
                       onClick={handleCheckAvailability}
                       disabled={loading || fetchingAvailability || !formData.startTime || dayjs(`${formData.date} ${formData.startTime}`).isBefore(dayjs()) || (availableTimes[formData.startTime] === false)}
-                      className="flex-2 bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-20 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 text-xs cursor-pointer relative overflow-hidden group/btn"
+                      className="flex-2 bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-indigo-600 disabled:opacity-20 transition-colors active:scale-95 flex items-center justify-center gap-2 text-xs cursor-pointer relative overflow-hidden group/btn"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity" />
                       {loading || fetchingAvailability ? <div className="loading-dots italic">{t.checking || 'Checking...'}</div> : <>{t.check} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>}
                     </button>
                   </div>
@@ -511,7 +507,7 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                               <span className="text-xs font-bold text-slate-600">{selectedCountry.dial}</span>
                             </button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-68 p-0 bg-white/95 backdrop-blur-xl border-slate-100 shadow-2xl rounded-2xl overflow-hidden" align="start">
+                          <PopoverContent className="w-68 p-0 bg-white border-slate-200 shadow-lg rounded-xl overflow-hidden" align="start">
                             <div className="p-2 border-b border-slate-100 bg-slate-50/50">
                               <div className="relative group/search">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/search:text-indigo-500 transition-colors" />
@@ -664,9 +660,8 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                     <button
                       onClick={handleBook}
                       disabled={loading || !validation.isStep3Valid || !token}
-                      className="flex-2 bg-emerald-600 text-white p-4 rounded-2xl font-black hover:bg-emerald-500 disabled:opacity-20 transition-all shadow-xl shadow-emerald-500/10 text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95 relative overflow-hidden group"
+                      className="flex-2 bg-emerald-600 text-white p-4 rounded-2xl font-black hover:bg-emerald-500 disabled:opacity-20 transition-colors text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                       {loading ? `${t.processing}...` : <>{t.book} <Check className="w-4 h-4 group-hover:scale-110 transition-transform" /></>}
                     </button>
                   </div>
