@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../i18n/LanguageContext';
@@ -38,5 +38,35 @@ describe('LandingPage', () => {
         // Live booking teaser embeds the real widget
         expect(screen.getByRole('heading', { level: 2, name: 'Testez la disponibilité' })).toBeInTheDocument();
         expect(screen.getByText('Taille du groupe')).toBeInTheDocument();
+    });
+
+    it('keeps a single primary call to action, the rest is navigation', () => {
+        const { container } = render(
+            <MemoryRouter>
+                <LanguageProvider>
+                    <LandingPage />
+                </LanguageProvider>
+            </MemoryRouter>
+        );
+
+        // The booking widget owns buttons of its own, so the rule is scoped to
+        // the hero: one filled CTA plus one supporting link, and no manager
+        // link competing with it — that moved to the header.
+        const hero = container.querySelector('#top') as HTMLElement;
+        const heroHrefs = within(hero)
+            .getAllByRole('link')
+            .map(link => link.getAttribute('href'));
+
+        expect(within(hero).queryAllByRole('button')).toHaveLength(0);
+        expect(heroHrefs).toContain('/register');
+        expect(heroHrefs).toContain('/mbc');
+        expect(heroHrefs).not.toContain('/login');
+
+        const header = container.querySelector('header') as HTMLElement;
+        expect(
+            within(header)
+                .getAllByRole('link')
+                .map(link => link.getAttribute('href'))
+        ).toContain('/login');
     });
 });

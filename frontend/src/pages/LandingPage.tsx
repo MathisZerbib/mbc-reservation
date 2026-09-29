@@ -11,6 +11,8 @@ import { Card } from '../components/ui/card';
 import { useTranslation, type TranslationKey } from '../i18n/useTranslation';
 import { DEFAULT_TENANT_SLUG } from '../utils/tenant';
 import { BookingWidget } from '../components/BookingWidget';
+import { WakeProgress } from '../components/WakeProgress';
+import { wakeStageKey } from '../lib/wakeStage';
 import { useBackendWake } from '../hooks/useBackendStatus';
 import { cn } from '../lib/utils';
 
@@ -58,30 +60,105 @@ const stagger: Variants = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Header — the only persistent navigation, so the hero can carry a    */
+/* single call to action instead of a wall of buttons.                  */
+/* ------------------------------------------------------------------ */
+
+const NAV_LINKS: { href: string; key: TranslationKey }[] = [
+    { href: '#features', key: 'landing.hero.cta' },
+    { href: '#how', key: 'landing.nav.how' },
+    { href: '#availability', key: 'landing.nav.availability' },
+];
+
+const SiteHeader = () => {
+    const { t } = useTranslation();
+
+    return (
+        <header className="sticky top-0 z-50 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
+            <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
+                <a
+                    href="#top"
+                    className="flex items-center gap-2 text-sm font-black tracking-tight text-white"
+                >
+                    <span className="h-2 w-2 rounded-full bg-indigo-400 shadow-[0_0_12px_2px_rgba(129,140,248,0.7)]" />
+                    Faci-Table
+                </a>
+
+                <div className="hidden items-center gap-8 md:flex">
+                    {NAV_LINKS.map(({ href, key }) => (
+                        <a
+                            key={href}
+                            href={href}
+                            className="text-[13px] font-bold text-slate-400 transition-colors hover:text-white"
+                        >
+                            {t(key)}
+                        </a>
+                    ))}
+                </div>
+
+                <Link
+                    to="/login"
+                    className="text-[13px] font-bold text-slate-300 transition-colors hover:text-white"
+                >
+                    {t('landing.hero.login')}
+                </Link>
+            </nav>
+        </header>
+    );
+};
+
+/* ------------------------------------------------------------------ */
 /* Hero                                                                */
 /* ------------------------------------------------------------------ */
+
+const HERO_STATS: { valueKey: TranslationKey; labelKey: TranslationKey }[] = [
+    { valueKey: 'landing.hero.stats.speed.value', labelKey: 'landing.hero.stats.speed.label' },
+    { valueKey: 'landing.hero.stats.doubleBooking.value', labelKey: 'landing.hero.stats.doubleBooking.label' },
+    { valueKey: 'landing.hero.stats.uptime.value', labelKey: 'landing.hero.stats.uptime.label' },
+];
+
+/** Emphasises the product name at the end of the headline. */
+const HeroTitle = ({ text }: { text: string }) => {
+    const cut = text.lastIndexOf(' ');
+    const lead = cut === -1 ? '' : text.slice(0, cut);
+    const accent = cut === -1 ? text : text.slice(cut + 1);
+
+    return (
+        <>
+            {lead}
+            {lead ? ' ' : null}
+            <span className="bg-gradient-to-r from-indigo-300 via-sky-200 to-emerald-300 bg-clip-text text-transparent">
+                {accent}
+            </span>
+        </>
+    );
+};
 
 const Hero = () => {
     const { t } = useTranslation();
 
     return (
-        <section className="relative flex min-h-svh flex-col overflow-hidden bg-slate-950 text-white">
-            {/* Decorative background: brand blobs + dot grid */}
+        <section
+            id="top"
+            className="relative flex min-h-[calc(100svh-4rem)] flex-col overflow-hidden bg-slate-950 text-white"
+        >
+            {/* Decorative background: drifting aurora + dot grid + film grain */}
             <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-                <div className="absolute -top-40 -left-32 h-96 w-96 rounded-full bg-indigo-600/30 blur-3xl" />
-                <div className="absolute top-1/3 -right-40 h-[28rem] w-[28rem] rounded-full bg-emerald-500/10 blur-3xl" />
+                <div className="absolute -top-40 -left-32 h-96 w-96 animate-drift rounded-full bg-indigo-600/30 blur-3xl motion-reduce:animate-none" />
+                <div className="absolute top-1/3 -right-40 h-[28rem] w-[28rem] animate-drift rounded-full bg-emerald-500/10 blur-3xl motion-reduce:animate-none [animation-delay:-6s]" />
                 <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:28px_28px]" />
+                <div className="absolute inset-0 opacity-[0.035] mix-blend-overlay [background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>')]" />
             </div>
 
             <motion.div
                 variants={stagger}
                 initial="hidden"
                 animate="visible"
-                className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-4 py-24 text-center sm:px-6"
+                className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-4 py-20 text-center sm:px-6"
             >
                 <motion.span
                     variants={fadeUp}
-                    className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-indigo-300"
+                    className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-indigo-300 backdrop-blur"
                 >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     Restaurant reservations · real-time
@@ -89,51 +166,73 @@ const Hero = () => {
 
                 <motion.h1
                     variants={fadeUp}
-                    className="max-w-3xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl"
+                    className="max-w-4xl text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl"
                 >
-                    {t('landing.hero.title')}
+                    <HeroTitle text={t('landing.hero.title')} />
                 </motion.h1>
 
                 <motion.p
                     variants={fadeUp}
-                    className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg"
+                    className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg"
                 >
                     {t('landing.hero.subtitle')}
                 </motion.p>
 
-                <motion.div
-                    variants={fadeUp}
-                    className="mt-9 flex flex-col items-center gap-4 sm:flex-row"
-                >
+                {/* One primary action, one supporting link. Nothing else. */}
+                <motion.div variants={fadeUp} className="mt-10 flex flex-col items-center gap-5">
                     <Button
                         asChild
                         size="lg"
-                        className="h-12 rounded-2xl bg-indigo-500 px-8 text-base font-black text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
+                        className="h-13 rounded-full bg-indigo-500 px-9 text-base font-black text-white shadow-[0_18px_45px_-15px_rgba(99,102,241,0.9)] transition-transform hover:bg-indigo-400 active:scale-[0.98]"
                     >
-                        <Link to="/register">
-                            {t('landing.hero.trial')}
-                        </Link>
+                        <Link to="/register">{t('landing.hero.trial')}</Link>
                     </Button>
-                    <a
-                        href="#features"
-                        className="text-sm font-bold text-slate-200 underline-offset-4 transition-colors hover:text-white hover:underline"
-                    >
-                        {t('landing.hero.cta')} →
-                    </a>
                     <Link
                         to={`/${DEFAULT_TENANT_SLUG}`}
-                        className="text-sm font-bold text-slate-200 underline-offset-4 transition-colors hover:text-white hover:underline"
+                        className="group text-sm font-bold text-slate-300 underline-offset-8 transition-colors hover:text-white"
                     >
-                        {t('landing.hero.book')} →
-                    </Link>
-                    <Link
-                        to="/login"
-                        className="text-sm font-bold text-slate-400 transition-colors hover:text-white"
-                    >
-                        {t('landing.hero.login')} →
+                        <span className="underline decoration-white/20 decoration-1 underline-offset-8 transition-colors group-hover:decoration-white/60">
+                            {t('landing.hero.book')}
+                        </span>
+                        <span className="inline-block transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0">
+                            {' '}→
+                        </span>
                     </Link>
                 </motion.div>
+
+                <motion.dl
+                    variants={stagger}
+                    className="mt-16 grid w-full max-w-3xl grid-cols-1 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/5 sm:grid-cols-3"
+                >
+                    {HERO_STATS.map(({ valueKey, labelKey }) => (
+                        <motion.div
+                            key={valueKey}
+                            variants={fadeUp}
+                            className="flex flex-col-reverse items-center gap-1.5 bg-slate-950/40 px-6 py-6 backdrop-blur"
+                        >
+                            <dt className="text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                {t(labelKey)}
+                            </dt>
+                            <dd className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                                {t(valueKey)}
+                            </dd>
+                        </motion.div>
+                    ))}
+                </motion.dl>
             </motion.div>
+
+            <motion.a
+                href="#features"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1, duration: 0.8 }}
+                className="relative z-10 mx-auto mb-10 hidden flex-col items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 transition-colors hover:text-white sm:flex"
+            >
+                {t('landing.hero.scroll')}
+                <span className="relative block h-10 w-px overflow-hidden bg-white/15">
+                    <span className="absolute inset-x-0 top-0 h-4 animate-scroll-cue bg-gradient-to-b from-transparent via-indigo-300 to-transparent motion-reduce:animate-none" />
+                </span>
+            </motion.a>
         </section>
     );
 };
@@ -198,7 +297,7 @@ const HowItWorks = () => {
     const { t } = useTranslation();
 
     return (
-        <section className="bg-white py-20 sm:py-24">
+        <section id="how" className="bg-white py-20 sm:py-24">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <motion.div
                     variants={stagger}
@@ -262,7 +361,7 @@ const AvailabilityTeaser = () => {
     const blocked = status !== 'ready';
 
     return (
-        <section className="relative overflow-hidden bg-slate-950 py-20 text-white sm:py-24">
+        <section id="availability" className="relative overflow-hidden bg-slate-950 py-20 text-white sm:py-24">
             <div className="pointer-events-none absolute inset-0" aria-hidden="true">
                 <div className="absolute -bottom-40 left-1/4 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
             </div>
@@ -293,21 +392,21 @@ const AvailabilityTeaser = () => {
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
                                     transition={{ duration: 0.3 }}
-                                    className="absolute inset-0 z-10 flex items-start justify-center pt-16"
+                                    className="absolute inset-0 z-10 flex items-start justify-center px-6 pt-14"
                                 >
-                                    <div className="absolute inset-0 rounded-3xl bg-slate-950/60 backdrop-blur-[2px]" aria-hidden="true" />
-                                    <div className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/90 px-5 py-3 shadow-2xl">
-                                        <div className="h-8 w-8 rounded-full border-2 border-indigo-500/30 border-t-indigo-400 animate-spin" aria-hidden="true" />
-                                        <div className="flex flex-col">
-                                            <span className="text-xs font-black text-white">
-                                                {status === 'degraded' ? t('server.unreachable') : t('landing.teaser.warming')}
-                                            </span>
-                                            {status !== 'degraded' && (
-                                                <span className="text-[11px] font-bold text-indigo-300 tabular-nums">
-                                                    {t('server.warming').replace('{n}', String(progress))}
-                                                </span>
-                                            )}
-                                        </div>
+                                    <div className="absolute inset-0 rounded-3xl bg-slate-950/70 backdrop-blur-[3px]" aria-hidden="true" />
+                                    <div
+                                        role="status"
+                                        className="relative w-full max-w-xs rounded-2xl border border-white/10 bg-slate-900/90 px-5 py-4 shadow-2xl backdrop-blur"
+                                    >
+                                        <WakeProgress
+                                            progress={progress}
+                                            label={t(wakeStageKey(progress, status === 'degraded'))}
+                                            percentLabel={t('server.warming').replace('{n}', String(progress))}
+                                        />
+                                        <p className="mt-3 text-[11px] font-bold leading-relaxed text-slate-400">
+                                            {status === 'degraded' ? t('server.unreachable') : t('landing.teaser.warming')}
+                                        </p>
                                     </div>
                                 </motion.div>
                             )}
@@ -328,6 +427,7 @@ export default function LandingPage() {
 
     return (
         <div className="min-h-screen bg-white antialiased">
+            <SiteHeader />
             <Hero />
             <Features />
             <HowItWorks />

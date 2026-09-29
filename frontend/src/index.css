@@ -40,6 +40,9 @@ html {
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-sheen: sheen 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-drift: drift 18s ease-in-out infinite;
+  --animate-scroll-cue: scroll-cue 2s ease-in-out infinite;
 
   @keyframes accordion-down {
     from {
@@ -64,6 +67,42 @@ html {
 
 .perspective-1000 {
   perspective: 1000px;
+}
+
+/* Specular highlight travelling across the wake progress bar. */
+@keyframes sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  60%,
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+/* Slow ambient drift for the hero aurora blobs. */
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(3%, -4%, 0) scale(1.08);
+  }
+}
+
+/* Highlight sliding down the hero scroll cue. */
+@keyframes scroll-cue {
+  0% {
+    transform: translateY(-100%);
+  }
+
+  60%,
+  100% {
+    transform: translateY(250%);
+  }
 }
 
 .box-glow {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { healthUrl } from '../services/api';
 
 export type BackendStatus = 'checking' | 'waking' | 'ready' | 'degraded';
@@ -16,6 +16,9 @@ const TIME_CONSTANT_MS = 15_000;
 export function useBackendWake(): { status: BackendStatus; progress: number } {
     const [status, setStatus] = useState<BackendStatus>('checking');
     const [progress, setProgress] = useState(0);
+    // One clock per wake attempt. The status flips checking → waking halfway
+    // through, and restarting the estimate there made the bar jump backwards.
+    const startedAt = useRef<number | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -45,10 +48,14 @@ export function useBackendWake(): { status: BackendStatus; progress: number } {
     }, []);
 
     useEffect(() => {
-        if (status !== 'waking' && status !== 'checking') return;
-        const startedAt = Date.now();
+        if (status === 'ready' || status === 'degraded') {
+            startedAt.current = null;
+            return;
+        }
+        startedAt.current ??= Date.now();
+        const since = startedAt.current;
         const timer = window.setInterval(() => {
-            const elapsed = Date.now() - startedAt;
+            const elapsed = Date.now() - since;
             setProgress(Math.min(DISPLAY_CAP, Math.round(DISPLAY_CAP * (1 - Math.exp(-elapsed / TIME_CONSTANT_MS)))));
         }, 500);
         return () => window.clearInterval(timer);
