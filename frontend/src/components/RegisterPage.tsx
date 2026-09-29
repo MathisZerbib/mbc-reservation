@@ -6,7 +6,6 @@ import { TURNSTILE_SITE_KEY } from '../utils/turnstile';
 import { api } from '../services/api';
 import { useTranslation } from '../i18n/useTranslation';
 import { LangToggle } from './LangToggle';
-import { ServerWakeNotice } from './ServerWakeNotice';
 
 export function RegisterPage() {
   const { t } = useTranslation();
@@ -88,7 +87,6 @@ export function RegisterPage() {
             </h1>
             <span className="text-slate-500 text-sm">{t('register.subtitle')}</span>
           </div>
-          <ServerWakeNotice />
           <div className="flex flex-col gap-2">
             <label htmlFor="restaurant" className="text-slate-700 font-medium">
               {t('register.restaurant')}
