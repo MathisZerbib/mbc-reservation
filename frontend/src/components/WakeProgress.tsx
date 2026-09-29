@@ -58,22 +58,16 @@ export const WakeProgress: React.FC<WakeProgressProps> = ({
                 aria-label={label}
                 className={cn(
                     'relative h-1.5 w-full overflow-hidden rounded-full',
-                    light ? 'bg-slate-900/10 ring-1 ring-inset ring-slate-900/10' : 'bg-white/10 ring-1 ring-inset ring-white/10'
+                    light ? 'bg-slate-900/10 ring-1 ring-inset ring-slate-900/10' : 'bg-white/15 ring-1 ring-inset ring-white/15'
                 )}
             >
                 <div
                     className={cn(
                         'absolute inset-y-0 left-0 rounded-full',
-                        'bg-gradient-to-r from-indigo-500 via-sky-300 to-emerald-300',
-                        'shadow-[0_0_18px_-4px_rgba(56,189,248,0.8)]',
+                        light ? 'bg-indigo-600' : 'bg-indigo-400',
                         'transition-[width] duration-700 ease-out motion-reduce:transition-none'
                     )}
                     style={{ width: `${value}%` }}
-                />
-                {/* Specular highlight: an ongoing signal that the wait is alive. */}
-                <span
-                    aria-hidden="true"
-                    className="absolute inset-y-0 left-0 w-1/3 animate-sheen bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent)] motion-reduce:animate-none"
                 />
             </div>
         </div>
