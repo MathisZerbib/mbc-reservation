@@ -1,9 +1,18 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../i18n/LanguageContext';
+import { api } from '../services/api';
 import LandingPage from './LandingPage';
+
+// Only the marketing counter is mocked: the booking teaser needs the real client.
+vi.mock('../services/api', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../services/api')>();
+    return { ...actual, api: { ...actual.api, getOnboardedRestaurants: vi.fn() } };
+});
+
+const countMock = api.getOnboardedRestaurants as Mock;
 
 // framer-motion's whileInView relies on IntersectionObserver (absent in jsdom).
 beforeAll(() => {
@@ -16,7 +25,11 @@ beforeAll(() => {
 });
 
 // The language now persists, so each case starts from a known state.
-beforeEach(() => window.localStorage.clear());
+beforeEach(() => {
+    window.localStorage.clear();
+    countMock.mockReset();
+    countMock.mockResolvedValue({ count: 0 });
+});
 afterEach(() => window.localStorage.clear());
 
 const renderLanding = () =>
@@ -37,7 +50,8 @@ describe('LandingPage', () => {
         expect(screen.getByRole('link', { name: /Essai gratuit/i })).toHaveAttribute('href', '/register');
         expect(screen.getByRole('link', { name: /Découvrir Faci-Table/i })).toHaveAttribute('href', '#features');
         expect(screen.getByRole('link', { name: /Réserver une table/i })).toHaveAttribute('href', '/mbc');
-        expect(screen.getByRole('link', { name: /Espace manager/i })).toHaveAttribute('href', '/login');
+        expect(screen.getByRole('link', { name: /Ouvrir l'app/i })).toHaveAttribute('href', '/login');
+        expect(screen.getByText(/Gratuit à vie pour les 10 premiers restaurants/i)).toBeInTheDocument();
 
         // Features + How it works
         expect(screen.getByRole('heading', { level: 2, name: 'Une salle qui respire' })).toBeInTheDocument();
@@ -74,6 +88,31 @@ describe('LandingPage', () => {
         ).toContain('/login');
     });
 
+    it('shows the real number of restaurants, and hides zero', async () => {
+        countMock.mockResolvedValue({ count: 7 });
+        renderLanding();
+
+        expect(await screen.findByText('7 restaurants déjà en service')).toBeInTheDocument();
+        expect(countMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the singular form for one restaurant', async () => {
+        countMock.mockResolvedValue({ count: 1 });
+        renderLanding();
+
+        expect(await screen.findByText('1 restaurant déjà en service')).toBeInTheDocument();
+    });
+
+    it('keeps the offer visible when the counter is unavailable', async () => {
+        countMock.mockRejectedValue(new Error('network down'));
+        renderLanding();
+
+        // The claim is static, so a failing API must not take it down.
+        expect(screen.getByText(/Gratuit à vie pour les 10 premiers restaurants/i)).toBeInTheDocument();
+        await waitFor(() => expect(countMock).toHaveBeenCalled());
+        expect(screen.queryByText(/déjà en service/i)).toBeNull();
+    });
+
     it('switches the whole page to English and remembers the choice', async () => {
         const user = userEvent.setup();
         const { unmount } = renderLanding();
@@ -107,7 +146,7 @@ describe('LandingPage', () => {
             'href',
             '/register'
         );
-        expect(screen.getByRole('link', { name: /Manager area/i })).toHaveAttribute('href', '/login');
+        expect(screen.getByRole('link', { name: /Open the app/i })).toHaveAttribute('href', '/login');
         expect(
             screen.getByRole('heading', { level: 2, name: 'Try the demo restaurant!' })
         ).toBeInTheDocument();

@@ -3,8 +3,6 @@ import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, Da
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
-/** Root health endpoint (sibling of /api) used for wake detection. */
-
 type RequestOptions = {
     auth?: boolean;
     body?: unknown;
@@ -102,6 +100,10 @@ export const api = {
 
     getTenant: () =>
         client.get<TenantContext>('/tenants/me', { auth: true }),
+
+    /** Public marketing counter shown in the hero. Sandboxes are excluded. */
+    getOnboardedRestaurants: () =>
+        client.get<{ count: number }>('/stats/restaurants'),
 
     updateTenant: (data: { name?: string; slug?: string; onboardingComplete?: boolean }) =>
         client.patch<TenantContext>('/tenants/me', { body: data, auth: true }),
