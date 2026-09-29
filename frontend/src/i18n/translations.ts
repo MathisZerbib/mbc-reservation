@@ -38,9 +38,11 @@ export const TRANSLATIONS = {
         search_country: 'Search country...',
         no_country: 'No matching country',
         language_label: 'Language',
+        premium_experience: 'Premium Experience',
         n_guests: '{n} guests',
         landing: {
             hero: {
+                badge: 'Restaurant reservations · real-time',
                 title: 'Your reservations, finally Faci-Table',
                 subtitle: 'Real-time sync between your dining room and your team. End the chaos of the dinner rush — every table, every slot, to the second.',
                 cta: 'Discover Faci-Table',
@@ -434,9 +436,11 @@ export const TRANSLATIONS = {
         search_country: 'Rechercher un pays...',
         no_country: 'Aucun pays trouvé',
         language_label: 'Langue',
+        premium_experience: 'Expérience Premium',
         n_guests: '{n} couverts',
         landing: {
             hero: {
+                badge: 'Réservations de restaurant · temps réel',
                 title: 'Vos réservations, enfin Faci-Table',
                 subtitle: 'La synchronisation temps réel entre votre salle et votre équipe. Fini le chaos du coup de feu : chaque table, chaque créneau, à la seconde près.',
                 cta: 'Découvrir Faci-Table',
