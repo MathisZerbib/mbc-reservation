@@ -10,6 +10,7 @@ import { BookingPage } from './components/BookingPage';
 import { TableAssignmentPage } from './components/TableAssignmentPage';
 import { SettingsPage } from './components/SettingsPage';
 import { FloorPlanEditor } from './components/FloorPlanEditor';
+import LandingPage from './pages/LandingPage';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { AdminQuickReservation } from './components/AdminQuickReservation';
 import { LoginPage } from './components/LoginPage';
@@ -200,6 +201,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LoginPage />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/book" element={<BookingPage />} />
           <Route element={<ProtectedRoutes />}>
             <Route element={<BookingsProvider><Outlet /></BookingsProvider>}>

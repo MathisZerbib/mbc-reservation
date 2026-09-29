@@ -31,7 +31,60 @@ export const TRANSLATIONS = {
         error: 'Something went wrong.',
         back: 'Back',
         low_table: 'Prefer Low Table',
-        suggested_slots: 'Available nearby times:'
+        suggested_slots: 'Available nearby times:',
+        landing: {
+            hero: {
+                title: 'Your reservations, finally Faci-Table',
+                subtitle: 'Real-time sync between your dining room and your team. End the chaos of the dinner rush — every table, every slot, to the second.',
+                cta: 'Discover Faci-Table',
+                login: 'Manager area',
+            },
+            features: {
+                title: 'A dining room that breathes',
+                subtitle: 'Faci-Table unites your reservations, floor plan and team in a single real-time flow.',
+                realtime: {
+                    title: 'Real-time availability',
+                    desc: 'Socket.IO syncs service, floor and bookings instantly — no double bookings, no wasted phone calls.',
+                },
+                smart: {
+                    title: 'Smart suggestions',
+                    desc: 'The suggestion engine seats every party at the best table to maximise covers without overcrowding the room.',
+                },
+                mobile: {
+                    title: 'Seamless experience',
+                    desc: 'Mobile-first: your staff run the floor from any phone, standing, mid-service.',
+                },
+            },
+            how: {
+                title: 'Live in 3 steps',
+                step1: {
+                    title: 'Configure your floor plan',
+                    desc: 'Import your tables, shapes and adjacencies — your room, exactly as it is.',
+                },
+                step2: {
+                    title: 'Receive bookings in real time',
+                    desc: 'Every confirmation lands live on the map and on your team’s phones.',
+                },
+                step3: {
+                    title: 'Optimise your turnover',
+                    desc: 'Track occupancy and average ticket, then squeeze every prime-time slot.',
+                },
+            },
+            teaser: {
+                title: 'Check availability live',
+                subtitle: 'Pick a date and party size — the answer is instant.',
+                datePlaceholder: 'Pick a date',
+                guestsPlaceholder: 'Party size',
+                check: 'Check availability',
+                loading: 'Searching…',
+                error: 'The booking service is temporarily unavailable.',
+                slotsTitle: 'Today’s availability',
+                slotCta: 'Book this slot',
+            },
+            footer: {
+                rights: 'All rights reserved.',
+            },
+        },
     },
     fr: {
         intro: 'Réservez votre table en quelques clics',
@@ -63,6 +116,59 @@ export const TRANSLATIONS = {
         error: 'Une erreur est survenue.',
         back: 'Retour',
         low_table: 'Préférence table basse',
-        suggested_slots: 'Horaires disponibles proches\u00A0:'
-    }
+        suggested_slots: 'Horaires disponibles proches\u00A0:',
+        landing: {
+            hero: {
+                title: 'Vos réservations, enfin Faci-Table',
+                subtitle: 'La synchronisation temps réel entre votre salle et votre équipe. Fini le chaos du coup de feu : chaque table, chaque créneau, à la seconde près.',
+                cta: 'Découvrir Faci-Table',
+                login: 'Espace manager',
+            },
+            features: {
+                title: 'Une salle qui respire',
+                subtitle: 'Faci-Table réunit vos réservations, votre plan de salle et votre équipe dans un seul flux, en temps réel.',
+                realtime: {
+                    title: 'Disponibilité en temps réel',
+                    desc: 'Socket.IO synchronise le service, la salle et les réservations instantanément — plus de double booking, plus d\u2019appel inutile.',
+                },
+                smart: {
+                    title: 'Suggestions intelligentes',
+                    desc: 'Le moteur de suggestion place chaque groupe à la meilleure table pour maximiser le couvert sans saturer la salle.',
+                },
+                mobile: {
+                    title: 'Expérience sans friction',
+                    desc: 'Pensé mobile-first : votre équipe gère la salle depuis n\u2019importe quel téléphone, debout, en plein service.',
+                },
+            },
+            how: {
+                title: 'Opérationnel en 3 étapes',
+                step1: {
+                    title: 'Configurez votre plan de salle',
+                    desc: 'Importez vos tables, vos formes et vos adjacences — votre salle, à l\u2019identique.',
+                },
+                step2: {
+                    title: 'Recevez vos réservations en direct',
+                    desc: 'Chaque confirmation arrive en temps réel sur la carte et sur les téléphones de l\u2019équipe.',
+                },
+                step3: {
+                    title: 'Optimisez votre chiffre',
+                    desc: 'Suivez l\u2019occupation et le panier moyen, puis serrez les créneaux à fort potentiel.',
+                },
+            },
+            teaser: {
+                title: 'Testez la disponibilité',
+                subtitle: 'Choisissez une date et le nombre de couverts — la réponse est immédiate.',
+                datePlaceholder: 'Choisir une date',
+                guestsPlaceholder: 'Couverts',
+                check: 'Vérifier la disponibilité',
+                loading: 'Recherche en cours…',
+                error: 'Le service de réservation est momentanément indisponible.',
+                slotsTitle: 'Disponibilités du jour',
+                slotCta: 'Réserver ce créneau',
+            },
+            footer: {
+                rights: 'Tous droits réservés.',
+            },
+        },
+    },
 };
