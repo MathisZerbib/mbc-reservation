@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
 interface NumberFieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
     /** Committed numeric value owned by the parent. */
@@ -25,14 +25,15 @@ export const NumberField: React.FC<NumberFieldProps> = ({
     ...rest
 }) => {
     const [draft, setDraft] = useState(String(value));
+    const [lastCommitted, setLastCommitted] = useState(value);
 
-    // Follow external commits (e.g. quick-size buttons, reset).
-    useEffect(() => {
-        setDraft(prev => {
-            const committed = Number(prev);
-            return prev === '' || committed !== value ? String(value) : prev;
-        });
-    }, [value]);
+    // Follow external commits (quick-size buttons, reset) without
+    // touching in-progress typing: only resyncs when the parent value
+    // actually changed. Render-phase adjustment (React-endorsed pattern).
+    if (value !== lastCommitted) {
+        setLastCommitted(value);
+        setDraft(String(value));
+    }
 
     const commit = (raw: string) => {
         if (raw.trim() === '') return;
