@@ -47,6 +47,21 @@ export const TRANSLATIONS = {
                 trial: 'Start free trial',
                 book: 'Book a table',
                 login: 'Manager area',
+                scroll: 'Scroll',
+                stats: {
+                    speed: { value: '< 3 s', label: 'Average availability response' },
+                    doubleBooking: { value: '0', label: 'Double bookings since launch' },
+                    uptime: { value: '24/7', label: 'Live availability, every service' },
+                },
+            },
+            nav: {
+                how: 'How it works',
+                availability: 'Availability',
+            },
+            wake: {
+                connecting: 'Reaching the reservation server…',
+                waking: 'Waking the server up — the first load is the slow one.',
+                almost: 'Almost ready, warming the last tables…',
             },
             features: {
                 title: 'A dining room that breathes',
@@ -419,6 +434,21 @@ export const TRANSLATIONS = {
                 trial: 'Essai gratuit',
                 book: 'Réserver une table',
                 login: 'Espace manager',
+                scroll: 'Défiler',
+                stats: {
+                    speed: { value: '< 3 s', label: 'Temps de réponse moyen' },
+                    doubleBooking: { value: '0', label: 'Double réservation depuis le lancement' },
+                    uptime: { value: '24/7', label: 'Disponibilités en direct, à chaque service' },
+                },
+            },
+            nav: {
+                how: 'Fonctionnement',
+                availability: 'Disponibilités',
+            },
+            wake: {
+                connecting: 'Connexion au serveur de réservation…',
+                waking: 'Réveil du serveur — le premier chargement est le plus lent.',
+                almost: 'Presque prêt, on réchauffe les dernières tables…',
             },
             features: {
                 title: 'Une salle qui respire',
