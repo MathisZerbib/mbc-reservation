@@ -21,12 +21,15 @@ test.describe('demo app smoke', () => {
         // to settle, then assert where it really landed.
         await expect(page).not.toHaveURL(/\/login$/, { timeout: 60_000 });
         await page.waitForTimeout(4_000);
-        await expect(page).toHaveURL(/\/(app\/dashboard|onboarding)$/);
+        // The dashboard mirrors its selected date into the query string, so
+        // match the path and let a trailing `?date=…` through — anchoring on
+        // `$` raced that effect and failed intermittently.
+        await expect(page).toHaveURL(/\/(app\/dashboard|onboarding)(\?|$)/);
 
         // The dashboard is the target, but the onboarding gate is legitimate
         // behaviour driven by the sandbox tenant's state — assert whichever
         // surface rendered, not a transient URL.
-        if (/\/onboarding$/.test(page.url())) {
+        if (/\/onboarding(\?|$)/.test(page.url())) {
             await expect(page.getByRole('heading', { level: 1 })).toContainText('Faci-Table');
             return;
         }

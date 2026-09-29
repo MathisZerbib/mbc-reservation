@@ -54,7 +54,11 @@ export const TRANSLATIONS = {
                 cta: 'Discover Faci-Table',
                 trial: 'Start free trial',
                 book: 'Book a table',
-                login: 'Manager area',
+                login: 'Open the app',
+                // Keep 10 in sync with LIFETIME_FREE_SLOTS (backend).
+                lifetime: 'Free for life for the first 10 restaurants — no card required.',
+                onboardedOne: '{n} restaurant already onboarded',
+                onboardedMany: '{n} restaurants already onboarded',
                 scroll: 'Scroll',
                 highlights: {
                     embed: {
@@ -441,7 +445,11 @@ export const TRANSLATIONS = {
                 cta: 'Découvrir Faci-Table',
                 trial: 'Essai gratuit',
                 book: 'Réserver une table',
-                login: 'Espace manager',
+                login: "Ouvrir l'app",
+                // Keep 10 in sync with LIFETIME_FREE_SLOTS (backend).
+                lifetime: 'Gratuit à vie pour les 10 premiers restaurants — sans carte bancaire.',
+                onboardedOne: '{n} restaurant déjà en service',
+                onboardedMany: '{n} restaurants déjà en service',
                 scroll: 'Défiler',
                 highlights: {
                     embed: {

@@ -2,6 +2,45 @@ import { prisma } from '../lib/prisma';
 
 export const TRIAL_DAYS = 14;
 
+/**
+ * Public promise: the first N real restaurants keep access for life, everyone
+ * after that gets the standard trial. Advertised on the landing page, so the
+ * grant has to be enforced here rather than in a campaign.
+ */
+export const LIFETIME_FREE_SLOTS = 10;
+
+/** "For life" as a timestamp: ~100 years out, not an infinite date. */
+export const LIFETIME_TRIAL_DAYS = 36500;
+
+/**
+ * Seed/demo tenants. They are not customers, so they must not eat a lifetime
+ * slot nor show up in the "restaurants onboarded" count. Overridable so a
+ * staging sandbox can be excluded too.
+ */
+export function sandboxSlugs(): Set<string> {
+    return new Set(
+        (process.env.SANDBOX_TENANT_SLUGS ?? 'mbc,demo,demo-restaurant')
+            .split(',')
+            .map((slug) => slug.trim().toLowerCase())
+            .filter(Boolean)
+    );
+}
+
+/** Real restaurants — the number quoted on the landing page. */
+export async function countCustomerTenants(): Promise<number> {
+    return prisma.tenant.count({ where: { slug: { notIn: [...sandboxSlugs()] } } });
+}
+
+/** Pure entitlement rule, unit-testable: slots left → lifetime, else trial. */
+export function trialDaysFor(onboardedCount: number): number {
+    return onboardedCount < LIFETIME_FREE_SLOTS ? LIFETIME_TRIAL_DAYS : TRIAL_DAYS;
+}
+
+/** Lifetime access while slots remain, standard trial afterwards. */
+export async function resolveTrialDays(): Promise<number> {
+    return trialDaysFor(await countCustomerTenants());
+}
+
 /** URL-safe slug from a restaurant name ("Le Petit Café" → "le-petit-cafe"). */
 export function slugify(name: string): string {
     const base = name
@@ -54,14 +93,19 @@ export function isTrialActive(trialEndsAt: Date, now: Date = new Date()): boolea
     return trialEndsAt.getTime() > now.getTime();
 }
 
-/** Creates a tenant with a fresh trial plus its settings row. */
-export async function createTenant(name: string, trialDays: number = TRIAL_DAYS) {
+/**
+ * Creates a tenant with a fresh trial plus its settings row. The trial length
+ * defaults to what the restaurant is entitled to; pass it explicitly for
+ * sandboxes (the demo tenant) that should not consume a lifetime slot.
+ */
+export async function createTenant(name: string, trialDays?: number) {
     const slug = await uniqueSlug(name);
+    const days = trialDays ?? (await resolveTrialDays());
     return prisma.tenant.create({
         data: {
             name: name.trim().substring(0, 60),
             slug,
-            trialEndsAt: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
+            trialEndsAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
             settings: { create: {} },
         },
         include: { settings: true },

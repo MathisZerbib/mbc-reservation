@@ -1,20 +1,22 @@
+import { useEffect, useState } from 'react';
 import { motion, type Variants } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import {
-    Sparkles,
-    Smartphone,
-    Zap,
-    Puzzle,
     Map,
+    Puzzle,
     ShieldCheck,
+    Smartphone,
+    Sparkles,
+    Zap,
     type LucideIcon,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BookingWidget } from '../components/BookingWidget';
+import { LangToggle } from '../components/LangToggle';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
-import { LangToggle } from '../components/LangToggle';
 import { useTranslation, type TranslationKey } from '../i18n/useTranslation';
+import { api } from '../services/api';
 import { DEFAULT_TENANT_SLUG } from '../utils/tenant';
-import { BookingWidget } from '../components/BookingWidget';
 
 /* ------------------------------------------------------------------ */
 /* Local data — i18n keys resolved at render through t()              */
@@ -150,8 +152,35 @@ const HeroTitle = ({ text }: { text: string }) => {
     );
 };
 
+/**
+ * Real signup count for the hero. Best-effort: a failed or slow counter must
+ * never block the page, and zero is not social proof, so nothing is rendered
+ * until there is a real restaurant to count.
+ */
+const useOnboardedRestaurants = () => {
+    const [count, setCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        let active = true;
+        api
+            .getOnboardedRestaurants()
+            .then(({ count: total }) => {
+                if (active) setCount(total);
+            })
+            .catch(() => {
+                /* counter unavailable: the hero claim still stands on its own */
+            });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    return count;
+};
+
 const Hero = () => {
     const { t } = useTranslation();
+    const onboarded = useOnboardedRestaurants();
 
     return (
         <section
@@ -161,7 +190,7 @@ const Hero = () => {
             {/* Structural grid: a single hairline lattice, no ornament on top. */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,theme(colors.slate.200)_1px,transparent_1px),linear-gradient(to_bottom,theme(colors.slate.200)_1px,transparent_1px)] [background-size:72px_72px] opacity-60"
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,var(--color-slate-200)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-slate-200)_1px,transparent_1px)] bg-size-[72px_72px] opacity-60"
             />
 
             <motion.div
@@ -212,6 +241,23 @@ const Hero = () => {
                         </span>
                     </Link>
                 </motion.div>
+
+                {/* The offer, stated plainly, then proof — only once there is
+                    a real restaurant to prove it with. */}
+                <motion.p variants={fadeUp} className="mt-6 text-sm font-bold text-slate-600">
+                    {t('landing.hero.lifetime')}
+                </motion.p>
+                {onboarded !== null && onboarded > 0 ? (
+                    <motion.p
+                        variants={fadeUp}
+                        className="mt-1.5 text-sm font-medium text-slate-500"
+                    >
+                        {(onboarded === 1
+                            ? t('landing.hero.onboardedOne')
+                            : t('landing.hero.onboardedMany')
+                        ).replace('{n}', String(onboarded))}
+                    </motion.p>
+                ) : null}
 
                 <motion.dl
                     variants={stagger}
