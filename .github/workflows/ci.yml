@@ -57,13 +57,22 @@ jobs:
           name: frontend-coverage
           path: frontend/coverage/lcov.info
 
+  # The suite runs against the build of *this* commit served locally, not the
+  # production URL. Production is only the API target (read-only probes): a
+  # feature branch's e2e must not depend on the deploy that ships it, otherwise
+  # every UI commit goes red until it is merged and Vercel finishes building.
   e2e:
-    name: e2e (prod smoke, read-only)
+    name: e2e (built app + prod API, read-only)
     runs-on: ubuntu-latest
     needs: [backend, frontend]
     defaults:
       run:
         working-directory: frontend
+    env:
+      E2E_BASE_URL: http://localhost:5173
+      E2E_API_URL: https://mbc-reservation.onrender.com/api
+      VITE_API_URL: https://mbc-reservation.onrender.com/api
+      VITE_SOCKET_URL: https://mbc-reservation.onrender.com
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -73,11 +82,20 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      # `vite preview` on 5173 keeps the origin inside the backend CORS
+      # allowlist (http://localhost:5173) and serves the SPA fallback the
+      # client-side routes need.
+      - name: Serve the built app
+        run: |
+          npx vite preview --port 5173 --strictPort &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:5173/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "preview server did not start" && exit 1
       # @budget tests spend production rate-limit budget — run them locally only.
       - run: npx playwright test --grep-invert @budget
-        env:
-          E2E_BASE_URL: https://mbc-reservation.vercel.app
-          E2E_API_URL: https://mbc-reservation.onrender.com/api
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
