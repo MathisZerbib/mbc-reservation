@@ -1,4 +1,4 @@
-import { motion, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
     Sparkles,
@@ -11,7 +11,8 @@ import { Card } from '../components/ui/card';
 import { useTranslation, type TranslationKey } from '../i18n/useTranslation';
 import { DEFAULT_TENANT_SLUG } from '../utils/tenant';
 import { BookingWidget } from '../components/BookingWidget';
-import { ServerWakeNotice } from '../components/ServerWakeNotice';
+import { useBackendWake } from '../hooks/useBackendStatus';
+import { cn } from '../lib/utils';
 
 /* ------------------------------------------------------------------ */
 /* Local data — i18n keys resolved at render through t()              */
@@ -257,6 +258,8 @@ const HowItWorks = () => {
 
 const AvailabilityTeaser = () => {
     const { t } = useTranslation();
+    const { status, progress } = useBackendWake();
+    const blocked = status !== 'ready';
 
     return (
         <section className="relative overflow-hidden bg-slate-950 py-20 text-white sm:py-24">
@@ -279,8 +282,37 @@ const AvailabilityTeaser = () => {
                 </motion.div>
 
                 <motion.div variants={fadeUp} className="mt-10 flex flex-col items-center gap-4">
-                    <ServerWakeNotice className="w-full max-w-md border-white/10 bg-white/5 text-slate-200" />
-                    <BookingWidget slug={DEFAULT_TENANT_SLUG} />
+                    <div className="relative w-full max-w-md">
+                        <div className={cn(blocked && "pointer-events-none select-none grayscale-[0.4] opacity-70")}>
+                            <BookingWidget slug={DEFAULT_TENANT_SLUG} />
+                        </div>
+                        <AnimatePresence>
+                            {blocked && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="absolute inset-0 z-10 flex items-start justify-center pt-16"
+                                >
+                                    <div className="absolute inset-0 rounded-3xl bg-slate-950/60 backdrop-blur-[2px]" aria-hidden="true" />
+                                    <div className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/90 px-5 py-3 shadow-2xl">
+                                        <div className="h-8 w-8 rounded-full border-2 border-indigo-500/30 border-t-indigo-400 animate-spin" aria-hidden="true" />
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-black text-white">
+                                                {status === 'degraded' ? t('server.unreachable') : t('landing.teaser.warming')}
+                                            </span>
+                                            {status !== 'degraded' && (
+                                                <span className="text-[11px] font-bold text-indigo-300 tabular-nums">
+                                                    {t('server.warming').replace('{n}', String(progress))}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </motion.div>
             </motion.div>
         </section>

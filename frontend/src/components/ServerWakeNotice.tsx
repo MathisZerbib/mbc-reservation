@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Loader2, CloudOff } from 'lucide-react';
-import { useBackendStatus } from '../hooks/useBackendStatus';
+import { useBackendWake } from '../hooks/useBackendStatus';
 import { useTranslation } from '../i18n/useTranslation';
 import { cn } from '../lib/utils';
-
-const DISPLAY_CAP = 90;
-const TIME_CONSTANT_MS = 15_000;
 
 /**
  * Slim banner shown while the Render backend is cold-starting
@@ -13,19 +10,8 @@ const TIME_CONSTANT_MS = 15_000;
  * it only hits 100% when /health actually answers — then disappears.
  */
 export const ServerWakeNotice: React.FC<{ className?: string }> = ({ className }) => {
-    const status = useBackendStatus();
+    const { status, progress } = useBackendWake();
     const { t } = useTranslation();
-    const [progress, setProgress] = useState(0);
-
-    useEffect(() => {
-        if (status !== 'waking' && status !== 'checking') return;
-        const startedAt = Date.now();
-        const timer = window.setInterval(() => {
-            const elapsed = Date.now() - startedAt;
-            setProgress(Math.min(DISPLAY_CAP, Math.round(DISPLAY_CAP * (1 - Math.exp(-elapsed / TIME_CONSTANT_MS)))));
-        }, 500);
-        return () => window.clearInterval(timer);
-    }, [status]);
 
     if (status === 'ready') return null;
 

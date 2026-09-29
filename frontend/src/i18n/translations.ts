@@ -82,13 +82,7 @@ export const TRANSLATIONS = {
             teaser: {
                 title: 'Check availability live',
                 subtitle: 'Pick a date and party size — the answer is instant.',
-                datePlaceholder: 'Pick a date',
-                guestsPlaceholder: 'Party size',
-                check: 'Check availability',
-                loading: 'Searching…',
-                error: 'The booking service is temporarily unavailable.',
-                slotsTitle: 'Today’s availability',
-                slotCta: 'Book this slot',
+                warming: 'The booking widget unlocks as soon as the server is awake.',
             },
             footer: {
                 rights: 'All rights reserved.',
@@ -460,13 +454,7 @@ export const TRANSLATIONS = {
             teaser: {
                 title: 'Testez la disponibilité',
                 subtitle: 'Choisissez une date et le nombre de couverts — la réponse est immédiate.',
-                datePlaceholder: 'Choisir une date',
-                guestsPlaceholder: 'Couverts',
-                check: 'Vérifier la disponibilité',
-                loading: 'Recherche en cours…',
-                error: 'Le service de réservation est momentanément indisponible.',
-                slotsTitle: 'Disponibilités du jour',
-                slotCta: 'Réserver ce créneau',
+                warming: 'Le module de réservation se débloque dès que le serveur est prêt.',
             },
             footer: {
                 rights: 'Tous droits réservés.',

@@ -37,4 +37,17 @@ test.describe('landing and public routes', () => {
         await page.goto('/onboarding');
         await expect(page).toHaveURL(/\/login$/);
     });
+
+    test('landing locks the widget with progress while the backend wakes', async ({ page }) => {
+        await page.route('**/health', async route => {
+            await new Promise(r => setTimeout(r, 12_000));
+            await route.continue();
+        });
+        await page.goto('/');
+        // Lock is up while the backend is unreachable…
+        await expect(page.getByText(/débloque|unlocks/i)).toBeVisible({ timeout: 25_000 });
+        await expect(page.getByText(/%$/)).toBeVisible();
+        // …and lifts once /health finally answers.
+        await expect(page.getByText(/débloque|unlocks/i)).toBeHidden({ timeout: 30_000 });
+    });
 });
