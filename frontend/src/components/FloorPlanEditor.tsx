@@ -4,6 +4,7 @@ import { ChevronLeft, Save, Plus, Trash2, MousePointer2, Link2, Loader2, X } fro
 import { api } from '../services/api';
 import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
+import { NumberField } from './NumberField';
 import { FLOOR_PLAN_DATA, tableShapePath } from '../utils/floorPlanData';
 import type { LayoutTable, LayoutTableType } from '../types/index';
 import { cn } from '../lib/utils';
@@ -208,13 +209,13 @@ export const FloorPlanEditor: React.FC = () => {
     }) => (
         <label className="flex flex-col gap-1">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
-            <input
-                type="number"
+            <NumberField
                 value={value}
+                onCommit={onChange}
                 min={min}
                 max={max}
                 step={step}
-                onChange={e => onChange(Number(e.target.value))}
+                aria-label={label}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             />
         </label>

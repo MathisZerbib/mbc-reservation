@@ -13,6 +13,7 @@ import { cn } from '../lib/utils';
 import { useBookingsContext } from '../context/useBookingsContext';
 import { useTenant } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
+import { NumberField } from './NumberField';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 
 interface AdminQuickReservationProps {
@@ -367,11 +368,11 @@ const getFirstAvailableTime = (date: string) => {
                                                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                                                                 <Users className="w-4 h-4" />
                                                             </div>
-                                                            <input
-                                                                type="number"
-                                                                min="1"
+                                                            <NumberField
+                                                                min={1}
                                                                 value={formData.size}
-                                                                onChange={e => setFormData({ ...formData, size: parseInt(e.target.value) || 1 })}
+                                                                onCommit={size => setFormData({ ...formData, size })}
+                                                                aria-label={t('quickres.guests')}
                                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-12 pr-4 font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
                                                             />
                                                         </div>
