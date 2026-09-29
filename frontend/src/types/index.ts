@@ -29,6 +29,7 @@ export interface CreateBookingPayload {
     lowTable?: boolean;
     startTime: string;
     notify?: boolean;
+    turnstileToken?: string | null;
 }
 
 

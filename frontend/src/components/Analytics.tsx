@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { socket } from '../services/socket';
-import { TrendingUp, TrendingDown, Minus, Users, Clock, Euro, Armchair } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Users, Clock, Euro, Armchair, type LucideIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../i18n/useTranslation';
 import type { Analytics as AnalyticsData } from '../types/index';
@@ -61,7 +61,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
     label: string;
     value: string | number;
     sub?: React.ReactNode;
-    icon: any;
+    icon: LucideIcon;
     color: string;
   }) => (
     <div className="bg-white rounded-[2rem] p-5 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100 flex items-center gap-4 transition-all hover:scale-[1.02] hover:shadow-xl group">

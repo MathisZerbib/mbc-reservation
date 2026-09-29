@@ -8,7 +8,7 @@ vi.mock('../context/useBookingsContext', () => ({
     useBookingsContext: vi.fn(),
 }));
 
-(useBookingsContext as any).mockReturnValue({ bookings: [] });
+(useBookingsContext as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({ bookings: [] });
 
 describe('FloorPlan', () => {
     it('renders tables correctly', () => {

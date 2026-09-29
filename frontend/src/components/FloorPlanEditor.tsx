@@ -224,7 +224,7 @@ export const FloorPlanEditor: React.FC = () => {
         <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex-none px-4 lg:px-6 py-3 flex items-center gap-2 lg:gap-3 bg-white border-b border-slate-200">
-                <Link to="/admin/settings" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <Link to="/app/settings" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                     <ChevronLeft className="w-5 h-5 text-slate-500" />
                 </Link>
                 <h1 className="text-base lg:text-xl font-black text-slate-900 tracking-tight mr-auto">

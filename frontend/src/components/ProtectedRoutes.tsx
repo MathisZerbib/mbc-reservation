@@ -31,7 +31,7 @@ export function ProtectedRoutes() {
                         return;
                     }
                     if (tenant.onboardingComplete && onOnboarding) {
-                        navigate('/admin/dashboard');
+                        navigate('/app/dashboard');
                         return;
                     }
                 }

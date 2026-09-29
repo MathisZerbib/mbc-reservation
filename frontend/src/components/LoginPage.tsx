@@ -5,6 +5,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { api } from '../services/api';
 import { useTranslation } from '../i18n/useTranslation';
 import { LangToggle } from './LangToggle';
+import { ServerWakeNotice } from './ServerWakeNotice';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export function LoginPage() {
         setShowLoader(true);
         localStorage.setItem('token', data.accessToken);
         setTimeout(() => {
-          navigate('/admin/dashboard');
+          navigate('/app/dashboard');
         }, 1800);
       }
     } catch {
@@ -67,7 +68,7 @@ export function LoginPage() {
         setShowLoader(true);
         localStorage.setItem('token', data.accessToken);
         setTimeout(() => {
-          navigate('/admin/dashboard');
+          navigate('/app/dashboard');
         }, 1800);
       }
     } catch {
@@ -107,6 +108,7 @@ export function LoginPage() {
             </h1>
             <span className="text-slate-500 text-sm">{t('login.subtitle')}</span>
           </div>
+          <ServerWakeNotice />
           <div className="flex flex-col gap-2">
             <label htmlFor="email" className="text-slate-700 font-medium">
               {t('login.email')}

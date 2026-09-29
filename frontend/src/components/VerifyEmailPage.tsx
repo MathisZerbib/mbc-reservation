@@ -22,7 +22,7 @@ export function VerifyEmailPage() {
       .then(data => {
         localStorage.setItem('token', data.accessToken);
         setStatus('ok');
-        setTimeout(() => navigate('/admin/dashboard'), 1500);
+        setTimeout(() => navigate('/app/dashboard'), 1500);
       })
       .catch(() => setStatus('err'));
     // eslint-disable-next-line react-hooks/exhaustive-deps

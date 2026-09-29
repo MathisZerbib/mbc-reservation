@@ -142,7 +142,7 @@ const getFirstAvailableTime = (date: string) => {
                 language: formData.language,
                 startTime: formData.date + ' ' + formData.time,
                 notify: formData.notify,
-            } as any, tenant.slug);
+            }, tenant.slug);
             
             await refresh(); // Force refresh of context data before proceeding
             

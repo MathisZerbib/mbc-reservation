@@ -248,7 +248,9 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                   strokeWidth={isHighlighted ? "4" : "2"}
                   onClick={(e) => {
                     e.stopPropagation();
-                    const rect = (e.currentTarget.ownerSVGElement as any).getBoundingClientRect();
+                    const ownerSvg = e.currentTarget.ownerSVGElement;
+                    if (!ownerSvg) return;
+                    const rect = ownerSvg.getBoundingClientRect();
                     setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
                     setHoveredTable(prev => prev === table.id ? null : table.id);
                   }}

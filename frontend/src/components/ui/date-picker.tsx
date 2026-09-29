@@ -17,7 +17,7 @@ interface DatePickerProps {
   placeholder?: string
   className?: string
   disabled?: (date: Date) => boolean
-  modifiers?: Record<string, any>
+  modifiers?: Record<string, Date[]>
   modifiersClassNames?: Record<string, string>
 }
 

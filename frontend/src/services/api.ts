@@ -3,6 +3,9 @@ import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, Da
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
+/** Root health endpoint (sibling of /api) used for wake detection. */
+export const healthUrl = () => `${FILE_BASE_URL}/health`;
+
 type RequestOptions = {
     auth?: boolean;
     body?: unknown;

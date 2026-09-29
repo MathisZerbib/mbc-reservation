@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Clock, Lock } from 'lucide-react';
 import { useTenant } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
@@ -7,9 +7,11 @@ import { useTranslation } from '../i18n/useTranslation';
 export const TrialBanner: React.FC = () => {
     const { tenant } = useTenant();
     const { t } = useTranslation();
+    // Captured once: keeps render pure while freezing "today" for the countdown.
+    const [now] = useState(() => Date.now());
     if (!tenant) return null;
 
-    const daysLeft = Math.ceil((new Date(tenant.trialEndsAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+    const daysLeft = Math.ceil((new Date(tenant.trialEndsAt).getTime() - now) / (24 * 60 * 60 * 1000));
 
     if (tenant.trialActive) {
         if (daysLeft > 3) return null;

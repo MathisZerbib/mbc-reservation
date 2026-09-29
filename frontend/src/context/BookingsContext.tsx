@@ -1,16 +1,7 @@
-import { createContext, type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { useBookings } from '../hooks/useBookings';
 import { socket } from '../services/socket';
-import type { Booking } from '../types';
-
-interface BookingsContextType {
-  bookings: Booking[];
-  loading: boolean;
-  error: string | null;
-  refresh: () => Promise<void>;
-}
-
-export const BookingsContext = createContext<BookingsContextType | null>(null);
+import { BookingsContext } from './BookingsContextInstance';
 
 interface BookingsProviderProps {
   children: ReactNode;

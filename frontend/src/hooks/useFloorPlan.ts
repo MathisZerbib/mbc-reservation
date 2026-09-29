@@ -29,6 +29,8 @@ export function useTenant() {
     }, []);
 
     useEffect(() => {
+        // Fetch-on-mount: intentional data load, not derived state.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         refresh();
         socket.on('settings-update', refresh);
         return () => {
@@ -55,6 +57,7 @@ export function useRestaurantSettings() {
     }, []);
 
     useEffect(() => {
+        // Fetch-on-mount: intentional data load, not derived state.
         refresh();
         socket.on('settings-update', refresh);
         return () => {
@@ -101,6 +104,7 @@ export function useLayoutTables(): LayoutState {
     }, [tenant]);
 
     useEffect(() => {
+        // Fetch-on-mount: intentional data load, not derived state.
         refresh();
         socket.on('floor-plan-update', refresh);
         socket.on('settings-update', refresh);

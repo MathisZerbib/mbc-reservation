@@ -18,6 +18,7 @@ import { LoginPage } from './components/LoginPage';
 import { RegisterPage } from './components/RegisterPage';
 import { VerifyEmailPage } from './components/VerifyEmailPage';
 import { OnboardingPage } from './components/OnboardingPage';
+import { NotFound } from './components/NotFound';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
 import { BookingsProvider } from './context/BookingsContext';
 import { useBookingsContext } from './context/useBookingsContext';
@@ -99,13 +100,13 @@ function AdminDashboard() {
               <span className="text-lg font-black">+</span> <span>{t('dashboard.quickRes')}</span>
             </button>
             <Link 
-              to={`/assign?date=${selectedDate}`} 
+              to={`/app/assign?date=${selectedDate}`} 
               className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-4 lg:px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center text-sm"
             >
               {t('dashboard.assignTables')}
             </Link>
             <Link
-              to="/admin/settings"
+              to="/app/settings"
               className="sm:flex-none p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-sm text-slate-500 hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center"
               title={t('dashboard.settingsTitle')}
             >
@@ -208,22 +209,25 @@ function App() {
     <LanguageProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public marketing + guest flows */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/landing" element={<Navigate to="/" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/book" element={<BookingPage />} />
           <Route path="/b/:slug" element={<BookingPage />} />
+          {/* Authenticated product */}
           <Route element={<ProtectedRoutes />}>
             <Route element={<BookingsProvider><Outlet /></BookingsProvider>}>
                 <Route path="/onboarding" element={<OnboardingPage />} />
-                <Route path="/assign" element={<TableAssignmentPage />} />
-                <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                <Route path="/admin/settings" element={<SettingsPage />} />
-                <Route path="/admin/floor-plan" element={<FloorPlanEditor />} />
+                <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
+                <Route path="/app/dashboard" element={<AdminDashboard />} />
+                <Route path="/app/assign" element={<TableAssignmentPage />} />
+                <Route path="/app/settings" element={<SettingsPage />} />
+                <Route path="/app/floor-plan" element={<FloorPlanEditor />} />
             </Route>
           </Route>
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </LanguageProvider>

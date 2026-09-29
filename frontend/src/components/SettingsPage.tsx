@@ -56,7 +56,7 @@ export const SettingsPage: React.FC = () => {
         <div className="min-h-screen bg-slate-100 p-4 lg:p-8">
             <div className="max-w-3xl mx-auto flex flex-col gap-4">
                 <div className="flex items-center gap-3">
-                    <Link to="/admin/dashboard" className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-900 transition-colors">
+                    <Link to="/app/dashboard" className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-900 transition-colors">
                         <ChevronLeft className="w-5 h-5" />
                     </Link>
                     <div>
@@ -141,7 +141,7 @@ export const SettingsPage: React.FC = () => {
 
                 {/* Floor plan editor */}
                 <Link
-                    to="/admin/floor-plan"
+                    to="/app/floor-plan"
                     className="bg-slate-900 rounded-[2rem] p-6 shadow-xl flex items-center gap-4 hover:bg-slate-800 active:scale-[0.99] transition-all group"
                 >
                     <div className="w-10 h-10 rounded-2xl bg-white/10 text-indigo-300 flex items-center justify-center group-hover:scale-110 transition-transform">

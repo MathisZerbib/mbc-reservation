@@ -86,7 +86,7 @@ export const TableAssignmentPage: React.FC = () => {
 
     const MAX_BOOKINGS_PER_TABLE = 3;
 
-    const countOverlapping = (tableId: string) => {
+    const countOverlapping = React.useCallback((tableId: string) => {
         if (!selectedBooking) return 0;
         const buffer = 15;
         const requestedStart = dayjs(selectedBooking.startTime);
@@ -100,11 +100,11 @@ export const TableAssignmentPage: React.FC = () => {
                 bEnd.isAfter(requestedStart.subtract(buffer, 'minute'));
             return overlaps && b.tables.some(t => t.name === tableId);
         }).length;
-    };
+    }, [selectedBooking, bookings]);
 
-    const isOccupiedByOthers = (tableId: string) => {
+    const isOccupiedByOthers = React.useCallback((tableId: string) => {
         return countOverlapping(tableId) >= MAX_BOOKINGS_PER_TABLE;
-    };
+    }, [countOverlapping]);
 
     const toggleTable = React.useCallback((tableId: string) => {
         if (!selectedBooking || isOccupiedByOthers(tableId)) return;
@@ -244,7 +244,7 @@ export const TableAssignmentPage: React.FC = () => {
                 <div className="p-4 lg:p-6 border-b border-slate-100 bg-slate-900 text-white flex-none relative">
                     <div className="flex items-center justify-between mb-2 lg:mb-4">
                         <div className="flex items-center gap-2">
-                            <a href={`/admin/dashboard?date=${date}`} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
+                                <a href={`/app/dashboard?date=${date}`} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
                                 <ChevronLeft className="w-4 h-4" />
                             </a>
                             <h1 className="text-lg font-bold tracking-tight">{t('assign.title')}</h1>

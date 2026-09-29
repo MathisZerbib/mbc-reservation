@@ -8,7 +8,7 @@ vi.mock('../i18n/useLanguage', () => ({
     useLanguage: vi.fn(),
 }));
 
-(useLanguage as any).mockReturnValue({
+(useLanguage as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
     lang: 'en',
     setLang: vi.fn(),
     t: {
@@ -48,7 +48,7 @@ describe('BookingWidget', () => {
 
     it('allows a user to select a date and see available times', async () => {
         // Mock API response for availability
-        (globalThis.fetch as any).mockImplementation((url: string) => {
+        (globalThis.fetch as unknown as { mockImplementation: (fn: unknown) => void }).mockImplementation((url: string) => {
             if (url.includes('daily-availability')) {
                 return Promise.resolve({
                     ok: true,

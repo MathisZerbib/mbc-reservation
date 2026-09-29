@@ -16,7 +16,7 @@ import { Input } from '../components/ui/input';
 import { DatePicker } from '../components/ui/date-picker';
 import { useTranslation, type TranslationKey } from '../i18n/useTranslation';
 import { api } from '../services/api';
-import { DEFAULT_TENANT_SLUG } from '../components/BookingPage';
+import { DEFAULT_TENANT_SLUG } from '../utils/tenant';
 import type { DailyAvailability } from '../types/index';
 
 /* ------------------------------------------------------------------ */

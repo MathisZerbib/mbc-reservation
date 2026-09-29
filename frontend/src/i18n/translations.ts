@@ -363,6 +363,15 @@ export const TRANSLATIONS = {
             success: 'Auto-consecutive bookings created successfully!',
             failedPre: 'Failed to create bookings: ',
         },
+        notfound: {
+            title: 'Page not found',
+            msg: 'This page doesn’t exist or has moved.',
+            home: 'Back to home →',
+        },
+        server: {
+            waking: 'Waking up the server — first load can take up to a minute.',
+            unreachable: 'Server unreachable. Check your connection and reload.',
+        },
     },
     fr: {
         intro: 'Réservez votre table en quelques clics',
@@ -725,6 +734,15 @@ export const TRANSLATIONS = {
             label: 'Auto-Consec',
             success: 'Réservations auto-consécutives créées !',
             failedPre: 'Échec de création : ',
+        },
+        notfound: {
+            title: 'Page introuvable',
+            msg: 'Cette page n’existe pas ou a été déplacée.',
+            home: 'Retour à l’accueil →',
+        },
+        server: {
+            waking: 'Démarrage du serveur — le premier chargement peut prendre jusqu’à une minute.',
+            unreachable: 'Serveur injoignable. Vérifiez votre connexion puis rechargez.',
         },
     },
 };

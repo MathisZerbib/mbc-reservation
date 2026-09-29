@@ -137,7 +137,7 @@ export const OnboardingPage: React.FC = () => {
         try {
             await api.updateTenant({ onboardingComplete: true });
             await refreshTenant();
-            navigate('/admin/dashboard');
+            navigate('/app/dashboard');
         } catch (e) {
             setError(e instanceof Error ? e.message : t('onboarding.finishError'));
             setSaving(false);
@@ -310,7 +310,7 @@ export const OnboardingPage: React.FC = () => {
                     <button onClick={() => saveTables(null)} disabled={saving} className="text-sm font-bold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer disabled:opacity-50">
                         {t('onboarding.later')}
                     </button>
-                    <Link to="/admin/floor-plan" className="inline-flex items-center gap-1.5 bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold text-sm active:scale-95 transition-all">
+                    <Link to="/app/floor-plan" className="inline-flex items-center gap-1.5 bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold text-sm active:scale-95 transition-all">
                         {t('onboarding.openEditor')} <ChevronRight className="w-4 h-4" />
                     </Link>
                 </div>

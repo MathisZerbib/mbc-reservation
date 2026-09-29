@@ -22,6 +22,7 @@ import { TURNSTILE_SITE_KEY } from '../utils/turnstile';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
 import type { Lang } from '../i18n/translations';
+import type { CreateBookingPayload } from '../types/index';
 import { useLanguage } from '../i18n/useLanguage';
 
 import {
@@ -161,20 +162,22 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
 
       // Strict Sanitization before API call
       const fullPhone = `${selectedCountry.dial}${phoneValue.replace(/\s/g, '')}`;
-      const payload = {
-        ...formData,
+      const payload: CreateBookingPayload = {
         name: formData.name.trim().substring(0, 20),
         phone: fullPhone.substring(0, 20),
         email: formData.email.trim().toLowerCase().substring(0, 24),
+        size: formData.size,
+        language: formData.language,
+        lowTable: formData.lowTable,
         startTime,
         notify: true,
         turnstileToken: token,
       };
 
-      await api.createBooking(payload as any, slug);
+      await api.createBooking(payload, slug);
       nextStep(4);
-    } catch (e: any) {
-      setError(e.message || t.error);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : t.error);
       console.error('[Booking Execution Error]:', e);
     } finally {
       // Server-side tokens are single-use: always reset so the next
