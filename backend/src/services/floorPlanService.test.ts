@@ -52,4 +52,12 @@ describe('parseLayoutTable', () => {
         expect(() => parseLayoutTable({ ...valid, x: -1 })).toThrow();
         expect(() => parseLayoutTable({ ...valid, rotation: 400 })).toThrow();
     });
+
+    it('keeps positive ids but drops client-side temp ids', () => {
+        expect(parseLayoutTable({ ...valid, id: 7 }).id).toBe(7);
+        expect(parseLayoutTable({ ...valid, id: -1 }).id).toBeUndefined();
+        expect(parseLayoutTable({ ...valid, id: 0 }).id).toBeUndefined();
+        expect(parseLayoutTable({ ...valid, id: 2.5 }).id).toBeUndefined();
+        expect(parseLayoutTable(valid).id).toBeUndefined();
+    });
 });

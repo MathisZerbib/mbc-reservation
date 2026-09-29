@@ -152,7 +152,7 @@ export const api = {
     getLayout: (slug: string) =>
         client.get<LayoutTable[]>('/tables', { params: { slug } }),
 
-    saveLayout: (tables: LayoutTable[], deleteIds: number[]) =>
+    saveLayout: (tables: Array<Omit<LayoutTable, 'id'> & { id?: number }>, deleteIds: number[]) =>
         client.put<LayoutTable[]>('/tables/layout', { body: { tables, deleteIds }, auth: true }),
 };
 

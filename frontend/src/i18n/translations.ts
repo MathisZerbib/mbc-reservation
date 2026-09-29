@@ -370,6 +370,7 @@ export const TRANSLATIONS = {
         },
         server: {
             waking: 'Waking up the server — first load can take up to a minute.',
+            warming: '{n}%',
             unreachable: 'Server unreachable. Check your connection and reload.',
         },
     },
@@ -742,6 +743,7 @@ export const TRANSLATIONS = {
         },
         server: {
             waking: 'Démarrage du serveur — le premier chargement peut prendre jusqu’à une minute.',
+            warming: '{n} %',
             unreachable: 'Serveur injoignable. Vérifiez votre connexion puis rechargez.',
         },
     },
