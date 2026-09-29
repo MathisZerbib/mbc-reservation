@@ -26,7 +26,8 @@ describe('LandingPage', () => {
 
         // Hero (default language is French)
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Vos réservations, enfin Faci-Table');
-        expect(screen.getByRole('link', { name: /Découvrir Faci-Table/i })).toHaveAttribute('href', '/book');
+        expect(screen.getByRole('link', { name: /Découvrir Faci-Table/i })).toHaveAttribute('href', '#features');
+        expect(screen.getByRole('link', { name: /Réserver une table/i })).toHaveAttribute('href', '/book');
 
         // Features + How it works
         expect(screen.getByRole('heading', { level: 2, name: 'Une salle qui respire' })).toBeInTheDocument();

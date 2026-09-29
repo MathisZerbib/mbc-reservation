@@ -3,7 +3,7 @@ import { motion, type Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import {
-    ArrowRight,
+    ArrowDown,
     CalendarCheck,
     Loader2,
     Sparkles,
@@ -115,11 +115,17 @@ const Hero = () => {
                         size="lg"
                         className="h-12 rounded-2xl bg-indigo-500 px-8 text-base font-black text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
                     >
-                        <Link to="/book">
+                        <a href="#features">
                             {t('landing.hero.cta')}
-                            <ArrowRight />
-                        </Link>
+                            <ArrowDown />
+                        </a>
                     </Button>
+                    <Link
+                        to="/book"
+                        className="text-sm font-bold text-slate-200 underline-offset-4 transition-colors hover:text-white hover:underline"
+                    >
+                        {t('landing.hero.book')} →
+                    </Link>
                     <Link
                         to="/"
                         className="text-sm font-bold text-slate-400 transition-colors hover:text-white"
@@ -140,7 +146,7 @@ const Features = () => {
     const { t } = useTranslation();
 
     return (
-        <section className="bg-slate-50 py-20 sm:py-24">
+        <section id="features" className="bg-slate-50 py-20 sm:py-24">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <motion.div
                     variants={stagger}

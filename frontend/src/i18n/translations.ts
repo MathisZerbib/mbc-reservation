@@ -37,6 +37,7 @@ export const TRANSLATIONS = {
                 title: 'Your reservations, finally Faci-Table',
                 subtitle: 'Real-time sync between your dining room and your team. End the chaos of the dinner rush — every table, every slot, to the second.',
                 cta: 'Discover Faci-Table',
+                book: 'Book a table',
                 login: 'Manager area',
             },
             features: {
@@ -122,6 +123,7 @@ export const TRANSLATIONS = {
                 title: 'Vos réservations, enfin Faci-Table',
                 subtitle: 'La synchronisation temps réel entre votre salle et votre équipe. Fini le chaos du coup de feu : chaque table, chaque créneau, à la seconde près.',
                 cta: 'Découvrir Faci-Table',
+                book: 'Réserver une table',
                 login: 'Espace manager',
             },
             features: {

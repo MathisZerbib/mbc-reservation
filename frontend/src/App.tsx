@@ -57,7 +57,7 @@ function AdminDashboard() {
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-none">
           <div className="flex items-center justify-between w-full sm:w-auto gap-4">
             <div>
-              <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">MBC <span className="text-slate-400">Manager</span></h1>
+              <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">Faci<span className="text-indigo-500">-</span>Table</h1>
               <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">{dayjs.tz(selectedDate, RESTAURANT_TZ).format('dddd, D MMM YYYY')}</p>
             </div>
             {occupancyRate >= 70 && (

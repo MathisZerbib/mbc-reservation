@@ -85,12 +85,12 @@ export function LoginPage() {
           <div className="flex flex-col items-center mb-2">
             <img
               src="/mbc-logo.png"
-              alt="MBC Logo"
+              alt="Faci-Table Logo"
               className="w-20 h-20 mb-2 drop-shadow-sm"
               style={{ objectFit: 'contain' }}
             />
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight mb-1">
-              MBC Booking System
+              Faci-Table Booking System
             </h1>
             <span className="text-slate-500 text-sm">Sign in to your account</span>
           </div>
