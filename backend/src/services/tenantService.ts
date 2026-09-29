@@ -14,13 +14,33 @@ export function slugify(name: string): string {
     return base || 'restaurant';
 }
 
-/** Unique slug, appending -2, -3… on collision. */
+/** First path segments owned by the app — never usable as a restaurant slug. */
+export const RESERVED_SLUGS = new Set([
+    'login', 'register', 'signup', 'verify-email', 'book', 'b',
+    'app', 'admin', 'onboarding', 'landing', 'api', 'health', 'version',
+]);
+
+/** Pure validation for a user-chosen slug. Throws with a 400-safe message. */
+export function parseSlug(input: unknown): string {
+    const slug = String(input ?? '').trim().toLowerCase().substring(0, 40);
+    if (!/^[a-z0-9][a-z0-9-]{0,38}[a-z0-9]$/.test(slug) || slug.length < 2) {
+        throw new Error('Slug must be 2-40 characters: lowercase letters, numbers and hyphens.');
+    }
+    if (RESERVED_SLUGS.has(slug)) {
+        throw new Error(`"${slug}" is reserved. Please choose another address.`);
+    }
+    return slug;
+}
+
+/** Unique slug, appending -2, -3… on collision. Skips reserved words. */
 export async function uniqueSlug(name: string): Promise<string> {
     const base = slugify(name);
     let slug = base;
     for (let i = 2; ; i += 1) {
-        const existing = await prisma.tenant.findUnique({ where: { slug } });
-        if (!existing) return slug;
+        if (!RESERVED_SLUGS.has(slug)) {
+            const existing = await prisma.tenant.findUnique({ where: { slug } });
+            if (!existing) return slug;
+        }
         slug = `${base}-${i}`;
     }
 }

@@ -15,11 +15,10 @@ const stepVariants = {
     exit: (direction: number) => ({ x: direction > 0 ? -60 : 60, opacity: 0, scale: 0.98, filter: 'blur(6px)' }),
 };
 
-/** Grid of 2-top tables used by the quick-add presets. */
-const gridTables = (count: number): LayoutTable[] => {
+/** Grid of 2-top tables used by the quick-add presets (no ids — newcomers). */
+const gridTables = (count: number): Array<Omit<LayoutTable, 'id'>> => {
     const cols = 8;
     return Array.from({ length: count }, (_, i) => ({
-        id: -(i + 1),
         name: String(i + 1),
         capacity: 2,
         type: 'RECTANGULAR' as const,
@@ -44,6 +43,8 @@ export const OnboardingPage: React.FC = () => {
     const [copied, setCopied] = useState(false);
 
     const [name, setName] = useState('');
+    const [slug, setSlug] = useState('');
+    const [slugState, setSlugState] = useState<'idle' | 'checking' | 'free' | 'taken' | 'invalid'>('idle');
     const [avgTicket, setAvgTicket] = useState('');
     const [tablesChoice, setTablesChoice] = useState<number | null>(null);
 
@@ -58,8 +59,29 @@ export const OnboardingPage: React.FC = () => {
         if (tenant && !name) setName(tenant.name);
     }, [tenant, name]);
     useEffect(() => {
+        if (tenant && !slug) setSlug(tenant.slug);
+    }, [tenant, slug]);
+    useEffect(() => {
         if (settings && !avgTicket) setAvgTicket(String(settings.avgTicket));
     }, [settings, avgTicket]);
+
+    // Live availability check for the public address (debounced).
+    useEffect(() => {
+        if (!tenant || !slug || slug === tenant.slug) {
+            setSlugState('idle');
+            return;
+        }
+        setSlugState('checking');
+        const timer = window.setTimeout(async () => {
+            try {
+                const res = await api.checkSlug(slug.trim().toLowerCase());
+                setSlugState(res.available ? 'free' : 'taken');
+            } catch {
+                setSlugState('invalid');
+            }
+        }, 400);
+        return () => window.clearTimeout(timer);
+    }, [slug, tenant]);
 
     const go = (next: number) => {
         setDirection(next > step ? 1 : -1);
@@ -67,16 +89,22 @@ export const OnboardingPage: React.FC = () => {
         setError(null);
     };
 
-    const bookingUrl = tenant ? `${window.location.origin}/b/${tenant.slug}` : '';
+    const bookingUrl = tenant ? `${window.location.origin}/${tenant.slug}` : '';
 
     const saveWelcome = async () => {
         if (name.trim().length < 2) {
             setError(t('onboarding.nameError'));
             return;
         }
+        if (slugState === 'taken' || slugState === 'invalid') {
+            setError(t('onboarding.slugTaken'));
+            return;
+        }
         setSaving(true);
         try {
-            await api.updateTenant({ name: name.trim() });
+            const patch: { name: string; slug?: string } =
+                slug && slug !== tenant?.slug ? { name: name.trim(), slug: slug.trim().toLowerCase() } : { name: name.trim() };
+            await api.updateTenant(patch);
             await refreshTenant();
             go(1);
         } catch (e) {
@@ -108,10 +136,7 @@ export const OnboardingPage: React.FC = () => {
         setSaving(true);
         try {
             if (count !== null) {
-                // Strip client-side temp ids (negative) so the backend
-                // upserts newcomers by name — same convention as the editor.
-                const payload = gridTables(count).map(({ id: _tempId, ...rest }) => rest);
-                await api.saveLayout(payload, []);
+                await api.saveLayout(gridTables(count), []);
                 setTablesChoice(count);
             }
             go(3);
@@ -253,7 +278,31 @@ export const OnboardingPage: React.FC = () => {
                     className="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                 />
             </label>
-            <p className="text-xs text-slate-400 font-medium mt-2">{t('onboarding.bookingAt')} <span className="font-bold text-indigo-600">/b/{tenant.slug}</span></p>
+            <p className="text-xs text-slate-400 font-medium mt-2">{t('onboarding.bookingAt')} <span className="font-bold text-indigo-600">/{tenant.slug}</span></p>
+            <label className="block mt-4">
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t('onboarding.slugLabel')}</span>
+                <div className="mt-1.5 flex items-center gap-0 bg-slate-50 border border-slate-200 rounded-2xl px-4 focus-within:ring-2 focus-within:ring-indigo-500/50 overflow-hidden">
+                    <span className="text-base font-bold text-slate-400 shrink-0">/{window.location.host}/</span>
+                    <input
+                        type="text"
+                        value={slug}
+                        maxLength={40}
+                        onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                        className="w-full bg-transparent py-3 text-base font-bold text-slate-900 focus:outline-none"
+                    />
+                    {slugState === 'checking' && <Loader2 className="w-4 h-4 text-slate-300 animate-spin shrink-0" />}
+                    {slugState === 'free' && <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
+                </div>
+                <span className={cn(
+                    "block text-xs font-bold mt-1.5",
+                    slugState === 'free' ? "text-emerald-600" : slugState === 'taken' || slugState === 'invalid' ? "text-red-500" : "text-slate-400"
+                )}>
+                    {slugState === 'free' ? t('onboarding.slugFree')
+                        : slugState === 'taken' ? t('onboarding.slugTaken')
+                        : slugState === 'invalid' ? t('onboarding.slugInvalid')
+                        : t('onboarding.slugHint')}
+                </span>
+            </label>
             {error && <p className="text-sm font-bold text-red-500 mt-3">{error}</p>}
             <Nav onNext={saveWelcome} nextLabel={t('onboarding.startSetup')} />
         </div>
