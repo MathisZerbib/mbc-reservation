@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -84,7 +84,21 @@ describe('LandingPage', () => {
             'Vos réservations, enfin Faci-Table'
         );
 
-        await user.click(screen.getByRole('button', { name: 'English' }));
+        // The languages live behind a dropdown, not on the page.
+        expect(screen.queryByRole('menuitemradio')).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Langue' }));
+        expect(screen.getAllByRole('menuitemradio').map(item => item.textContent)).toEqual([
+            '🇫🇷Français',
+            '🇬🇧English',
+        ]);
+        expect(
+            screen.getByRole('menuitemradio', { name: 'Français' })
+        ).toHaveAttribute('aria-checked', 'true');
+
+        await user.click(screen.getByRole('menuitemradio', { name: 'English' }));
+
+        // Picking a language dismisses the menu, the way a native select does.
+        await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
 
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
             'Your reservations, finally Faci-Table'
