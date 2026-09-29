@@ -6,9 +6,15 @@ export const API_BASE =
 /**
  * Render cold starts can take up to ~50s. Block the backend-dependent
  * suites until /health answers instead of failing on a sleeping server.
+ *
+ * The wait can outlast the default 90s test timeout, so callers must raise
+ * it with `test.setTimeout` before awaiting this.
  */
-export async function waitForBackend(request: APIRequestContext): Promise<void> {
-    const deadline = Date.now() + 100_000;
+export async function waitForBackend(
+    request: APIRequestContext,
+    timeoutMs = 100_000
+): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
     for (;;) {
         try {
             const res = await request.get(API_BASE.replace(/\/api$/, '') + '/health', {
@@ -19,7 +25,7 @@ export async function waitForBackend(request: APIRequestContext): Promise<void> 
             // still waking — retry below
         }
         if (Date.now() > deadline) {
-            throw new Error('Backend did not wake within 100s');
+            throw new Error(`Backend did not wake within ${Math.round(timeoutMs / 1000)}s`);
         }
         await new Promise(r => setTimeout(r, 3_000));
     }

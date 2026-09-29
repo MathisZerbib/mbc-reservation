@@ -7,6 +7,7 @@ import { waitForBackend } from './helpers';
  */
 test.describe('demo dashboard smoke', () => {
     test.beforeEach(async ({ request }) => {
+        test.setTimeout(150_000);
         await waitForBackend(request);
     });
 

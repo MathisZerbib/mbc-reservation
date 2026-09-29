@@ -3,6 +3,7 @@ import { API_BASE, waitForBackend } from './helpers';
 
 test.describe('public booking (read-only probes)', () => {
     test.beforeEach(async ({ request }) => {
+        test.setTimeout(150_000);
         await waitForBackend(request);
     });
     test('/book redirects to the default restaurant page', async ({ page }) => {
