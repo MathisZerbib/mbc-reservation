@@ -3,17 +3,26 @@ import { healthUrl } from '../services/api';
 
 export type BackendStatus = 'checking' | 'waking' | 'ready' | 'degraded';
 
-const WAKE_THRESHOLD_MS = 8000;
+// Below this, the health probe is considered an ordinary in-flight request:
+// callers show nothing rather than flashing a loading state for a server that
+// answers in a few hundred milliseconds.
+const WAKE_THRESHOLD_MS = 3000;
 const DISPLAY_CAP = 90;
 const TIME_CONSTANT_MS = 15_000;
 
 /**
- * Detects Render cold starts: if /health doesn't answer within a few
- * seconds the backend is still waking (up to ~50s) and callers should
- * tell the user instead of showing a dead form. Also exposes an eased
- * 0→90% progress estimate that only hits 100% when /health answers.
+ * Detects Render cold starts. /health normally answers in well under a
+ * second, so nothing should be shown to the visitor for that. Only once it
+ * has been silent for WAKE_THRESHOLD_MS does the status become 'waking' and
+ * `isWaiting` turn true, with an eased 0→90% estimate that only completes
+ * when /health actually answers.
  */
-export function useBackendWake(): { status: BackendStatus; progress: number } {
+export function useBackendWake(): {
+    status: BackendStatus;
+    progress: number;
+    /** True only once the wait is long enough to be worth explaining. */
+    isWaiting: boolean;
+} {
     const [status, setStatus] = useState<BackendStatus>('checking');
     const [progress, setProgress] = useState(0);
     // One clock per wake attempt. The status flips checking → waking halfway
@@ -61,7 +70,8 @@ export function useBackendWake(): { status: BackendStatus; progress: number } {
         return () => window.clearInterval(timer);
     }, [status]);
 
-    return { status, progress: status === 'ready' ? 100 : progress };
+    const isWaiting = status === 'waking' || status === 'degraded';
+    return { status, progress: status === 'ready' ? 100 : progress, isWaiting };
 }
 
 /** Status-only accessor. */

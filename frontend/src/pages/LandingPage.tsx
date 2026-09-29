@@ -375,8 +375,10 @@ const HowItWorks = () => {
 
 const AvailabilityTeaser = () => {
     const { t } = useTranslation();
-    const { status, progress } = useBackendWake();
-    const blocked = status !== 'ready';
+    const { status, progress, isWaiting } = useBackendWake();
+    // Lock the widget only when the backend is genuinely slow: an in-flight
+    // health probe on a warm server must not grey out a usable form.
+    const blocked = isWaiting;
 
     return (
         <section id="availability" className="bg-slate-900 py-20 text-white sm:py-24">
