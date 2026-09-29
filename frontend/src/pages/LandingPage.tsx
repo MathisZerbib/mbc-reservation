@@ -4,6 +4,9 @@ import {
     Sparkles,
     Smartphone,
     Zap,
+    Puzzle,
+    Map,
+    ShieldCheck,
     type LucideIcon,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -111,10 +114,26 @@ const SiteHeader = () => {
 /* Hero                                                                */
 /* ------------------------------------------------------------------ */
 
-const HERO_STATS: { valueKey: TranslationKey; labelKey: TranslationKey }[] = [
-    { valueKey: 'landing.hero.stats.speed.value', labelKey: 'landing.hero.stats.speed.label' },
-    { valueKey: 'landing.hero.stats.doubleBooking.value', labelKey: 'landing.hero.stats.doubleBooking.label' },
-    { valueKey: 'landing.hero.stats.uptime.value', labelKey: 'landing.hero.stats.uptime.label' },
+const HERO_HIGHLIGHTS: {
+    icon: LucideIcon;
+    titleKey: TranslationKey;
+    descKey: TranslationKey;
+}[] = [
+    {
+        icon: Puzzle,
+        titleKey: 'landing.hero.highlights.embed.title',
+        descKey: 'landing.hero.highlights.embed.desc',
+    },
+    {
+        icon: Map,
+        titleKey: 'landing.hero.highlights.floorplan.title',
+        descKey: 'landing.hero.highlights.floorplan.desc',
+    },
+    {
+        icon: ShieldCheck,
+        titleKey: 'landing.hero.highlights.deposit.title',
+        descKey: 'landing.hero.highlights.deposit.desc',
+    },
 ];
 
 /** Emphasises the product name at the end of the headline. */
@@ -202,20 +221,21 @@ const Hero = () => {
 
                 <motion.dl
                     variants={stagger}
-                    className="mt-16 grid w-full max-w-3xl grid-cols-1 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/5 sm:grid-cols-3"
+                    className="mt-16 grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3"
                 >
-                    {HERO_STATS.map(({ valueKey, labelKey }) => (
+                    {HERO_HIGHLIGHTS.map(({ icon: Icon, titleKey, descKey }) => (
                         <motion.div
-                            key={valueKey}
+                            key={titleKey}
                             variants={fadeUp}
-                            className="flex flex-col-reverse items-center gap-1.5 bg-slate-950/40 px-6 py-6 backdrop-blur"
+                            className="group flex flex-col items-start gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-left backdrop-blur transition-colors duration-500 hover:border-indigo-400/30 hover:bg-white/[0.06]"
                         >
-                            <dt className="text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                                {t(labelKey)}
+                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-slate-900/60 text-indigo-300 transition-transform duration-500 group-hover:-translate-y-0.5 group-hover:text-indigo-200 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
+                                <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                            </span>
+                            <dt className="text-sm font-black tracking-tight text-white">
+                                {t(titleKey)}
                             </dt>
-                            <dd className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-                                {t(valueKey)}
-                            </dd>
+                            <dd className="text-xs leading-relaxed text-slate-400">{t(descKey)}</dd>
                         </motion.div>
                     ))}
                 </motion.dl>

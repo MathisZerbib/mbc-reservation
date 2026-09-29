@@ -48,10 +48,19 @@ export const TRANSLATIONS = {
                 book: 'Book a table',
                 login: 'Manager area',
                 scroll: 'Scroll',
-                stats: {
-                    speed: { value: '< 3 s', label: 'Average availability response' },
-                    doubleBooking: { value: '0', label: 'Double bookings since launch' },
-                    uptime: { value: '24/7', label: 'Live availability, every service' },
+                highlights: {
+                    embed: {
+                        title: 'Widget ready to embed',
+                        desc: 'One snippet drops your live availability into any site — Wix, WordPress, Squarespace or a page you build yourself.',
+                    },
+                    floorplan: {
+                        title: 'Live floor plan',
+                        desc: 'The room updates in real time and suggests where each party should sit, so covers turn without crowding the room.',
+                    },
+                    deposit: {
+                        title: 'Deposit for groups',
+                        desc: 'You set the amount, any amount. The hold filters out no-shows before they cost you the table.',
+                    },
                 },
             },
             nav: {
@@ -435,10 +444,19 @@ export const TRANSLATIONS = {
                 book: 'Réserver une table',
                 login: 'Espace manager',
                 scroll: 'Défiler',
-                stats: {
-                    speed: { value: '< 3 s', label: 'Temps de réponse moyen' },
-                    doubleBooking: { value: '0', label: 'Double réservation depuis le lancement' },
-                    uptime: { value: '24/7', label: 'Disponibilités en direct, à chaque service' },
+                highlights: {
+                    embed: {
+                        title: 'Widget prêt à intégrer',
+                        desc: 'Un bout de code suffit pour poser vos disponibilités en direct sur n’importe quel site : Wix, WordPress, Squarespace ou une page maison.',
+                    },
+                    floorplan: {
+                        title: 'Plan de salle en direct',
+                        desc: 'La salle se met à jour en temps réel et propose le placement de chaque groupe : plus de couverts, sans saturer la salle.',
+                    },
+                    deposit: {
+                        title: 'Empreinte bancaire groupes',
+                        desc: 'Le montant est libre, et vous le fixez. La caution filtre les no-shows avant qu’ils ne vous coûtent la table.',
+                    },
                 },
             },
             nav: {
