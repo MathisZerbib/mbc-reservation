@@ -32,7 +32,7 @@ const fallbackCopy = (): LayoutTable[] =>
 
 export const FloorPlanEditor: React.FC = () => {
     const { t: tr } = useTranslation();
-    const { backgroundUrl } = useRestaurantSettings();
+    const { backgroundUrl, refresh: refreshSettings } = useRestaurantSettings();
     const { tenant } = useTenant();
     const [tables, setTables] = useState<LayoutTable[] | null>(null);
     const [deleteIds, setDeleteIds] = useState<number[]>([]);
@@ -208,6 +208,15 @@ export const FloorPlanEditor: React.FC = () => {
             setDirty(false);
             setAiBanner(null);
             setConfirmOpen(false);
+            // The saved vector layout is now the single source of truth:
+            // delete the old background image so it can never overlay the new plan.
+            try {
+                await api.deleteFloorPlanImage();
+                setShowBackground(false);
+                await refreshSettings();
+            } catch {
+                // No previous image (or delete failed) — layout is already saved.
+            }
             flash('ok', tr('editor.saved'));
         } catch (e) {
             const err = e as Error & { status?: number; upcomingCount?: number };

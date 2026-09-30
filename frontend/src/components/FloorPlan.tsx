@@ -25,7 +25,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
 }) => {
   const { bookings: allBookings } = useBookingsContext();
   const { t } = useTranslation();
-  const { tables: layoutTables, backgroundUrl } = useLayoutTables();
+  const { tables: layoutTables } = useLayoutTables();
   const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>('OVERVIEW');
 
   const bookings = allBookings.filter(
@@ -220,9 +220,8 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           </defs>
           <rect width="100%" height="100%" fill="url(#floorGrad)" />
           <rect width="100%" height="100%" fill="url(#grid)" />
-          {backgroundUrl && (
-            <image href={backgroundUrl} x={-20} y={20} width={920} height={670} preserveAspectRatio="none" opacity={0.4} />
-          )}
+          {/* Vector-only map: the uploaded plan image is an editor tracing
+              reference and is deleted on save, so it never overlays here. */}
 
           {layoutTables.map((table) => {
             const status = getTableStatus(table.id);
