@@ -301,8 +301,13 @@ export const TRANSLATIONS = {
             quickRes: 'Quick Res',
             assignTables: 'Assign Tables',
             settingsTitle: 'Settings',
+            analyticsTitle: 'View analytics',
             mapTitle: 'Interactive Map',
             mapHint: 'Zoom/Pan to explore',
+        },
+        analyticsPage: {
+            title: 'Analytics',
+            back: 'Back to live view',
         },
         agenda: {
             schedule: 'Schedule',
@@ -318,10 +323,20 @@ export const TRANSLATIONS = {
             confirm: 'Confirm',
             checkin: 'Check-in',
             checkinFailed: 'Check-in failed',
+            placeTables: 'Seat',
+            unseatedFmt: '{n} without table',
             cancelFailed: 'Cancellation failed',
             cancelledBadge: 'Cancel',
             unmappedBadge: 'Map?',
             lowBadge: 'Low',
+        },
+        hostSearch: {
+            ph: 'Name, table, phone…  ( / )',
+        },
+        placement: {
+            title: 'Seating',
+            save: 'Save',
+            seat: 'Seat',
         },
         analytics: {
             bookings: 'Bookings',
@@ -705,8 +720,13 @@ export const TRANSLATIONS = {
             quickRes: 'Résa rapide',
             assignTables: 'Placer tables',
             settingsTitle: 'Réglages',
+            analyticsTitle: 'Voir les analyses',
             mapTitle: 'Carte interactive',
             mapHint: 'Zoomez/déplacez pour explorer',
+        },
+        analyticsPage: {
+            title: 'Analyses',
+            back: 'Retour à la vue live',
         },
         agenda: {
             schedule: 'Planning',
@@ -722,10 +742,20 @@ export const TRANSLATIONS = {
             confirm: 'Confirmer',
             checkin: 'Arrivée',
             checkinFailed: 'Échec de l’arrivée',
+            placeTables: 'Placer',
+            unseatedFmt: '{n} sans table',
             cancelFailed: 'Échec de l’annulation',
             cancelledBadge: 'Annulée',
             unmappedBadge: 'Plan ?',
             lowBadge: 'Basse',
+        },
+        hostSearch: {
+            ph: 'Nom, table, téléphone…  ( / )',
+        },
+        placement: {
+            title: 'Placement',
+            save: 'Enregistrer',
+            seat: 'Installer',
         },
         analytics: {
             bookings: 'Réservations',

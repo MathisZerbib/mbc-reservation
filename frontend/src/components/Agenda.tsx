@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { cn } from '../lib/utils';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
-import { calculateAffluence, affluenceClassNames, formatTableLabels } from '../utils/bookingUtils';
+import { calculateAffluence, affluenceClassNames, formatTableLabels, matchesHostQuery } from '../utils/bookingUtils';
 import { useBookingsContext } from '../context/useBookingsContext';
 import { useTranslation } from '../i18n/useTranslation';
 interface AgendaProps {
@@ -13,15 +13,22 @@ interface AgendaProps {
   date: string;
   setDate: (date: string) => void;
   className?: string;
+  /** Query from the host command bar — combined with the local filters. */
+  externalQuery?: string;
+  /** Booking currently in map placement mode (highlighted row). */
+  selectedBookingId?: string | null;
+  /** Enter map placement mode for an unseated booking. */
+  onPlaceTables?: (id: string) => void;
 }
 
-export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDate, className }) => {
+export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDate, className, externalQuery = '', selectedBookingId = null, onPlaceTables }) => {
   const { t } = useTranslation();
   const { bookings, refresh } = useBookingsContext();
   const [showModal, setShowModal] = useState<{ id: string, name: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchName, setSearchName] = useState('');
   const [searchSize, setSearchSize] = useState<string>('');
+  const [onlyUnseated, setOnlyUnseated] = useState(false);
 
   const handleCheckIn = async (id: string) => {
     try {
@@ -51,23 +58,35 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
     }
   };
 
-  const filteredBookings = bookings
-    .filter(b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === date)
-    .filter(b => {
-      // Name or Table match
-      if (searchName) {
-        const s = searchName.toLowerCase();
-        const guestMatch = b.name.toLowerCase().includes(s);
-        const tableMatch = b.tables?.some(t => t.name.toLowerCase().includes(s));
-        if (!guestMatch && !tableMatch) return false;
-      }
+  const dayBookings = bookings
+    .filter(b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === date);
 
+  const unseatedCount = dayBookings.filter(
+    b => (b.status === 'PENDING' || b.status === 'CONFIRMED') && (!b.tables || b.tables.length === 0),
+  ).length;
+
+  const filteredBookings = dayBookings
+    .filter(b => matchesHostQuery(b, searchName) && matchesHostQuery(b, externalQuery))
+    .filter(b => {
       // Exact Size match
       if (searchSize) {
         if (b.size !== parseInt(searchSize)) return false;
       }
+      if (onlyUnseated && !(!b.tables || b.tables.length === 0)) return false;
 
       return true;
+    })
+    .sort((a, b) => {
+      // Rush relevance: arriving now (±45 min) → upcoming → done/cancelled.
+      const now = dayjs();
+      const rank = (x: typeof a) => {
+        if (x.status === 'CANCELLED' || x.status === 'COMPLETED') return 2;
+        return dayjs(x.startTime).diff(now, 'minute') <= 45 ? 0 : 1;
+      };
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return dayjs(a.startTime).unix() - dayjs(b.startTime).unix();
     });
 
   return (
@@ -119,6 +138,20 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 pt-4 space-y-3 bg-slate-50/20">
+        {unseatedCount > 0 && (
+          <button
+            onClick={() => setOnlyUnseated(v => !v)}
+            className={cn(
+              "w-full flex items-center justify-center gap-2 px-3 min-h-[44px] rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer border",
+              onlyUnseated
+                ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/25"
+                : "bg-red-50 text-red-600 border-red-200 hover:border-red-300 animate-pulse",
+            )}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            {t('agenda.unseatedFmt').replace('{n}', String(unseatedCount))}
+          </button>
+        )}
         {filteredBookings.length === 0 ? (
           <div className="text-center py-20 flex flex-col items-center">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-slate-200">
@@ -134,7 +167,9 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
               onMouseLeave={() => setHoveredBookingId(null)}
               className={clsx(
                 "group bg-white border rounded-[1.5rem] p-4 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)] transition-all duration-500 relative overflow-hidden cursor-pointer",
-                b.status === 'CANCELLED' ? "opacity-60 grayscale border-slate-100" : "border-slate-100 hover:border-indigo-200 active:scale-[0.99]"
+                selectedBookingId === b.id
+                  ? "border-indigo-400 ring-2 ring-indigo-500/40 shadow-[0_20px_40px_-10px_rgba(79,70,229,0.25)]"
+                  : b.status === 'CANCELLED' ? "opacity-60 grayscale border-slate-100" : "border-slate-100 hover:border-indigo-200 active:scale-[0.99]"
               )}
             >
               <div className={clsx(
@@ -209,13 +244,20 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                         <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                         <span className="text-[8px] font-black text-emerald-600 uppercase">OK</span>
                       </div>
+                    ) : b.status !== 'CANCELLED' && (!b.tables || b.tables.length === 0) && onPlaceTables ? (
+                      <button
+                        className="h-11 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-indigo-600/25 active:scale-95"
+                        onClick={(e) => { e.stopPropagation(); onPlaceTables(b.id); }}
+                      >
+                        {t('agenda.placeTables')}
+                      </button>
                     ) : b.status !== 'CANCELLED' && (
                       <button
-                        className="h-8 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center gap-1 text-[9px] font-black cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                        className="h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
                         onClick={(e) => { e.stopPropagation(); handleCheckIn(b.id); }}
                         disabled={loading}
                       >
-                        <CheckCircle2 className="w-3 h-3" /> {t('agenda.checkin')}
+                        <CheckCircle2 className="w-4 h-4" /> {t('agenda.checkin')}
                       </button>
                     )}
                   </div>

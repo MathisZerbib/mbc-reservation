@@ -1,6 +1,5 @@
 import dayjs from 'dayjs';
 import type { Booking } from '../types';
-
 export type AffluenceLevel = 'low' | 'medium' | 'high' | 'critical';
 
 export const calculateAffluence = (bookings: Booking[]) => {
@@ -43,8 +42,7 @@ export const affluenceClassNames = {
     critical: "critical"
 };
 
-export const formatTableLabels = (tables: (string | { name: string })[]): string[] => {
-    if (!tables || tables.length === 0) return [];
+export const formatTableLabels = (tables: (string | { name: string })[]): string[] => {    if (!tables || tables.length === 0) return [];
 
     // Normalize and sort table names numerically
     const normalized = tables.map(t => typeof t === 'string' ? t : t.name);
@@ -84,4 +82,18 @@ export const formatTableLabels = (tables: (string | { name: string })[]): string
     }
 
     return results;
+};
+
+/**
+ * Host command-bar matching: name, phone or assigned table name.
+ * Empty query matches everything (used to reset filters).
+ */
+export const matchesHostQuery = (b: Booking, q: string): boolean => {
+    const s = q.trim().toLowerCase();
+    if (!s) return true;
+    return (
+        b.name.toLowerCase().includes(s) ||
+        (b.phone ?? '').toLowerCase().includes(s) ||
+        (b.tables ?? []).some(t => t.name.toLowerCase().includes(s))
+    );
 };

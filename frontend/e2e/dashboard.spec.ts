@@ -33,7 +33,7 @@ test.describe('demo app smoke', () => {
             await expect(page.getByRole('heading', { level: 1 })).toContainText('Faci-Table');
             return;
         }
-        await expect(page.getByRole('link', { name: /placer tables|assign tables/i })).toBeVisible({
+        await expect(page.getByTitle(/analyses|analytics/i)).toBeVisible({
             timeout: 30_000,
         });
         await expect(page.getByTitle(/réglages|settings/i)).toBeVisible();

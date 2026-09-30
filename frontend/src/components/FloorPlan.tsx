@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { cn } from "../lib/utils";
 import { useBookingsContext } from "../context/useBookingsContext";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, X, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Booking } from "../types";
 
@@ -16,17 +16,37 @@ interface FloorPlanProps {
   hoveredBookingId: string | null;
   selectedDate: string;
   hideControls?: boolean;
+  initialViewMode?: 'LIVE' | 'OVERVIEW';
+  /** Booking ids matched by the host command bar — their tables glow. */
+  highlightBookingIds?: string[];
+  /** When set, the map enters placement mode for this booking. */
+  placementBooking?: Booking | null;
+  /** Persist the tapped tables; andCheckIn also checks the guest in. */
+  onPlacementSave?: (bookingId: string, tableNames: string[], andCheckIn: boolean) => Promise<void>;
+  onPlacementCancel?: () => void;
 }
 
 export const FloorPlan: React.FC<FloorPlanProps> = ({
   hoveredBookingId,
   selectedDate,
   hideControls = false,
+  initialViewMode = 'OVERVIEW',
+  highlightBookingIds = [],
+  placementBooking = null,
+  onPlacementSave,
+  onPlacementCancel,
 }) => {
   const { bookings: allBookings } = useBookingsContext();
   const { t } = useTranslation();
   const { tables: layoutTables } = useLayoutTables();
-  const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>('OVERVIEW');
+  const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>(initialViewMode);
+  const [tempTables, setTempTables] = useState<string[]>([]);
+  const [placing, setPlacing] = useState(false);
+
+  // Fresh selection whenever a new booking enters placement mode.
+  useEffect(() => {
+    setTempTables(placementBooking ? placementBooking.tables.map(tbl => tbl.name) : []);
+  }, [placementBooking]);
 
   const bookings = allBookings.filter(
     (b: Booking) =>
@@ -52,6 +72,42 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
     return bookings.filter((b: Booking) =>
       b.tables?.some((t: { name: string }) => t.name === tableId) && b.status !== 'CANCELLED'
     ).length;
+  };
+
+  // ── Inline placement (replaces the old /app/assign page) ──
+  const MAX_BOOKINGS_PER_TABLE = 3;
+
+  /** Other bookings overlapping the placement window on a table (15 min buffer). */
+  const countOverlapping = (tableId: string) => {
+    if (!placementBooking) return 0;
+    const reqStart = dayjs(placementBooking.startTime);
+    const reqEnd = dayjs(placementBooking.endTime);
+    return bookings.filter(b => {
+      if (b.id === placementBooking.id || b.status === 'CANCELLED') return false;
+      const s = dayjs(b.startTime);
+      const e = dayjs(b.endTime);
+      return (
+        s.isBefore(reqEnd.add(15, 'minute')) &&
+        e.isAfter(reqStart.subtract(15, 'minute')) &&
+        b.tables?.some(tbl => tbl.name === tableId)
+      );
+    }).length;
+  };
+
+  const togglePlacementTable = (tableId: string) => {
+    if (!placementBooking) return;
+    if (countOverlapping(tableId) >= MAX_BOOKINGS_PER_TABLE && !tempTables.includes(tableId)) return;
+    setTempTables(prev => (prev.includes(tableId) ? prev.filter(x => x !== tableId) : [...prev, tableId]));
+  };
+
+  const runPlacementSave = async (andCheckIn: boolean) => {
+    if (!placementBooking || !onPlacementSave || placing) return;
+    setPlacing(true);
+    try {
+      await onPlacementSave(placementBooking.id, tempTables, andCheckIn);
+    } finally {
+      setPlacing(false);
+    }
   };
 
   const getTableStatus = (tableId: string) => {
@@ -141,11 +197,11 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
 
   return (
     <div className={cn(
-      "h-full flex flex-col transition-all duration-500 ease-in-out",
+      "h-full flex flex-col gap-4 p-4 lg:p-5 transition-all duration-500 ease-in-out",
       isFullscreen ? "fixed inset-0 z-[110] bg-slate-50/95 backdrop-blur-2xl p-6" : "relative"
     )}>
       {!hideControls && (
-        <div className="flex-none flex flex-wrap items-center justify-between gap-x-4 gap-y-3 mb-4 lg:mb-6 px-4">
+        <div className="flex-none flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <div className="flex items-center gap-3">
             <h2 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">
               {t('mapview.title')}
@@ -193,10 +249,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
       )}
 
       <div
-        className={cn(
-          "flex-1 min-h-0 bg-white shadow-2xl border border-slate-200 overflow-hidden relative transition-all duration-500",
-          isFullscreen ? "rounded-3xl" : "rounded-3xl lg:rounded-[2.5rem]"
-        )}
+        className="flex-1 min-h-0 overflow-hidden relative transition-all duration-500"
         onMouseMove={(e) => {
           if ('ontouchstart' in window) return;
           const rect = e.currentTarget.getBoundingClientRect();
@@ -221,10 +274,10 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
               <rect x="0" y="0" width="1000" height="800" />
             </clipPath>
           </defs>
-          <rect x="0" y="0" width="1000" height="800" fill="url(#floorGrad)" />
-          <rect x="0" y="0" width="1000" height="800" fill="url(#grid)" />
-          {/* Vector-only map: the uploaded plan image is an editor tracing
-              reference and is deleted on save, so it never overlays here. */}
+          <rect width="100%" height="100%" fill="url(#floorGrad)" />
+          <rect width="100%" height="100%" fill="url(#grid)" />
+          {/* Vector-only map: tables stay clipped to the 1000x800 canvas
+              while the decorative fond fills the whole viewport. */}
 
           <g clipPath="url(#mapCanvasClip)">
           {layoutTables.map((table) => {
@@ -233,24 +286,44 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
             const tableBookings = bookings.filter((b: Booking) =>
               b.tables?.some((t: { name: string }) => t.name === table.id),
             );
-            const isHighlighted = hoveredBookingId && tableBookings.some((b: Booking) => b.id === hoveredBookingId);
+            const isHighlighted =
+              (!!hoveredBookingId && tableBookings.some((b: Booking) => b.id === hoveredBookingId)) ||
+              highlightBookingIds.some(id => tableBookings.some((b: Booking) => b.id === id));
             const isHovered = hoveredTable === table.id;
+            const isPlacement = !!placementBooking;
+            const overlap = isPlacement ? countOverlapping(table.id) : 0;
+            const isFull = overlap >= MAX_BOOKINGS_PER_TABLE;
+            const isChosen = isPlacement && tempTables.includes(table.id);
+            const fitsParty = (table.seats ?? 2) >= (placementBooking?.size ?? 0);
+            const fill = isPlacement
+              ? isChosen ? '#4f46e5' : isFull ? '#e2e8f0' : fitsParty ? '#dcfce7' : '#fef3c7'
+              : getColor(status);
+            const stroke = isPlacement
+              ? isChosen ? '#3730a3' : isFull ? '#94a3b8' : fitsParty ? '#22c55e' : '#f59e0b'
+              : getStrokeColor(status, isHighlighted);
+            const labelFill = isPlacement
+              ? isChosen ? 'white' : '#334155'
+              : status === 'FREE' ? '#22c55e' : 'white';
 
             return (
               <g
                 key={table.id}
-                transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width / 2}, ${table.height / 2}) scale(${isHovered || isHighlighted ? 1.05 : 1})`}
+                transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width / 2}, ${table.height / 2}) scale(${isHovered || isHighlighted || isChosen ? 1.05 : 1})`}
                 onMouseEnter={() => setHoveredTable(table.id)}
                 onMouseLeave={() => setHoveredTable(null)}
                 className="cursor-pointer transition-all duration-300"
               >
                 <path
                   d={getShapePath(table)}
-                  fill={getColor(status)}
-                  stroke={getStrokeColor(status, !!isHighlighted)}
-                  strokeWidth={isHighlighted ? "4" : "2"}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={isHighlighted || isChosen ? "4" : "2"}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isPlacement) {
+                      togglePlacementTable(table.id);
+                      return;
+                    }
                     const ownerSvg = e.currentTarget.ownerSVGElement;
                     if (!ownerSvg) return;
                     const rect = ownerSvg.getBoundingClientRect();
@@ -258,13 +331,19 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                     setHoveredTable(prev => prev === table.id ? null : table.id);
                   }}
                 />
-                <text x={table.width / 2} y={table.height / 2} dy="0.35em" textAnchor="middle" fill={status === 'FREE' ? '#22c55e' : 'white'} fontSize="14" fontWeight="800" pointerEvents="none">
+                <text x={table.width / 2} y={table.height / 2} dy="0.35em" textAnchor="middle" fill={labelFill} fontSize="16" fontWeight="800" pointerEvents="none">
                   {table.id}
                 </text>
-                {viewMode === 'OVERVIEW' && count > 0 && (
+                {!isPlacement && viewMode === 'OVERVIEW' && count > 0 && (
                   <g transform={`translate(${table.width - 15}, -5)`}>
                     <circle cx="8" cy="8" r="8" fill="#ef4444" stroke="white" strokeWidth="2" />
                     <text x="8" y="8" dy="0.35em" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">{count}</text>
+                  </g>
+                )}
+                {isPlacement && isChosen && (
+                  <g transform={`translate(${table.width - 15}, -5)`}>
+                    <circle cx="8" cy="8" r="9" fill="#4f46e5" stroke="white" strokeWidth="2" />
+                    <text x="8" y="8" dy="0.35em" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">✓</text>
                   </g>
                 )}
               </g>
@@ -272,6 +351,42 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           })}
           </g>
         </svg>
+
+        {/* Placement dock: confirm tapped tables without leaving the map. */}
+        {placementBooking && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-slate-900/95 backdrop-blur-xl text-white pl-4 pr-2 py-2 rounded-2xl shadow-2xl border border-white/10 max-w-[calc(100%-2rem)]">
+            <div className="min-w-0 mr-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300 leading-none mb-1">
+                {t('placement.title')}
+              </p>
+              <p className="text-sm font-black truncate">
+                {placementBooking.name} · {t('mapview.guestsFmt').replace('{n}', String(placementBooking.size))} ·{' '}
+                {tempTables.length > 0 ? tempTables.join(', ') : '—'}
+              </p>
+            </div>
+            <button
+              onClick={() => runPlacementSave(false)}
+              disabled={placing}
+              className="h-11 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              {t('placement.save')}
+            </button>
+            <button
+              onClick={() => runPlacementSave(true)}
+              disabled={placing || tempTables.length === 0}
+              className="h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+            >
+              <Check className="w-4 h-4" /> {t('placement.seat')}
+            </button>
+            <button
+              onClick={() => onPlacementCancel?.()}
+              aria-label="Cancel"
+              className="p-2.5 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         <AnimatePresence>
           {hoveredTable && (
