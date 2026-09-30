@@ -112,8 +112,12 @@ export const FloorPlanEditor: React.FC = () => {
         const drag = dragRef.current;
         if (!drag || !tables) return;
         const p = toSvgCoords(e);
-        const nx = Math.round(Math.max(0, Math.min(2000, p.x - drag.dx)));
-        const ny = Math.round(Math.max(0, Math.min(2000, p.y - drag.dy)));
+        // Tables must stay inside the 1000x800 canvas — clamp by table size.
+        const target = tables.find(t => t.name === drag.name);
+        const maxX = Math.max(0, 1000 - (target?.width ?? 0));
+        const maxY = Math.max(0, 800 - (target?.height ?? 0));
+        const nx = Math.round(Math.max(0, Math.min(maxX, p.x - drag.dx)));
+        const ny = Math.round(Math.max(0, Math.min(maxY, p.y - drag.dy)));
         mutate(tables.map(t => (t.name === drag.name ? { ...t, x: nx, y: ny } : t)));
     };
 
@@ -380,10 +384,13 @@ export const FloorPlanEditor: React.FC = () => {
                                 <pattern id="editor-dots" width="30" height="30" patternUnits="userSpaceOnUse">
                                     <circle cx="1" cy="1" r="1" fill="#e2e8f0" />
                                 </pattern>
+                                <clipPath id="editorCanvasClip">
+                                    <rect x="0" y="0" width="1000" height="800" />
+                                </clipPath>
                             </defs>
-                            <rect width="100%" height="100%" fill="url(#editor-dots)" />
+                            <rect x="0" y="0" width="1000" height="800" fill="url(#editor-dots)" />
                             {showBackground && backgroundUrl && (
-                                <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="none" opacity={0.35} />
+                                <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="none" opacity={0.35} clipPath="url(#editorCanvasClip)" />
                             )}
 
                             {/* Adjacency edges */}
@@ -404,6 +411,7 @@ export const FloorPlanEditor: React.FC = () => {
                                 );
                             })}
 
+                            <g clipPath="url(#editorCanvasClip)">
                             {tables.map(t => {
                                 const isSelected = t.name === selected;
                                 const isPending = t.name === pendingLink;
@@ -430,6 +438,7 @@ export const FloorPlanEditor: React.FC = () => {
                                     </g>
                                 );
                             })}
+                            </g>
                         </svg>
                     )}
                 </div>
@@ -478,10 +487,10 @@ export const FloorPlanEditor: React.FC = () => {
                                 </label>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <NumField label="X" value={selectedTable.x ?? 0} min={0} max={2000} onChange={v => patchSelected({ x: v })} />
-                                <NumField label="Y" value={selectedTable.y ?? 0} min={0} max={2000} onChange={v => patchSelected({ y: v })} />
-                                <NumField label={tr('editor.widthLabel')} value={selectedTable.width} min={10} max={2000} onChange={v => patchSelected({ width: v })} />
-                                <NumField label={tr('editor.heightLabel')} value={selectedTable.height} min={10} max={2000} onChange={v => patchSelected({ height: v })} />
+                                <NumField label="X" value={selectedTable.x ?? 0} min={0} max={1000} onChange={v => patchSelected({ x: Math.max(0, Math.min(1000 - selectedTable.width, v)) })} />
+                                <NumField label="Y" value={selectedTable.y ?? 0} min={0} max={800} onChange={v => patchSelected({ y: Math.max(0, Math.min(800 - selectedTable.height, v)) })} />
+                                <NumField label={tr('editor.widthLabel')} value={selectedTable.width} min={10} max={300} onChange={v => patchSelected({ width: v })} />
+                                <NumField label={tr('editor.heightLabel')} value={selectedTable.height} min={10} max={300} onChange={v => patchSelected({ height: v })} />
                             </div>
                             <NumField label={tr('editor.rotationLabel')} value={selectedTable.rotation} min={-360} max={360} onChange={v => patchSelected({ rotation: v })} />
 

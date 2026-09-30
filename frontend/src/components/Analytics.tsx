@@ -93,7 +93,14 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
         <Card
             label={t('analytics.bookings')}
             value={data?.totalBookings ?? 0}
-            sub={loading ? undefined : <GrowthSub growth={data?.growth} growthPct={data?.growthPct} />}
+            sub={loading || !data ? undefined : (
+              <span className="flex flex-col">
+                <GrowthSub growth={data?.growth} growthPct={data?.growthPct} />
+                <span className="text-[10px] text-slate-400 font-bold mt-0.5">
+                  {t('analytics.coversFmt').replace('{g}', String(data.totalGuests))}
+                </span>
+              </span>
+            )}
             icon={Users}
             color="bg-indigo-50 text-indigo-600"
         />

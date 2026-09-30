@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserRouter, Routes, Route, Link, useSearchParams, Navigate } from 'react-router-dom';
-import { Map as MapIcon, X, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
+import { Map as MapIcon, X, Settings as SettingsIcon } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from './utils/dayjs';
 import { FloorPlan } from './components/FloorPlan';
 import { Agenda } from './components/Agenda';
@@ -21,7 +21,6 @@ import { OnboardingPage } from './components/OnboardingPage';
 import { NotFound } from './components/NotFound';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
 import { BookingsProvider } from './context/BookingsContext';
-import { useBookingsContext } from './context/useBookingsContext';
 import { AutoConsecButton } from './components/AutoConsecButton';
 import { TrialBanner } from './components/TrialBanner';
 import { isDemoSession } from './utils/auth';
@@ -36,19 +35,6 @@ function AdminDashboard() {
   const [selectedDate, setSelectedDate] = useState(dateFromQuery || dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'));
   const [isQuickResOpen, setIsQuickResOpen] = useState(false);
   const [showMobileFloorPlan, setShowMobileFloorPlan] = useState(false);
-  const { bookings } = useBookingsContext();
-
-  const dailyBookings = bookings.filter(b => 
-    dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === selectedDate && 
-    b.status !== 'CANCELLED'
-  );
-  
-  const occupiedTables = new Set<string>();
-  dailyBookings.forEach(b => {
-    b.tables?.forEach(t => occupiedTables.add(t.name));
-  });
-  
-  const occupancyRate = (occupiedTables.size / 36) * 100;
 
   // Update URL when date changes to keep it in sync
   useEffect(() => {
@@ -67,23 +53,8 @@ function AdminDashboard() {
               <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">Faci<span className="text-indigo-500">-</span>Table</h1>
               <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">{dayjs.tz(selectedDate, RESTAURANT_TZ).format('dddd, D MMM YYYY')}</p>
             </div>
-            {occupancyRate >= 70 && (
-              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl animate-pulse shadow-sm">
-                <AlertTriangle className="w-5 h-5 text-amber-500" />
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">{t('dashboard.highCapacity')}</span>
-                  <span className="text-xs font-bold">{t('dashboard.tablesBooked').replace('{n}', String(Math.round(occupancyRate)))}</span>
-                </div>
-              </div>
-            )}
             {/* Mobile Map Toggle */}
             <div className="flex items-center gap-2 lg:hidden">
-              {occupancyRate >= 70 && (
-                <div className="sm:hidden flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl animate-pulse shadow-sm">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-wider">{t('dashboard.fullShort').replace('{n}', String(Math.round(occupancyRate)))}</span>
-                </div>
-              )}
               <button 
                 onClick={() => setShowMobileFloorPlan(true)}
                 className="lg:hidden p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-sm text-indigo-600 active:scale-95 transition-all"

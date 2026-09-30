@@ -325,6 +325,7 @@ export const TRANSLATIONS = {
         },
         analytics: {
             bookings: 'Bookings',
+            coversFmt: '{g} guests',
             turnover: 'Turnover (est. {ticket}€/guest)',
             guestsAvg: '{g} guests · avg {a}/booking',
             peakHour: 'Peak Hour',
@@ -728,6 +729,7 @@ export const TRANSLATIONS = {
         },
         analytics: {
             bookings: 'Réservations',
+            coversFmt: '{g} couverts',
             turnover: 'CA (est. {ticket}€/couvert)',
             guestsAvg: '{g} couverts · moy. {a}/résa',
             peakHour: 'Heure de pointe',

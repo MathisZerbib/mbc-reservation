@@ -431,12 +431,16 @@ export const TableAssignmentPage: React.FC = () => {
                                 <filter id="tableShadow">
                                     <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.1" />
                                 </filter>
+                                <clipPath id="assignCanvasClip">
+                                    <rect x="0" y="0" width="1000" height="800" />
+                                </clipPath>
                             </defs>
-                            <rect width="100%" height="100%" fill="url(#dots)" />
+                            <rect x="0" y="0" width="1000" height="800" fill="url(#dots)" />
                             {backgroundUrl && (
                                 <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="none" opacity={0.4} />
                             )}
 
+                            <g clipPath="url(#assignCanvasClip)">
                             {layoutTables.map((table) => {
                                 const usageCount = selectedBooking ? countOverlapping(table.id) : filteredBookings.filter(b => b.tables.some(t => t.name === table.id)).length;
                                 const isFull = usageCount >= MAX_BOOKINGS_PER_TABLE;
@@ -463,6 +467,7 @@ export const TableAssignmentPage: React.FC = () => {
                                     />
                                 );
                             })}
+                            </g>
                         </svg>
 
                         {/* Improved Tooltip with Framer Motion */}

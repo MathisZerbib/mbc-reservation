@@ -145,11 +145,12 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
       isFullscreen ? "fixed inset-0 z-[110] bg-slate-50/95 backdrop-blur-2xl p-6" : "relative"
     )}>
       {!hideControls && (
-        <div className="flex-none flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-4 lg:mb-6 px-4">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-3 w-full lg:w-auto">
-            <h2 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight flex items-center justify-between lg:justify-start gap-3 w-full lg:w-auto">
+        <div className="flex-none flex flex-wrap items-center justify-between gap-x-4 gap-y-3 mb-4 lg:mb-6 px-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">
               {t('mapview.title')}
-              <div className="flex bg-slate-200/50 backdrop-blur-sm p-1 rounded-xl border border-slate-200/50">
+            </h2>
+            <div className="flex bg-slate-200/50 backdrop-blur-sm p-1 rounded-xl border border-slate-200/50">
                 <button onClick={() => setViewMode('LIVE')} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5", viewMode === 'LIVE' ? "bg-white shadow-md text-indigo-600" : "text-slate-500 hover:text-slate-900")}>
                   {viewMode === 'LIVE' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></div>}
                   {t('mapview.live')}
@@ -157,31 +158,30 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                 <button onClick={() => setViewMode('OVERVIEW')} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer", viewMode === 'OVERVIEW' ? "bg-white shadow-md text-indigo-600" : "text-slate-500 hover:text-slate-900")}>
                   {t('mapview.overview')}
                 </button>
-              </div>
-            </h2>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center bg-white/80 backdrop-blur-md border border-slate-200 p-2.5 rounded-2xl gap-x-6 gap-y-2 shadow-sm">
+          <div className="flex items-center bg-white/80 backdrop-blur-md border border-slate-200 px-4 py-2 rounded-2xl gap-4 shadow-sm">
             {viewMode === 'LIVE' ? (
               <>
-                <div className="flex items-center gap-2.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
                   <div className="w-3 h-3 rounded-md bg-emerald-500 shadow-sm shadow-emerald-500/30"></div> {t('mapview.free')}
                 </div>
-                <div className="flex items-center gap-2.5 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest">
                   <div className="w-3 h-3 rounded-md bg-amber-400"></div> {t('mapview.resSoon')}
                 </div>
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   <div className="w-3 h-3 rounded-md bg-white border border-slate-300"></div> {t('mapview.free')}
                 </div>
-                <div className="flex items-center gap-2.5 text-[10px] font-black text-blue-500 uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-[10px] font-black text-blue-500 uppercase tracking-widest">
                   <div className="w-3 h-3 rounded-md bg-blue-300 border border-blue-400"></div> {t('mapview.occupied')}
                 </div>
               </>
             )}
-            <div className="w-px h-4 bg-slate-200 mx-1 hidden sm:block"></div>
+            <div className="w-px h-4 bg-slate-200"></div>
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-indigo-600 cursor-pointer"
@@ -205,8 +205,8 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
         onClick={() => setHoveredTable(null)}
       >
         <svg
-          viewBox="-20 20 920 670"
-          preserveAspectRatio="xMidYMin meet"
+          viewBox="0 0 1000 800"
+          preserveAspectRatio="xMidYMid meet"
           className="w-full h-full bg-slate-50/30 cursor-grab active:cursor-grabbing"
         >
           <defs>
@@ -217,12 +217,16 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
               <stop offset="0%" stopColor="#f8fafc" />
               <stop offset="100%" stopColor="#f1f5f9" />
             </linearGradient>
+            <clipPath id="mapCanvasClip">
+              <rect x="0" y="0" width="1000" height="800" />
+            </clipPath>
           </defs>
-          <rect width="100%" height="100%" fill="url(#floorGrad)" />
-          <rect width="100%" height="100%" fill="url(#grid)" />
+          <rect x="0" y="0" width="1000" height="800" fill="url(#floorGrad)" />
+          <rect x="0" y="0" width="1000" height="800" fill="url(#grid)" />
           {/* Vector-only map: the uploaded plan image is an editor tracing
               reference and is deleted on save, so it never overlays here. */}
 
+          <g clipPath="url(#mapCanvasClip)">
           {layoutTables.map((table) => {
             const status = getTableStatus(table.id);
             const count = getTableReservationCount(table.id);
@@ -266,6 +270,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
               </g>
             );
           })}
+          </g>
         </svg>
 
         <AnimatePresence>
