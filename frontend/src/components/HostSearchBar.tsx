@@ -46,7 +46,7 @@ export const HostSearchBar: React.FC<HostSearchBarProps> = ({ value, onChange, m
                 }}
                 placeholder={t('hostSearch.ph')}
                 aria-label={t('hostSearch.ph')}
-                className="w-full h-12 bg-white border-2 border-slate-200/70 rounded-2xl pl-12 pr-20 text-sm font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all placeholder:text-slate-300 placeholder:font-medium"
+                className="w-full h-12 bg-white dark:bg-slate-800 border-2 border-slate-200/70 dark:border-slate-700 rounded-2xl pl-12 pr-20 text-sm font-bold text-slate-900 dark:text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-500 placeholder:font-medium"
             />
             {typeof matchCount === 'number' && value.trim() !== '' && (
                 <span className="absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 tabular-nums pointer-events-none">

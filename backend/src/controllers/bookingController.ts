@@ -117,7 +117,7 @@ export const bookingController = (io: Server) => ({
 
     createBooking: async (req: AuthRequest, res: Response) => {
         try {
-            let { name, phone, email, size, startTime, language, lowTable, notify, turnstileToken } = req.body;
+            let { name, phone, email, size, startTime, language, lowTable, notify, turnstileToken, tags } = req.body;
 
             // Bot protection for anonymous bookings; signed-in staff bypass it.
             if (!getIsAdmin(req)) {
@@ -176,6 +176,7 @@ export const bookingController = (io: Server) => ({
                 size: guestSize,
                 startTime: requestedStart.toDate(),
                 lowTable: lowTable || false,
+                tags,
                 tenantId: tenantId(req)
             });
 
@@ -205,7 +206,7 @@ export const bookingController = (io: Server) => ({
 
             const updatedBooking = await prisma.booking.update({
                 where: { id: id },
-                data: { status: 'COMPLETED' }
+                data: { status: 'COMPLETED', seatedAt: new Date() }
             } as any);
 
             // Send feedback email after visit
@@ -342,6 +343,35 @@ export const bookingController = (io: Server) => ({
             }
             console.error(error);
             res.status(500).json({ error: 'Failed to reschedule booking' });
+        }
+    },
+
+        toggleGuestConfirm: async (req: AuthRequest, res: Response) => {
+        try {
+            let { id } = req.params;
+            if (Array.isArray(id)) id = id[0];
+            const tid = tenantId(req);
+            const existing = await prisma.booking.findFirst({
+                where: { id: id, tenantId: tid }
+            } as any);
+            if (!existing) return res.status(404).json({ error: 'Booking not found' });
+            if ((existing as any).status === 'CANCELLED') {
+                return res.status(400).json({ error: 'Cannot confirm a cancelled booking' });
+            }
+            const { confirmed }: { confirmed?: boolean } = req.body ?? {};
+            await prisma.booking.update({
+                where: { id: id },
+                data: { guestConfirmed: confirmed ?? !(existing as any).guestConfirmed }
+            } as any);
+            const completeBooking = await prisma.booking.findUnique({
+                where: { id: id },
+                include: { tables: true } as any
+            });
+            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            res.json(completeBooking);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Failed to update confirmation' });
         }
     },
 

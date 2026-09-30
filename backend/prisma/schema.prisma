@@ -80,6 +80,8 @@ model RestaurantSettings {
   lateGraceMinutes  Int      @default(15)
   /** Auto-cancel open bookings past the late threshold. */
   autoCancelLate    Boolean  @default(true)
+  /** Minutes a table is expected to turn (overtime detection). */
+  tableTurnoverMinutes Int   @default(105)
   /** Require a card hold for parties at or above the size threshold. */
   depositEnabled    Boolean  @default(false)
   depositMinSize    Int      @default(6)
@@ -112,6 +114,12 @@ model Booking {
   lowTable  Boolean       @default(false)
   /** Who cancelled: 'HOST' (manual) or 'AUTO' (no-show sweep). Null = never cancelled. */
   cancelledBy String?
+  /** Staff tags: VIP, ALLERGY, BIRTHDAY, STROLLER. Shown on host cards. */
+  tags String[] @default([])
+  /** Guest confirmed (host toggle). Drives the confirmation icon. */
+  guestConfirmed Boolean @default(false)
+  /** Seated at (set on check-in). Drives overtime detection. */
+  seatedAt DateTime?
   tenantId  String
   tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tables    Table[]       @relation("BookingTables")

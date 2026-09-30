@@ -222,8 +222,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
         });
     });
 
-    describe('autoCancelNoShows (no-show sweep)', () => {
-        it('should tag sweep cancels as AUTO and spare seated bookings', async () => {
+    describe('autoCancelNoShows (no-show sweep)', () => {        it('should tag sweep cancels as AUTO and spare seated bookings', async () => {
             await prisma.restaurantSettings.upsert({
                 where: { tenantId },
                 update: { autoCancelLate: true, lateGraceMinutes: 0 },
@@ -346,6 +345,37 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
             req = { tenant: tenant(), params: { id: existing.id }, body: { startTime: atHour(1, 20).toISOString() } };
             await bookingController(io).rescheduleBooking(req as AuthRequest, res as Response);
             expect(status).toHaveBeenCalledWith(400);
+        });
+    });
+
+    describe('toggleGuestConfirm (guest confirmation flag)', () => {
+        it('toggles the flag and refuses cancelled bookings', async () => {
+            const existing = await prisma.booking.create({
+                data: {
+                    name: 'Confirm Me',
+                    size: 2,
+                    startTime: new Date(),
+                    endTime: new Date(),
+                    language: 'en',
+                    status: 'CONFIRMED',
+                    tenantId,
+                },
+            });
+
+            req = { tenant: tenant(), params: { id: existing.id }, body: {} };
+            await bookingController(io).toggleGuestConfirm(req as AuthRequest, res as Response);
+            let dbBooking = await prisma.booking.findUnique({ where: { id: existing.id } });
+            expect((dbBooking as any)?.guestConfirmed).toBe(true);
+
+            req = { tenant: tenant(), params: { id: existing.id }, body: { confirmed: false } };
+            await bookingController(io).toggleGuestConfirm(req as AuthRequest, res as Response);
+            dbBooking = await prisma.booking.findUnique({ where: { id: existing.id } });
+            expect((dbBooking as any)?.guestConfirmed).toBe(false);
+            expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'update' }));
+
+            req = { tenant: tenant(), params: { id: 'non-existent-uuid' }, body: {} };
+            await bookingController(io).toggleGuestConfirm(req as AuthRequest, res as Response);
+            expect(status).toHaveBeenCalledWith(404);
         });
     });
 });

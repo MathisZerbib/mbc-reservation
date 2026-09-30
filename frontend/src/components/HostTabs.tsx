@@ -27,7 +27,7 @@ export const HostTabs: React.FC<HostTabsProps> = ({ date, arrivalsNow = 0 }) => 
         );
 
     return (
-        <div className="flex bg-white border-2 border-slate-100 rounded-2xl p-1 gap-1 shadow-sm">
+        <div className="flex bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-1 gap-1 shadow-sm">
             <Link to={`/app/live?date=${date}`} className={tab(onLive)} aria-current={onLive ? 'page' : undefined}>
                 <MapIcon className="w-4 h-4" /> {t('dashboard.tabMap')}
             </Link>

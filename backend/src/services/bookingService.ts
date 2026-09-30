@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { ADJACENCY_MAP } from '../utils/adjacency';
 import { getAdjacencyMap, type AdjacencyMap } from './floorPlanService';
-import { CreateReservationInput } from '../types/booking';
+import { CreateReservationInput, BOOKING_TAGS } from '../types/booking';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -22,6 +22,14 @@ export const addMinutes = (date: Date, minutes: number) => new Date(date.getTime
 export const RESERVATION_DURATION = 120;
 
 export const MAX_BOOKINGS_PER_TABLE = 3;
+
+/** Keep only known staff tags (UI sends a closed set). */
+export function sanitizeTags(input: unknown): string[] {
+    if (!Array.isArray(input)) return [];
+    const allowed = new Set<string>(BOOKING_TAGS as readonly string[]);
+    return [...new Set(input.filter(t => typeof t === 'string').map(t => t.toUpperCase()))]
+        .filter(t => allowed.has(t));
+}
 
 /** Buffer applied around the target window when checking kept tables. */
 export const RESCHEDULE_BUFFER_MINUTES = 15;
@@ -93,6 +101,7 @@ export async function getAvailableTables(
  */
 export async function createReservation(input: CreateReservationInput) {
     const { name, phone, email, language, size, startTime, lowTable, tenantId } = input;
+    const tags = sanitizeTags(input.tags);
     const endTime = addMinutes(startTime, RESERVATION_DURATION);
     const adjacency = await getAdjacencyMap(tenantId);
 
@@ -140,6 +149,7 @@ export async function createReservation(input: CreateReservationInput) {
                 startTime,
                 endTime,
                 lowTable: lowTable || false,
+                tags,
                 tenantId,
                 tables: {
                     connect: combination ? combination.map((t: any) => ({ id: t.id })) : []

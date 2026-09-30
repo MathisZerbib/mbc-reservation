@@ -16,6 +16,8 @@ import { useTranslation } from '../i18n/useTranslation';
 import { NumberField } from './NumberField';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import type { Booking } from '../types';
+import { BOOKING_TAGS } from '../types';
+import { TAG_EMOJI } from '../utils/bookingUtils';
 
 const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
@@ -53,6 +55,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
         date: selectedDate,
         time: '19:00',
         notify: true,
+        tags: [] as string[],
     });
 
     const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
@@ -155,6 +158,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 language: formData.language,
                 startTime: formData.date + ' ' + formData.time,
                 notify: formData.notify,
+                tags: formData.tags,
             }, tenant.slug);
             
             await refresh(); // Force refresh of context data before proceeding
@@ -182,6 +186,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 language: 'fr',
                 date: selectedDate,
                 notify: true,
+                tags: [],
             });
         } catch (err: unknown) {
             if (err instanceof Error) {
@@ -189,6 +194,46 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
             } else {
                 setError(t('quickres.createFailed'));
             }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleTag = (tag: string) => {
+        setFormData(f => ({
+            ...f,
+            tags: f.tags.includes(tag) ? f.tags.filter(x => x !== tag) : [...f.tags, tag],
+        }));
+    };
+
+    /** Walk-in (passant): create + seat in one tap, no name/phone needed. */
+    const handleWalkIn = async () => {
+        if (!tenant || loading) return;
+        setLoading(true);
+        setError('');
+        try {
+            const created: Booking = await api.createBooking({
+                name: 'Passant',
+                size: formData.size,
+                language: 'fr',
+                startTime: formData.date + ' ' + formData.time,
+                notify: false,
+                tags: formData.tags,
+            }, tenant.slug);
+            try {
+                if (initialTable) {
+                    await api.updateAssignment(created.id, [initialTable]);
+                }
+                await api.checkIn(created.id);
+            } catch (e) {
+                console.error('Walk-in seating failed', e);
+            }
+            await refresh();
+            if (onCreated) onCreated(created);
+            if (onSuccess) onSuccess(formData.date);
+            onClose();
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : t('quickres.createFailed'));
         } finally {
             setLoading(false);
         }
@@ -483,6 +528,43 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{t('quickres.tagsLabel')}</label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {BOOKING_TAGS.map(tag => {
+                                            const active = formData.tags.includes(tag);
+                                            return (
+                                                <button
+                                                    key={tag}
+                                                    type="button"
+                                                    onClick={() => toggleTag(tag)}
+                                                    className={cn(
+                                                        "min-h-[44px] px-3 rounded-xl text-xs font-black transition-all cursor-pointer border-2 flex items-center gap-1.5",
+                                                        active
+                                                            ? "bg-slate-900 text-white border-slate-900 shadow"
+                                                            : "bg-white text-slate-400 border-slate-100 hover:border-slate-300",
+                                                    )}
+                                                >
+                                                    <span className="text-sm">{TAG_EMOJI[tag]}</span> {t(`quickres.tag_${tag}` as never) as string}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleWalkIn}
+                                    disabled={loading}
+                                    className="w-full min-h-[56px] rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-500/25 disabled:opacity-50 active:scale-[0.98] cursor-pointer text-sm"
+                                >
+                                    {loading ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <>{t('quickres.walkin')} · {formData.size} {t('quickres.walkinCovers')}</>
+                                    )}
+                                </button>
 
                                 <div className="pt-4">
                                     <button

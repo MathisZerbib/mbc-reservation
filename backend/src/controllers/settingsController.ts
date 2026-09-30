@@ -38,12 +38,13 @@ export const settingsController = (io: Server) => ({
                 autoCancelLate: (req.body as any)?.autoCancelLate,
                 depositEnabled: (req.body as any)?.depositEnabled,
                 depositMinSize: (req.body as any)?.depositMinSize,
+                tableTurnoverMinutes: (req.body as any)?.tableTurnoverMinutes,
             });
             io.emit('settings-update', { settings: updated });
             res.json(updated);
         } catch (error) {
             console.error(error);
-            if (error instanceof Error && /avgTicket|lateGraceMinutes|autoCancelLate|depositEnabled|depositMinSize/.test(error.message)) {
+            if (error instanceof Error && /avgTicket|lateGraceMinutes|autoCancelLate|depositEnabled|depositMinSize|tableTurnoverMinutes/.test(error.message)) {
                 return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: 'Internal server error' });

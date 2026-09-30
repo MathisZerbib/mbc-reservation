@@ -1,12 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { FloorPlan } from './FloorPlan';
+import { Agenda } from './Agenda';
+import { ServiceMetrics } from './ServiceMetrics';
 import { HostSearchBar } from './HostSearchBar';
 import { HostHeader } from './HostHeader';
 import { AdminQuickReservation } from './AdminQuickReservation';
 import { TrialBanner } from './TrialBanner';
 import { useBookingsContext } from '../context/useBookingsContext';
+import { useDarkMode } from '../hooks/useDarkMode';
+import { useHostShortcuts } from '../hooks/useHostShortcuts';
 import { matchesHostQuery, countArrivalsNow } from '../utils/bookingUtils';
 import { api } from '../services/api';
 
@@ -25,7 +29,25 @@ export const LivePage: React.FC = () => {
     const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
     const [isQuickResOpen, setIsQuickResOpen] = useState(false);
     const [quickTable, setQuickTable] = useState<string | null>(null);
+    const [split, setSplit] = useState(true);
+    const [dragOverTableId, setDragOverTableId] = useState<string | null>(null);
+    const dragOverRef = useRef<string | null>(null);
     const { bookings, refresh } = useBookingsContext();
+    const { dark, pref, cycle } = useDarkMode();
+
+    useHostShortcuts({
+        onQuickRes: () => setIsQuickResOpen(true),
+        onEscape: () => {
+            if (isQuickResOpen) {
+                setIsQuickResOpen(false);
+                setQuickTable(null);
+            } else if (selectedTableId) {
+                setSelectedTableId(null);
+            } else if (placementBookingId) {
+                setPlacementBookingId(null);
+            }
+        },
+    });
 
     const dayBookings = bookings.filter(
         b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === selectedDate && b.status !== 'CANCELLED',
@@ -63,10 +85,28 @@ export const LivePage: React.FC = () => {
         setPlacementBookingId(null);
     };
 
+    const handleAssignDrop = async (bookingId: string, tableId: string) => {
+        try {
+            await api.updateAssignment(bookingId, [tableId]);
+            await refresh();
+        } catch (e) {
+            console.error('Drag-and-drop assign failed', e);
+        } finally {
+            dragOverRef.current = null;
+            setDragOverTableId(null);
+        }
+    };
+
+    const handleDragOverTable = (tableId: string | null) => {
+        if (dragOverRef.current === tableId) return;
+        dragOverRef.current = tableId;
+        setDragOverTableId(tableId);
+    };
+
     return (
-        <div className="min-h-screen bg-slate-50 p-3 lg:p-4 h-screen overflow-hidden flex flex-col">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 lg:p-4 h-screen overflow-hidden flex flex-col">
             <div className="max-w-[1600px] mx-auto w-full flex flex-col h-full gap-4">
-                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} />
+                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} darkPref={pref} dark={dark} onToggleDark={cycle} />
                 <TrialBanner />
                 <div className="flex-none">
                     <HostSearchBar
@@ -76,7 +116,9 @@ export const LivePage: React.FC = () => {
                         onSubmit={handleSearchSubmit}
                     />
                 </div>
-                <div className="flex-1 min-h-[480px] overflow-hidden relative rounded-[2.5rem] bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60">
+                <ServiceMetrics bookings={bookings} date={selectedDate} />
+                <div className="flex-1 min-h-[480px] flex flex-col xl:flex-row gap-4 min-h-0">
+                    <div className="flex-1 min-h-[480px] overflow-hidden relative rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/60 dark:border-slate-700/60">
                     <FloorPlan
                         hoveredBookingId={hoveredBookingId}
                         selectedDate={selectedDate}
@@ -92,7 +134,26 @@ export const LivePage: React.FC = () => {
                             setQuickTable(tableId);
                             setIsQuickResOpen(true);
                         }}
+                        dragOverTableId={dragOverTableId}
+                        splitActive={split}
+                        onToggleSplit={() => setSplit(v => !v)}
                     />
+                    </div>
+                    {split && (
+                        <div className="hidden xl:flex w-[400px] flex-none min-h-0">
+                            <Agenda
+                                setHoveredBookingId={setHoveredBookingId}
+                                date={selectedDate}
+                                setDate={setSelectedDate}
+                                externalQuery={hostQuery}
+                                selectedBookingId={placementBookingId}
+                                onPlaceTables={setPlacementBookingId}
+                                draggableRows
+                                onDragOverTable={handleDragOverTable}
+                                onAssignRowDrop={handleAssignDrop}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 

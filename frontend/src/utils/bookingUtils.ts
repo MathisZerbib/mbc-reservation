@@ -152,6 +152,14 @@ export const groupBySlot = (list: Booking[]): { slot: string; rows: Booking[] }[
         .map(([slot, rows]) => ({ slot, rows }));
 };
 
+/** Staff tag emoji (VIP / allergies / celebration / stroller). */
+export const TAG_EMOJI: Record<string, string> = {
+    VIP: '🌟',
+    ALLERGY: '⚠️',
+    BIRTHDAY: '🎂',
+    STROLLER: '👶',
+};
+
 export type SizeBand = 'all' | '2' | '4' | '6p';
 
 /** Rush-friendly party-size bands (no exact typing). */

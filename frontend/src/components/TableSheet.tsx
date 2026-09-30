@@ -6,7 +6,7 @@ import { api } from '../services/api';
 import { useBookingsContext } from '../context/useBookingsContext';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
-import { bookingUrgency, lateMinutes } from '../utils/bookingUtils';
+import { bookingUrgency, lateMinutes, TAG_EMOJI } from '../utils/bookingUtils';
 import { cn } from '../lib/utils';
 import type { Booking } from '../types';
 
@@ -95,7 +95,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
 
     const urgencyLabel = (b: Booking) => {
         const u = bookingUrgency(b, now, grace);
-        if (u === 'seated') return <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">{t('sheet.seated')}</span>;
+        if (u === 'seated') return <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{t('sheet.seated')}</span>;
         if (u === 'done') return null;
         if (u === 'late')
             return (
@@ -104,9 +104,9 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                 </span>
             );
         if (u === 'expected')
-            return <span className="text-[10px] font-black uppercase tracking-wider text-amber-600">{t('sheet.expected')}</span>;
+            return <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">{t('sheet.expected')}</span>;
         return (
-            <span className="text-[10px] font-bold text-slate-400">
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
                 {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
             </span>
         );
@@ -194,14 +194,14 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                 onDragEnd={(_, info) => {
                     if (info.offset.y > 120 || info.velocity.y > 500) onClose();
                 }}
-                className="absolute inset-x-0 bottom-0 z-40 bg-white rounded-t-[2rem] shadow-2xl border-t border-x border-slate-200 overflow-hidden max-h-[75%] flex flex-col"
+                className="absolute inset-x-0 bottom-0 z-40 bg-white dark:bg-slate-900 rounded-t-[2rem] shadow-2xl border-t border-x border-slate-200 dark:border-slate-700 overflow-hidden max-h-[75%] flex flex-col"
             >
             <div className="pt-2.5 pb-1 flex justify-center flex-none touch-none">
-                <div className="w-10 h-1.5 rounded-full bg-slate-200" />
+                <div className="w-10 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700" />
             </div>
-            <div className="flex items-center gap-3 px-4 sm:px-6 pb-3 border-b border-slate-100 flex-none">
+            <div className="flex items-center gap-3 px-4 sm:px-6 pb-3 border-b border-slate-100 dark:border-slate-700 flex-none">
                 <div className="min-w-0 mr-auto">
-                    <p className="text-base font-black text-slate-900 tracking-tight leading-none">
+                    <p className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-none">
                         Table {tableId} <span className="text-slate-400 font-bold text-xs">· {seats} {t('sheet.covers')}</span>
                     </p>
                     <div className="mt-1.5">{statusPill}</div>
@@ -212,7 +212,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                         onClose();
                     }}
                     aria-label="Close"
-                    className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all cursor-pointer shrink-0"
+                    className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer shrink-0"
                 >
                     <X className="w-4 h-4" />
                 </button>
@@ -221,19 +221,22 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
             <div className="overflow-y-auto px-4 sm:px-6 py-3 space-y-2">
                 <div className="max-w-3xl mx-auto w-full space-y-2 pb-2">
                 {rows.length === 0 && (
-                    <p className="text-xs font-bold text-slate-400 text-center py-3">{t('sheet.noBookings')}</p>
+                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 text-center py-3">{t('sheet.noBookings')}</p>
                 )}
                 {rows.map(b => {
                     const open = b.status === 'PENDING' || b.status === 'CONFIRMED';
                     const moving = movingId === b.id;
                     return (
-                        <div key={b.id} className="bg-slate-50/70 border border-slate-100 rounded-2xl p-3">
+                        <div key={b.id} className="bg-slate-50/70 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700 rounded-2xl p-3">
                             <div className="flex items-center gap-2">
                                 <span className="text-[11px] font-black text-slate-900 tabular-nums bg-slate-900 text-white px-2 py-0.5 rounded-md">
                                     {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
                                 </span>
-                                <p className="text-sm font-black text-slate-900 truncate flex-1 min-w-0">{b.name}</p>
-                                <span className="inline-flex items-center gap-1 text-[10px] font-black text-slate-500 shrink-0">
+                                <p className="text-sm font-black text-slate-900 dark:text-white truncate flex-1 min-w-0">{b.name}</p>
+                                {(b.tags ?? []).slice(0, 3).map(tag => (
+                                    <span key={tag} className="text-xs leading-none" title={tag}>{TAG_EMOJI[tag] ?? '•'}</span>
+                                ))}
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black text-slate-500 dark:text-slate-400 shrink-0">
                                     <Users className="w-3 h-3" />
                                     {b.size}
                                 </span>
@@ -243,7 +246,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                 <div className="flex items-center gap-1.5 ml-auto">
                                     <button
                                         onClick={() => onFocusBooking(b.name)}
-                                        className="h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-500 hover:bg-slate-200/70 transition-all cursor-pointer"
+                                        className="h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all cursor-pointer"
                                     >
                                         {t('sheet.view')}
                                     </button>
@@ -258,7 +261,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                                 }}
                                                 className={cn(
                                                     "h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1",
-                                                    moving ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-600",
+                                                    moving ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900" : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300",
                                                 )}
                                             >
                                                 <Clock className="w-3.5 h-3.5" /> {t('sheet.move')}
@@ -282,7 +285,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                                 <button
                                                     onClick={() => askCancel(b.id)}
                                                     aria-label={t('sheet.cancel')}
-                                                    className="h-9 w-9 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                                                    className="h-9 w-9 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-400 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer flex items-center justify-center shrink-0"
                                                 >
                                                     <X className="w-4 h-4" />
                                                 </button>
@@ -293,7 +296,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                             </div>
 
                             {moving && open && (
-                                <div className="mt-2 pt-2 border-t border-slate-200/70">
+                                <div className="mt-2 pt-2 border-t border-slate-200/70 dark:border-slate-700">
                                     <div className="flex flex-wrap gap-1.5">
                                         {TIME_SLOTS.map(s => (
                                             <button
@@ -303,7 +306,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                                     "px-2.5 h-8 rounded-lg text-[11px] font-black tabular-nums transition-all cursor-pointer border",
                                                     (moveSlot ?? dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')) === s
                                                         ? "bg-indigo-600 text-white border-indigo-600"
-                                                        : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300",
+                                                        : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-indigo-300",
                                                 )}
                                             >
                                                 {s}
@@ -315,7 +318,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                             type="date"
                                             value={moveDate ?? dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD')}
                                             onChange={e => setMoveDate(e.target.value)}
-                                            className="h-9 bg-white border border-slate-200 rounded-xl px-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-400"
+                                            className="h-9 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl px-2 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-indigo-400"
                                         />
                                         <button
                                             onClick={() => confirmMove(b)}
@@ -374,12 +377,12 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                 key={b.id}
                                 onClick={() => seatHere(b)}
                                 disabled={busy}
-                                className="w-full flex items-center gap-2 bg-indigo-50/60 hover:bg-indigo-100 border border-indigo-100 rounded-2xl px-3 min-h-[48px] mb-1.5 transition-all active:scale-[0.99] cursor-pointer disabled:opacity-50 text-left"
+                                className="w-full flex items-center gap-2 bg-indigo-50/60 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl px-3 min-h-[48px] mb-1.5 transition-all active:scale-[0.99] cursor-pointer disabled:opacity-50 text-left"
                             >
                                 <span className="text-[11px] font-black tabular-nums text-indigo-700">
                                     {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
                                 </span>
-                                <span className="text-sm font-black text-slate-900 truncate flex-1 min-w-0">{b.name}</span>
+                                <span className="text-sm font-black text-slate-900 dark:text-white truncate flex-1 min-w-0">{b.name}</span>
                                 <span className="text-[10px] font-black text-indigo-500 shrink-0">
                                     {b.size} {t('sheet.covers')}
                                 </span>
@@ -390,7 +393,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
 
                 <button
                     onClick={() => onQuickCreate(tableId)}
-                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 rounded-2xl min-h-[48px] text-xs font-black text-slate-500 hover:text-indigo-600 transition-all cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:bg-indigo-50/40 rounded-2xl min-h-[48px] text-xs font-black text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-all cursor-pointer"
                 >
                     <Plus className="w-4 h-4" /> {t('sheet.newBooking')}
                 </button>

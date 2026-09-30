@@ -157,8 +157,12 @@ export const api = {
     getSettings: () =>
         client.get<RestaurantSettings>('/settings', { auth: true }),
 
-    updateSettings: (data: { avgTicket?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number }) =>
+    updateSettings: (data: { avgTicket?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number }) =>
         client.patch<RestaurantSettings>('/settings', { body: data, auth: true }),
+
+    /** Host toggle for the guest-confirmed flag. */
+    toggleGuestConfirm: (id: string, confirmed?: boolean) =>
+        client.post<Booking>(`/bookings/${id}/guest-confirm`, { body: { confirmed }, auth: true }),
 
     uploadFloorPlanImage: (file: File) => {
         const formData = new FormData();

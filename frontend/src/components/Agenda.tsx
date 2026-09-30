@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
-import { CheckCircle2, XCircle, AlertTriangle, Search, Users, ListFilter, Clock3 } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Search, Users, ListFilter, Clock3, BadgeCheck } from 'lucide-react';
 import clsx from 'clsx';
 import { cn } from '../lib/utils';
 import { api } from '../services/api';
@@ -14,6 +15,7 @@ import {
   lateMinutes,
   groupBySlot,
   matchesSizeBand,
+  TAG_EMOJI,
   type SizeBand,
 } from '../utils/bookingUtils';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
@@ -32,7 +34,22 @@ interface AgendaProps {
   selectedBookingId?: string | null;
   /** Enter map placement mode for an unseated booking. */
   onPlaceTables?: (id: string) => void;
+  /** Split view: rows are draggable onto map tables. */
+  draggableRows?: boolean;
+  onDragOverTable?: (tableId: string | null) => void;
+  onAssignRowDrop?: (bookingId: string, tableId: string) => void;
 }
+
+/** Table under a viewport point during list→map drag (touch-compatible). */
+const pickTableId = (x: number, y: number): string | null => {
+  if (typeof document === 'undefined' || typeof document.elementsFromPoint !== 'function') return null;
+  const els = document.elementsFromPoint(x, y) as HTMLElement[];
+  for (const el of els) {
+    const t = el.closest?.('[data-table-id]');
+    if (t) return t.getAttribute('data-table-id');
+  }
+  return null;
+};
 
 type AgendaView = 'timeline' | 'arrivals';
 
@@ -43,7 +60,7 @@ const SIZE_BANDS: { id: SizeBand; label: string }[] = [
   { id: '6p', label: '6+' },
 ];
 
-export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDate, className, externalQuery = '', selectedBookingId = null, onPlaceTables }) => {
+export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDate, className, externalQuery = '', selectedBookingId = null, onPlaceTables, draggableRows = false, onDragOverTable, onAssignRowDrop }) => {
   const { t } = useTranslation();
   const { bookings, refresh } = useBookingsContext();
   const [showModal, setShowModal] = useState<{ id: string, name: string } | null>(null);
@@ -118,6 +135,15 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
     }
   };
 
+  const toggleConfirm = async (b: Booking) => {
+    try {
+      await api.toggleGuestConfirm(b.id);
+      refresh();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const dayBookings = bookings
     .filter(b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === date);
 
@@ -151,16 +177,22 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
   const nowStamp = dayjs();
   const isToday = dayjs.tz(date, RESTAURANT_TZ).format('YYYY-MM-DD') === nowStamp.tz(RESTAURANT_TZ).format('YYYY-MM-DD');
   const urgencyOf = (b: Booking) => bookingUrgency(b, nowStamp, grace);
+  const isDispute = (b: Booking) =>
+    (b.status === 'PENDING' || b.status === 'CONFIRMED') && lateMinutes(b, nowStamp) > 60;
+  const [showDisputes, setShowDisputes] = useState(false);
   const openRanked = rankedBookings.filter(b => b.status !== 'CANCELLED' && b.status !== 'COMPLETED');
   const doneRanked = rankedBookings.filter(b => b.status === 'CANCELLED' || b.status === 'COMPLETED');
-  const nowRanked = openRanked.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') <= 45);
-  const laterRanked = openRanked.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') > 45);
+  const disputeRanked = openRanked.filter(isDispute);
+  const cleanRanked = openRanked.filter(b => !isDispute(b));
+  const nowRanked = cleanRanked.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') <= 45);
+  const laterRanked = cleanRanked.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') > 45);
   const coversOf = (list: Booking[]) => list.reduce((s, b) => s + b.size, 0);
 
   // Timeline grouping (default view).
   const openFiltered = filteredBookings.filter(b => b.status !== 'CANCELLED' && b.status !== 'COMPLETED');
   const doneFiltered = filteredBookings.filter(b => b.status === 'CANCELLED' || b.status === 'COMPLETED');
-  const slotGroups = groupBySlot(openFiltered);
+  const disputeFiltered = openFiltered.filter(isDispute);
+  const slotGroups = groupBySlot(openFiltered.filter(b => !isDispute(b)));
   const nowSlot = slotKeyOf(nowStamp);
 
   function slotKeyOf(d: dayjs.Dayjs): string {
@@ -191,8 +223,8 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
     if (!b.tables || b.tables.length === 0) {
       if (b.status === 'CANCELLED' || b.status === 'COMPLETED') return null;
       return (
-        <span className="text-[9px] font-black uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-md">
-          {t('agenda.unmappedBadge')}
+        <span className="text-[9px] font-black uppercase tracking-wider text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-500/15 border border-orange-300 dark:border-orange-500/30 px-1.5 py-0.5 rounded-md">
+          {t('agenda.unassigned')}
         </span>
       );
     }
@@ -263,27 +295,71 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
       <button
         onClick={(e) => { e.stopPropagation(); askCancel(b.id); }}
         aria-label={t('sheet.cancel')}
-        className="h-11 w-11 rounded-xl bg-white border border-slate-200 text-slate-300 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer flex items-center justify-center shrink-0"
+        className="h-12 w-12 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-300 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer flex items-center justify-center shrink-0"
       >
         <XCircle className="w-5 h-5" />
       </button>
     );
   };
 
-  const renderRow = (b: Booking) => (
+  const renderRow = (b: Booking) => {
+    const open = b.status !== 'CANCELLED' && b.status !== 'COMPLETED';
+    // Swipe right = seat/check-in, swipe left = arm cancel (buttons stay as fallback).
+    const swipeAction = (dir: 1 | -1) => {
+      if (!open) return;
+      if (dir > 0) {
+        if ((!b.tables || b.tables.length === 0) && onPlaceTables) onPlaceTables(b.id);
+        else void handleCheckIn(b.id);
+      } else {
+        askCancel(b.id);
+      }
+    };
+    return (
     <div
       key={b.id}
-      onMouseEnter={() => setHoveredBookingId(b.id)}
-      onMouseLeave={() => setHoveredBookingId(null)}
       className={clsx(
-        "group bg-white border rounded-2xl p-3 pl-4 grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 transition-all duration-300 relative overflow-hidden",
+        "relative overflow-hidden rounded-2xl border transition-all duration-300",
         selectedBookingId === b.id
           ? "border-indigo-400 ring-2 ring-indigo-500/40 shadow-[0_20px_40px_-10px_rgba(79,70,229,0.25)]"
           : b.status === 'CANCELLED'
-            ? "opacity-60 grayscale border-slate-100"
-            : "border-slate-100 hover:border-indigo-200 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)]",
+            ? "opacity-60 grayscale border-slate-100 dark:border-slate-700"
+            : "border-slate-100 dark:border-slate-700",
       )}
     >
+      <div className="absolute inset-0 flex items-stretch justify-between pointer-events-none" aria-hidden="true">
+        <div className="flex items-center pl-4 w-24 bg-emerald-500 text-white">
+          <CheckCircle2 className="w-5 h-5" />
+        </div>
+        <div className="flex items-center justify-end pr-4 w-24 bg-red-500 text-white">
+          <XCircle className="w-5 h-5" />
+        </div>
+      </div>
+      <motion.div
+        drag={open ? true : false}
+        dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+        dragElastic={0.35}
+        onDrag={(_, info) => {
+          if (!(open && draggableRows)) return;
+          onDragOverTable?.(pickTableId(info.point.x, info.point.y));
+        }}
+        onDragEnd={(_, info) => {
+          onDragOverTable?.(null);
+          if (open && draggableRows) {
+            const tid = pickTableId(info.point.x, info.point.y);
+            if (tid) {
+              onAssignRowDrop?.(b.id, tid);
+              return;
+            }
+          }
+          if (!draggableRows) {
+            if (info.offset.x > 90) swipeAction(1);
+            else if (info.offset.x < -90) swipeAction(-1);
+          }
+        }}
+        onMouseEnter={() => setHoveredBookingId(b.id)}
+        onMouseLeave={() => setHoveredBookingId(null)}
+        className="relative bg-white dark:bg-slate-800 grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 p-3 pl-4 cursor-grab active:cursor-grabbing touch-pan-y"
+      >
       <div className={clsx(
         "absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-500",
         b.status === 'COMPLETED' ? "bg-emerald-500" :
@@ -294,29 +370,45 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
       )} />
 
       <div className="min-w-0">
-        <div className="text-sm font-black text-slate-900 tabular-nums leading-none">
+        <div className="text-lg font-black text-slate-900 dark:text-white tabular-nums leading-none">
           {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
         </div>
-        <div className="text-[10px] font-bold text-slate-400 tabular-nums mt-1">
-          {dayjs(b.endTime).tz(RESTAURANT_TZ).format('HH:mm')}
+        <div className="inline-flex items-center gap-1 text-xs font-black text-slate-600 dark:text-slate-300 tabular-nums mt-1">
+          <Users className="w-3.5 h-3.5" />
+          {b.size}
         </div>
       </div>
 
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          <h3 className="text-[15px] font-black text-slate-900 tracking-tight truncate">
+          <h3 className="text-[15px] font-black text-slate-900 dark:text-white tracking-tight truncate">
             {b.language === 'fr' ? '🇫🇷 ' : b.language === 'en' ? '🇬🇧 ' : b.language === 'it' ? '🇮🇹 ' : ''}
             {b.name}
           </h3>
-          <span className="flex-shrink-0 inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full text-[10px] font-black tabular-nums">
-            <Users className="w-3 h-3" />
-            {b.size}
-          </span>
+          {(b.status === 'PENDING' || b.status === 'CONFIRMED') && (
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleConfirm(b); }}
+              title={t('agenda.confirmGuest')}
+              aria-label={t('agenda.confirmGuest')}
+              className="shrink-0 min-h-[44px] min-w-[44px] -my-2 flex items-center justify-center cursor-pointer"
+            >
+              <BadgeCheck className={cn(
+                "w-5 h-5 transition-colors",
+                b.guestConfirmed ? "text-emerald-500 fill-emerald-100" : "text-slate-300 dark:text-slate-600",
+              )} />
+            </button>
+          )}
         </div>
-        <div className="flex items-center gap-1.5 mt-1 min-w-0">
+        <div className="flex items-center gap-1.5 mt-1 min-w-0 flex-wrap">
+          {(b.tags ?? []).slice(0, 3).map(tag => (
+            <span key={tag} className="text-sm leading-none" title={tag}>{TAG_EMOJI[tag] ?? '•'}</span>
+          ))}
+          {(b.tags ?? []).length > 3 && (
+            <span className="text-[9px] font-black text-slate-400">+{(b.tags ?? []).length - 3}</span>
+          )}
           {urgencyLabel(b)}
           {b.lowTable && (
-            <span className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md border border-indigo-100 uppercase">
+            <span className="text-[9px] font-black bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-500/20 uppercase">
               {t('agenda.lowBadge')}
             </span>
           )}
@@ -328,8 +420,10 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
         {primaryAction(b)}
         {inlineCancel(b)}
       </div>
+      </motion.div>
     </div>
-  );
+    );
+  };
 
   type Item =
     | { kind: 'head'; key: string; title: string; sub: string }
@@ -359,20 +453,20 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
   const sectionHead = (key: string, title: string, sub: string, collapsible?: () => void) => {
     const inner = (
       <>
-        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">{title}</span>
-        <span className="text-[11px] font-bold text-slate-400 tabular-nums">{sub}</span>
+        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{title}</span>
+        <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">{sub}</span>
       </>
     );
     return collapsible ? (
       <button
         key={key}
         onClick={collapsible}
-        className="sticky top-0 z-10 w-full flex items-baseline justify-between gap-2 px-2 py-2 bg-slate-50 rounded-xl cursor-pointer"
+        className="sticky top-0 z-10 w-full flex items-baseline justify-between gap-2 px-2 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer"
       >
         {inner}
       </button>
     ) : (
-      <div key={key} className="sticky top-0 z-10 flex items-baseline justify-between gap-2 px-1 py-2 bg-slate-50 rounded-xl">
+      <div key={key} className="sticky top-0 z-10 flex items-baseline justify-between gap-2 px-1 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
         {inner}
       </div>
     );
@@ -381,29 +475,29 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
   const progressPct = activeDay.length === 0 ? 0 : Math.round((seatedDay / activeDay.length) * 100);
 
   return (
-    <div className={cn("bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden h-full flex flex-col relative", className)}>
+    <div className={cn("bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-700 overflow-hidden h-full flex flex-col relative", className)}>
       {/* Slim header: date + view toggle */}
-      <div className="px-4 pt-4 pb-3 flex-none space-y-3 bg-gradient-to-b from-slate-50/60 to-white border-b border-slate-100/50">
+      <div className="px-4 pt-4 pb-3 flex-none space-y-3 bg-gradient-to-b from-slate-50/60 to-white dark:from-slate-900 dark:to-slate-900 border-b border-slate-100/50 dark:border-slate-700/50">
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.25em]">{t('agenda.schedule')}</span>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider truncate">{dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM')}</p>
+            <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.25em]">{t('agenda.schedule')}</span>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">{dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM')}</p>
           </div>
           <DatePicker
             date={dayjs(date).toDate()}
             setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
-            className="h-11 text-[11px] font-black cursor-pointer bg-white border-2 border-slate-100 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-3 shrink-0"
+            className="h-12 text-[11px] font-black cursor-pointer bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-3 shrink-0 dark:text-white"
             modifiers={calculateAffluence(bookings)}
             modifiersClassNames={affluenceClassNames}
           />
         </div>
 
-        <div className="flex bg-slate-100/80 p-1 rounded-xl gap-1">
+        <div className="flex bg-slate-100/80 dark:bg-slate-800 p-1 rounded-xl gap-1">
           <button
             onClick={() => setView('timeline')}
             className={cn(
-              "flex-1 h-10 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5",
-              view === 'timeline' ? "bg-white shadow text-indigo-600" : "text-slate-400 hover:text-slate-600",
+              "flex-1 min-h-[48px] rounded-lg text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5",
+              view === 'timeline' ? "bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-300" : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300",
             )}
           >
             <Clock3 className="w-4 h-4" /> {t('agenda.viewTimeline')}
@@ -411,8 +505,8 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
           <button
             onClick={() => setView('arrivals')}
             className={cn(
-              "flex-1 h-10 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5",
-              view === 'arrivals' ? "bg-white shadow text-indigo-600" : "text-slate-400 hover:text-slate-600",
+              "flex-1 min-h-[48px] rounded-lg text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5",
+              view === 'arrivals' ? "bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-300" : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300",
             )}
           >
             <ListFilter className="w-4 h-4" /> {t('agenda.viewArrivals')}
@@ -422,12 +516,12 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
         {/* Service progress */}
         <div>
           <div className="flex items-baseline justify-between mb-1.5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('agenda.service')}</span>
-            <span className="text-[11px] font-black text-slate-600 tabular-nums">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('agenda.service')}</span>
+            <span className="text-[11px] font-black text-slate-600 dark:text-slate-300 tabular-nums">
               {t('agenda.progressFmt').replace('{s}', String(seatedDay)).replace('{t}', String(activeDay.length))}
             </span>
           </div>
-          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
             <div
               className="h-full rounded-full bg-emerald-500 transition-all duration-500"
               style={{ width: `${progressPct}%` }}
@@ -442,10 +536,10 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
               key={band.id}
               onClick={() => setSizeBand(band.id)}
               className={cn(
-                "h-10 px-4 rounded-xl text-[11px] font-black tabular-nums transition-all cursor-pointer border-2 shrink-0",
+                "min-h-[48px] px-4 rounded-xl text-[11px] font-black tabular-nums transition-all cursor-pointer border-2 shrink-0",
                 sizeBand === band.id
-                  ? "bg-slate-900 text-white border-slate-900 shadow"
-                  : "bg-white text-slate-400 border-slate-100 hover:border-slate-300",
+                  ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow"
+                  : "bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-500",
               )}
             >
               {band.id === 'all' ? t('agenda.bandAll') : band.label}
@@ -455,10 +549,10 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
             <button
               onClick={() => setOnlyUnseated(v => !v)}
               className={cn(
-                "h-10 px-4 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer border-2 shrink-0 flex items-center gap-1.5",
+                "min-h-[48px] px-4 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer border-2 shrink-0 flex items-center gap-1.5",
                 onlyUnseated
                   ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/25"
-                  : "bg-red-50 text-red-600 border-red-200 hover:border-red-300",
+                  : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30 hover:border-red-300",
               )}
             >
               <AlertTriangle className="w-4 h-4" />
@@ -468,7 +562,29 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
         </div>
       </div>
 
-      <div ref={listRef} className="flex-1 overflow-y-auto p-3 space-y-2.5 bg-slate-50/40 relative">
+      <div ref={listRef} className="flex-1 overflow-y-auto p-3 space-y-2.5 bg-slate-50/40 dark:bg-black/20 relative">
+        {(view === 'timeline' ? disputeFiltered : disputeRanked).length > 0 && (
+          <div>
+            <button
+              onClick={() => setShowDisputes(v => !v)}
+              className={cn(
+                "w-full flex items-center justify-center gap-2 px-3 min-h-[48px] rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer border-2",
+                showDisputes
+                  ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/25"
+                  : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30",
+              )}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              {t('agenda.disputes')} ({(view === 'timeline' ? disputeFiltered : disputeRanked).length})
+              <span>{showDisputes ? '−' : '+'}</span>
+            </button>
+            {showDisputes && (
+              <div className="space-y-2.5 mt-2.5">
+                {(view === 'timeline' ? disputeFiltered : disputeRanked).map(renderRow)}
+              </div>
+            )}
+          </div>
+        )}
         {filteredBookings.length === 0 ? (
           <div className="text-center py-20 flex flex-col items-center">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-slate-200">
@@ -522,7 +638,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                 ) : (
                   <button
                     onClick={() => setShowDone(true)}
-                    className="w-full min-h-[44px] rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                    className="w-full min-h-[48px] rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     {t('agenda.secDone')} ({doneFiltered.length}) +
                   </button>
@@ -540,7 +656,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                 <button
                   key={it.key}
                   onClick={() => setShowDone(true)}
-                  className="w-full min-h-[44px] rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                  className="w-full min-h-[48px] rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
                 >
                   {t('agenda.secDone')} ({doneRanked.length}) +
                 </button>
@@ -555,7 +671,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
       {view === 'timeline' && isToday && (
         <button
           onClick={scrollToNow}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 h-11 px-5 rounded-full bg-slate-900/95 backdrop-blur text-white text-[11px] font-black uppercase tracking-widest shadow-2xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 z-20"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 min-h-[48px] px-5 rounded-full bg-slate-900/95 backdrop-blur text-white text-[11px] font-black uppercase tracking-widest shadow-2xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 z-20"
         >
           <Clock3 className="w-4 h-4" /> {t('agenda.backToNow')}
         </button>
@@ -564,27 +680,27 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
       {/* Confirmation Modal */}
       {showModal && (
         <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-xs w-full animate-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl max-w-xs w-full animate-in zoom-in duration-200">
             <div className="flex items-center gap-4 mb-4 text-red-600">
               <div className="bg-red-50 p-2 rounded-xl">
                 <AlertTriangle className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-lg">{t('agenda.cancelHeading')}</h3>
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">{t('agenda.cancelHeading')}</h3>
             </div>
-            <p className="text-sm text-slate-500 mb-6">
-              {t('agenda.cancelMsgPre')} <span className="font-bold text-slate-900">{showModal.name}</span>{t('agenda.cancelMsgPost')}
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              {t('agenda.cancelMsgPre')} <span className="font-bold text-slate-900 dark:text-white">{showModal.name}</span>{t('agenda.cancelMsgPost')}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowModal(null)}
-                className="flex-1 px-4 py-2 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="flex-1 px-4 min-h-[48px] rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 {t('agenda.stay')}
               </button>
               <button
                 onClick={handleCancel}
                 disabled={loading}
-                className="flex-1 px-4 py-2 rounded-xl text-sm font-bold bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="flex-1 px-4 min-h-[48px] rounded-xl text-sm font-bold bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? '...' : t('agenda.confirm')}
               </button>

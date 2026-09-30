@@ -9,6 +9,9 @@ export const MAX_LATE_GRACE_MINUTES = 120;
 export const MIN_DEPOSIT_SIZE = 2;
 export const MAX_DEPOSIT_SIZE = 100;
 
+export const MIN_TURNOVER_MINUTES = 30;
+export const MAX_TURNOVER_MINUTES = 300;
+
 /** Starting value for fresh installs (tenant changes it in Settings). */
 export const DEFAULT_AVG_TICKET = 55;
 
@@ -22,6 +25,7 @@ export interface RestaurantSettingsDTO {
     autoCancelLate: boolean;
     depositEnabled: boolean;
     depositMinSize: number;
+    tableTurnoverMinutes: number;
     updatedAt: string;
 }
 
@@ -71,13 +75,25 @@ export function parseDepositMinSize(input: unknown): number {
     return value;
 }
 
-const toDTO = (row: { avgTicket: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; updatedAt: Date }): RestaurantSettingsDTO => ({
+export function parseTurnoverMinutes(input: unknown): number {
+    const value = typeof input === 'string' ? Number(input) : (input as number);
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error('tableTurnoverMinutes must be a number');
+    }
+    if (!Number.isInteger(value) || value < MIN_TURNOVER_MINUTES || value > MAX_TURNOVER_MINUTES) {
+        throw new Error(`tableTurnoverMinutes must be an integer between ${MIN_TURNOVER_MINUTES} and ${MAX_TURNOVER_MINUTES}`);
+    }
+    return value;
+}
+
+const toDTO = (row: { avgTicket: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; tableTurnoverMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
     avgTicket: row.avgTicket,
     floorPlanImageUrl: row.floorPlanImageUrl,
     lateGraceMinutes: row.lateGraceMinutes,
     autoCancelLate: row.autoCancelLate,
     depositEnabled: row.depositEnabled,
     depositMinSize: row.depositMinSize,
+    tableTurnoverMinutes: row.tableTurnoverMinutes,
     updatedAt: row.updatedAt.toISOString(),
 });
 
@@ -91,8 +107,8 @@ export async function getSettings(tenantId: string): Promise<RestaurantSettingsD
     return toDTO(row);
 }
 
-export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown }): Promise<RestaurantSettingsDTO> {
-    const data: { avgTicket?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number } = {};
+export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown; tableTurnoverMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
+    const data: { avgTicket?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number } = {};
     if (input.avgTicket !== undefined) {
         data.avgTicket = parseAvgTicket(input.avgTicket);
     }
@@ -107,6 +123,9 @@ export async function updateSettings(tenantId: string, input: { avgTicket?: unkn
     }
     if (input.depositMinSize !== undefined) {
         data.depositMinSize = parseDepositMinSize(input.depositMinSize);
+    }
+    if (input.tableTurnoverMinutes !== undefined) {
+        data.tableTurnoverMinutes = parseTurnoverMinutes(input.tableTurnoverMinutes);
     }
     const row = await prisma.restaurantSettings.upsert({
         where: { tenantId },

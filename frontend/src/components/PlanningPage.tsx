@@ -7,6 +7,8 @@ import { HostHeader } from './HostHeader';
 import { AdminQuickReservation } from './AdminQuickReservation';
 import { TrialBanner } from './TrialBanner';
 import { useBookingsContext } from '../context/useBookingsContext';
+import { useDarkMode } from '../hooks/useDarkMode';
+import { useHostShortcuts } from '../hooks/useHostShortcuts';
 import { matchesHostQuery, countArrivalsNow } from '../utils/bookingUtils';
 
 /**
@@ -23,6 +25,14 @@ export const PlanningPage: React.FC = () => {
     const [, setHoveredBookingId] = useState<string | null>(null);
     const [isQuickResOpen, setIsQuickResOpen] = useState(false);
     const { bookings } = useBookingsContext();
+    const { dark, pref, cycle } = useDarkMode();
+
+    useHostShortcuts({
+        onQuickRes: () => setIsQuickResOpen(true),
+        onEscape: () => {
+            if (isQuickResOpen) setIsQuickResOpen(false);
+        },
+    });
 
     const dayBookings = bookings.filter(
         b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === selectedDate && b.status !== 'CANCELLED',
@@ -37,9 +47,9 @@ export const PlanningPage: React.FC = () => {
     }, [selectedDate, setSearchParams]);
 
     return (
-        <div className="min-h-screen bg-slate-50 p-3 lg:p-4 overflow-y-auto">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 lg:p-4 overflow-y-auto">
             <div className="max-w-2xl mx-auto flex flex-col gap-4 pb-10">
-                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} />
+                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} darkPref={pref} dark={dark} onToggleDark={cycle} />
                 <TrialBanner />
                 <div className="flex-none">
                     <HostSearchBar

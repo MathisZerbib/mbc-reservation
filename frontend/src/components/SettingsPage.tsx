@@ -12,6 +12,7 @@ export const SettingsPage: React.FC = () => {
     const { settings, loading, refresh } = useRestaurantSettings();
     const [avgTicket, setAvgTicket] = useState('');
     const [lateGrace, setLateGrace] = useState('');
+    const [turnover, setTurnover] = useState('105');
     const [autoCancel, setAutoCancel] = useState(true);
     const [depositOn, setDepositOn] = useState(false);
     const [depositMin, setDepositMin] = useState('6');
@@ -25,6 +26,7 @@ export const SettingsPage: React.FC = () => {
             setAvgTicket(String(settings.avgTicket));
             setLateGrace(String(settings.lateGraceMinutes ?? 15));
             setAutoCancel(settings.autoCancelLate ?? true);
+            setTurnover(String(settings.tableTurnoverMinutes ?? 105));
             setDepositOn(settings.depositEnabled ?? false);
             setDepositMin(String(settings.depositMinSize ?? 6));
         }
@@ -51,7 +53,11 @@ export const SettingsPage: React.FC = () => {
     const handleSaveGrace = async () => {
         setSavingGrace(true);
         try {
-            await api.updateSettings({ lateGraceMinutes: Number(lateGrace), autoCancelLate: autoCancel });
+            await api.updateSettings({
+                lateGraceMinutes: Number(lateGrace),
+                autoCancelLate: autoCancel,
+                tableTurnoverMinutes: Number(turnover),
+            });
             await refresh();
             flash('ok', t('settings.graceSaved'));
         } catch (e) {
@@ -184,6 +190,7 @@ export const SettingsPage: React.FC = () => {
                                     step={1}
                                     value={lateGrace}
                                     onChange={e => setLateGrace(e.target.value)}
+                                    aria-label={t('settings.graceTitle')}
                                     className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
                                 />
                                 <button
@@ -194,6 +201,19 @@ export const SettingsPage: React.FC = () => {
                                     {savingGrace ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                     {savingGrace ? t('common.saving') : t('common.save')}
                                 </button>
+                            </div>
+                            <div className="flex gap-2 items-center mt-1">
+                                <input
+                                    type="number"
+                                    min={30}
+                                    max={300}
+                                    step={5}
+                                    value={turnover}
+                                    onChange={e => setTurnover(e.target.value)}
+                                    aria-label={t('settings.turnoverTitle')}
+                                    className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
+                                />
+                                <span className="text-xs font-bold text-slate-400">{t('settings.turnoverTitle')}</span>
                             </div>
                         </div>
                     )}

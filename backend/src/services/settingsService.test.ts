@@ -4,12 +4,15 @@ import {
     parseLateGraceMinutes,
     parseBooleanSetting,
     parseDepositMinSize,
+    parseTurnoverMinutes,
     MIN_AVG_TICKET,
     MAX_AVG_TICKET,
     MIN_LATE_GRACE_MINUTES,
     MAX_LATE_GRACE_MINUTES,
     MIN_DEPOSIT_SIZE,
     MAX_DEPOSIT_SIZE,
+    MIN_TURNOVER_MINUTES,
+    MAX_TURNOVER_MINUTES,
 } from './settingsService';
 
 describe('parseAvgTicket', () => {
@@ -82,5 +85,22 @@ describe('parseDepositMinSize', () => {
         expect(() => parseDepositMinSize(undefined)).toThrow();
         expect(() => parseDepositMinSize(MIN_DEPOSIT_SIZE - 1)).toThrow();
         expect(() => parseDepositMinSize(MAX_DEPOSIT_SIZE + 1)).toThrow();
+    });
+});
+
+describe('parseTurnoverMinutes', () => {
+    it('accepts integers within bounds', () => {
+        expect(parseTurnoverMinutes(105)).toBe(105);
+        expect(parseTurnoverMinutes('90')).toBe(90);
+        expect(parseTurnoverMinutes(MIN_TURNOVER_MINUTES)).toBe(MIN_TURNOVER_MINUTES);
+        expect(parseTurnoverMinutes(MAX_TURNOVER_MINUTES)).toBe(MAX_TURNOVER_MINUTES);
+    });
+
+    it('rejects non-integers and out-of-range values', () => {
+        expect(() => parseTurnoverMinutes(45.5)).toThrow();
+        expect(() => parseTurnoverMinutes('long')).toThrow();
+        expect(() => parseTurnoverMinutes(undefined)).toThrow();
+        expect(() => parseTurnoverMinutes(MIN_TURNOVER_MINUTES - 1)).toThrow();
+        expect(() => parseTurnoverMinutes(MAX_TURNOVER_MINUTES + 1)).toThrow();
     });
 });

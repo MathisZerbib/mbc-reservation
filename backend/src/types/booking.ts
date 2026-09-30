@@ -19,9 +19,15 @@ export interface Booking {
     status?: string;
     lowTable?: boolean;
     tables?: Table[];
+    tags?: string[];
+    guestConfirmed?: boolean;
+    seatedAt?: Date | string | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
+
+export const BOOKING_TAGS = ['VIP', 'ALLERGY', 'BIRTHDAY', 'STROLLER'] as const;
+export type BookingTag = (typeof BOOKING_TAGS)[number];
 
 export interface CreateReservationInput {
     name: string;
@@ -32,4 +38,5 @@ export interface CreateReservationInput {
     startTime: Date;
     lowTable?: boolean;
     tenantId: string;
+    tags?: string[];
 }

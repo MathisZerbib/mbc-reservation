@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findTableCombination, evaluateRescheduleFit, MAX_BOOKINGS_PER_TABLE } from './bookingService';
+import { findTableCombination, evaluateRescheduleFit, sanitizeTags, MAX_BOOKINGS_PER_TABLE } from './bookingService';
 
 // Mock Table Data based on floorPlanData.ts
 // Adjusted capacities based on user scenarios (e.g. Capsules = 2 pax for 12pax/6tables scenario)
@@ -169,5 +169,17 @@ describe('evaluateRescheduleFit', () => {
 
     it('rejects empty explicit tables for a seated party', () => {
         expect(evaluateRescheduleFit([], new Map(), 2, false)).toBe(false);
+    });
+});
+
+describe('sanitizeTags', () => {
+    it('keeps known tags uppercased and deduped', () => {
+        expect(sanitizeTags(['vip', 'VIP', 'allergy'])).toEqual(['VIP', 'ALLERGY']);
+    });
+
+    it('drops unknown tags and non-arrays', () => {
+        expect(sanitizeTags(['VIP', 'HACKER', 42])).toEqual(['VIP']);
+        expect(sanitizeTags(undefined)).toEqual([]);
+        expect(sanitizeTags('VIP')).toEqual([]);
     });
 });

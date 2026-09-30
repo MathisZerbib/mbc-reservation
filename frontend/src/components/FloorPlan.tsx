@@ -6,7 +6,8 @@ import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { cn } from "../lib/utils";
 import { useBookingsContext } from "../context/useBookingsContext";
-import { Maximize2, Minimize2, X, Check } from "lucide-react";
+import { useDarkMode } from "../hooks/useDarkMode";
+import { Maximize2, Minimize2, X, Check, Columns2 } from "lucide-react";
 import { TableSheet } from "./TableSheet";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Booking } from "../types";
@@ -32,6 +33,11 @@ interface FloorPlanProps {
   onFocusBooking?: (name: string) => void;
   /** Open a quick-résa prefilled for a table. */
   onQuickCreate?: (tableId: string) => void;
+  /** Table currently hovered by a list drag (highlight only). */
+  dragOverTableId?: string | null;
+  /** Split-view toggle (xl screens): list beside the map. */
+  splitActive?: boolean;
+  onToggleSplit?: () => void;
 }
 
 export const FloorPlan: React.FC<FloorPlanProps> = ({
@@ -47,10 +53,14 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   onSelectTable,
   onFocusBooking,
   onQuickCreate,
+  dragOverTableId = null,
+  splitActive = false,
+  onToggleSplit,
 }) => {
   const { bookings: allBookings } = useBookingsContext();
   const { t } = useTranslation();
   const { tables: layoutTables } = useLayoutTables();
+  const { dark } = useDarkMode();
   const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>(initialViewMode);
   const [tempTables, setTempTables] = useState<string[]>([]);
   const [placing, setPlacing] = useState(false);
@@ -188,7 +198,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
       case "BLUE": return "#3b82f6";
       case "YELLOW": return "#eab308";
       case "GREEN": return "#22c55e";
-      case "FREE": return "#ffffff";
+      case "FREE": return dark ? "#1e293b" : "#ffffff";
       case "ONE_RES": return "#dbeafe";
       case "TWO_RES": return "#93c5fd";
       case "THREE_PLUS_RES": return "#3b82f6";
@@ -215,21 +225,21 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
       {!hideControls && (
         <div className="flex-none flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               {t('mapview.title')}
             </h2>
-            <div className="flex bg-slate-200/50 backdrop-blur-sm p-1 rounded-xl border border-slate-200/50">
-                <button onClick={() => setViewMode('LIVE')} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5", viewMode === 'LIVE' ? "bg-white shadow-md text-indigo-600" : "text-slate-500 hover:text-slate-900")}>
+            <div className="flex bg-slate-200/50 dark:bg-slate-800 backdrop-blur-sm p-1 rounded-xl border border-slate-200/50 dark:border-slate-700">
+                <button onClick={() => setViewMode('LIVE')} className={cn("min-h-[44px] px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5", viewMode === 'LIVE' ? "bg-white dark:bg-slate-700 shadow-md text-indigo-600 dark:text-indigo-300" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white")}>
                   {viewMode === 'LIVE' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></div>}
                   {t('mapview.live')}
                 </button>
-                <button onClick={() => setViewMode('OVERVIEW')} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer", viewMode === 'OVERVIEW' ? "bg-white shadow-md text-indigo-600" : "text-slate-500 hover:text-slate-900")}>
+                <button onClick={() => setViewMode('OVERVIEW')} className={cn("min-h-[44px] px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer", viewMode === 'OVERVIEW' ? "bg-white dark:bg-slate-700 shadow-md text-indigo-600 dark:text-indigo-300" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white")}>
                   {t('mapview.overview')}
                 </button>
             </div>
           </div>
 
-          <div className="flex items-center bg-white/80 backdrop-blur-md border border-slate-200 px-4 py-2 rounded-2xl gap-4 shadow-sm">
+          <div className="flex items-center bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-2xl gap-4 shadow-sm">
             {viewMode === 'LIVE' ? (
               <>
                 <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
@@ -249,10 +259,19 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                 </div>
               </>
             )}
-            <div className="w-px h-4 bg-slate-200"></div>
+            <div className="w-px h-4 bg-slate-200 dark:bg-slate-600"></div>
+            {onToggleSplit && (
+              <button
+                onClick={onToggleSplit}
+                title={t('mapview.split')}
+                className="hidden xl:flex min-w-[44px] min-h-[44px] p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer items-center justify-center"
+              >
+                <Columns2 className={cn("w-4 h-4", splitActive ? "text-indigo-600 dark:text-indigo-300" : "text-slate-400")} />
+              </button>
+            )}
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-indigo-600 cursor-pointer"
+              className="min-w-[44px] min-h-[44px] p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer flex items-center justify-center"
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
@@ -275,7 +294,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
         <svg
           viewBox="0 0 1000 800"
           preserveAspectRatio="xMidYMid meet"
-          className="w-full h-full bg-slate-50/30 cursor-grab active:cursor-grabbing"
+          className="w-full h-full bg-slate-50/30 dark:bg-transparent cursor-grab active:cursor-grabbing"
         >
           <defs>
             <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -289,8 +308,10 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
               <rect x="0" y="0" width="1000" height="800" />
             </clipPath>
           </defs>
-          <rect width="100%" height="100%" fill="url(#floorGrad)" />
-          <rect width="100%" height="100%" fill="url(#grid)" />
+          <rect width="100%" height="100%" fill="url(#floorGrad)" className="dark:hidden" />
+          <rect width="100%" height="100%" fill="url(#grid)" className="dark:hidden" />
+          <rect width="100%" height="100%" fill="#020617" className="hidden dark:block" />
+          <rect width="100%" height="100%" fill="url(#grid)" opacity="0.5" className="hidden dark:block" />
           {/* Vector-only map: tables stay clipped to the 1000x800 canvas
               while the decorative fond fills the whole viewport. */}
 
@@ -318,21 +339,23 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
               : getStrokeColor(status, isHighlighted);
             const labelFill = isPlacement
               ? isChosen ? 'white' : '#334155'
-              : status === 'FREE' ? '#22c55e' : 'white';
+              : status === 'FREE' ? (dark ? '#4ade80' : '#22c55e') : 'white';
 
             return (
               <g
                 key={table.id}
-                transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width / 2}, ${table.height / 2}) scale(${isHovered || isHighlighted || isChosen ? 1.05 : 1})`}
+                data-table-id={table.id}
+                transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation || 0}, ${table.width / 2}, ${table.height / 2}) scale(${isHovered || isHighlighted || isChosen || dragOverTableId === table.id ? 1.05 : 1})`}
                 onMouseEnter={() => setHoveredTable(table.id)}
                 onMouseLeave={() => setHoveredTable(null)}
                 className="cursor-pointer transition-all duration-300"
               >
                 <path
                   d={getShapePath(table)}
-                  fill={fill}
-                  stroke={stroke}
-                  strokeWidth={isHighlighted || isChosen ? "4" : "2"}
+                  fill={dragOverTableId === table.id ? '#c7d2fe' : fill}
+                  stroke={dragOverTableId === table.id ? '#4f46e5' : stroke}
+                  strokeWidth={isHighlighted || isChosen || dragOverTableId === table.id ? "4" : "2"}
+                  strokeDasharray={dragOverTableId === table.id ? "5 3" : undefined}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (isPlacement) {

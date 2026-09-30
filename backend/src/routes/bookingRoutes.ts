@@ -133,6 +133,7 @@ export const bookingRoutes = (io: Server) => {
     router.get('/bookings', isAuthenticated, requireTenant, controller.getAllBookings);
 
     router.patch('/bookings/:id/tables', isAuthenticated, requireTenant, requireActiveTrial, controller.updateAssignment);
+    router.post('/bookings/:id/guest-confirm', isAuthenticated, requireTenant, requireActiveTrial, controller.toggleGuestConfirm);
     /**
      * @swagger
      * /bookings/{id}:

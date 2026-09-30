@@ -1,5 +1,8 @@
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 
+export const BOOKING_TAGS = ['VIP', 'ALLERGY', 'BIRTHDAY', 'STROLLER'] as const;
+export type BookingTag = (typeof BOOKING_TAGS)[number];
+
 export interface Table {
     id: number;
     name: string;
@@ -19,6 +22,10 @@ export interface Booking {
     status: BookingStatus;
     /** Who cancelled: 'HOST' (manual) or 'AUTO' (no-show sweep). */
     cancelledBy?: string | null;
+    /** Staff tags: VIP, ALLERGY, BIRTHDAY, STROLLER. */
+    tags?: string[];
+    guestConfirmed?: boolean;
+    seatedAt?: string | null;
     tables: Table[];
 }
 
@@ -29,6 +36,7 @@ export interface CreateBookingPayload {
     size: number;
     language?: string;
     lowTable?: boolean;
+    tags?: string[];
     startTime: string;
     notify?: boolean;
     turnstileToken?: string | null;
@@ -77,6 +85,7 @@ export interface RestaurantSettings {
     autoCancelLate: boolean;
     depositEnabled: boolean;
     depositMinSize: number;
+    tableTurnoverMinutes: number;
     updatedAt: string;
 }
 
