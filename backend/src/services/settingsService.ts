@@ -6,6 +6,9 @@ export const MAX_AVG_TICKET = 1000;
 export const MIN_LATE_GRACE_MINUTES = 0;
 export const MAX_LATE_GRACE_MINUTES = 120;
 
+export const MIN_DEPOSIT_SIZE = 2;
+export const MAX_DEPOSIT_SIZE = 100;
+
 /** Starting value for fresh installs (tenant changes it in Settings). */
 export const DEFAULT_AVG_TICKET = 55;
 
@@ -16,6 +19,9 @@ export interface RestaurantSettingsDTO {
     avgTicket: number;
     floorPlanImageUrl: string | null;
     lateGraceMinutes: number;
+    autoCancelLate: boolean;
+    depositEnabled: boolean;
+    depositMinSize: number;
     updatedAt: string;
 }
 
@@ -49,10 +55,29 @@ export function parseLateGraceMinutes(input: unknown): number {
     return Math.round(value);
 }
 
-const toDTO = (row: { avgTicket: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
+export function parseBooleanSetting(input: unknown, name: string): boolean {
+    if (typeof input === 'boolean') return input;
+    throw new Error(`${name} must be a boolean`);
+}
+
+export function parseDepositMinSize(input: unknown): number {
+    const value = typeof input === 'string' ? Number(input) : (input as number);
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error('depositMinSize must be a number');
+    }
+    if (!Number.isInteger(value) || value < MIN_DEPOSIT_SIZE || value > MAX_DEPOSIT_SIZE) {
+        throw new Error(`depositMinSize must be an integer between ${MIN_DEPOSIT_SIZE} and ${MAX_DEPOSIT_SIZE}`);
+    }
+    return value;
+}
+
+const toDTO = (row: { avgTicket: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; updatedAt: Date }): RestaurantSettingsDTO => ({
     avgTicket: row.avgTicket,
     floorPlanImageUrl: row.floorPlanImageUrl,
     lateGraceMinutes: row.lateGraceMinutes,
+    autoCancelLate: row.autoCancelLate,
+    depositEnabled: row.depositEnabled,
+    depositMinSize: row.depositMinSize,
     updatedAt: row.updatedAt.toISOString(),
 });
 
@@ -66,13 +91,22 @@ export async function getSettings(tenantId: string): Promise<RestaurantSettingsD
     return toDTO(row);
 }
 
-export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; lateGraceMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
-    const data: { avgTicket?: number; lateGraceMinutes?: number } = {};
+export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown }): Promise<RestaurantSettingsDTO> {
+    const data: { avgTicket?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number } = {};
     if (input.avgTicket !== undefined) {
         data.avgTicket = parseAvgTicket(input.avgTicket);
     }
     if (input.lateGraceMinutes !== undefined) {
         data.lateGraceMinutes = parseLateGraceMinutes(input.lateGraceMinutes);
+    }
+    if (input.autoCancelLate !== undefined) {
+        data.autoCancelLate = parseBooleanSetting(input.autoCancelLate, 'autoCancelLate');
+    }
+    if (input.depositEnabled !== undefined) {
+        data.depositEnabled = parseBooleanSetting(input.depositEnabled, 'depositEnabled');
+    }
+    if (input.depositMinSize !== undefined) {
+        data.depositMinSize = parseDepositMinSize(input.depositMinSize);
     }
     const row = await prisma.restaurantSettings.upsert({
         where: { tenantId },

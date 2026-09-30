@@ -72,6 +72,9 @@ export interface RestaurantSettings {
     avgTicket: number;
     floorPlanImageUrl: string | null;
     lateGraceMinutes: number;
+    autoCancelLate: boolean;
+    depositEnabled: boolean;
+    depositMinSize: number;
     updatedAt: string;
 }
 

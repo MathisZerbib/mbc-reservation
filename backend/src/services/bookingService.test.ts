@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findTableCombination } from './bookingService';
+import { findTableCombination, evaluateRescheduleFit, MAX_BOOKINGS_PER_TABLE } from './bookingService';
 
 // Mock Table Data based on floorPlanData.ts
 // Adjusted capacities based on user scenarios (e.g. Capsules = 2 pax for 12pax/6tables scenario)
@@ -140,5 +140,34 @@ describe('findTableCombination', () => {
         const available = [{ id: 40, name: '40', capacity: 1 }];
         const result = findTableCombination(4, available);
         expect(result).toBeNull();
+    });
+});
+
+describe('evaluateRescheduleFit', () => {
+    const rows = [
+        { id: 1, capacity: 4 },
+        { id: 2, capacity: 2 },
+    ];
+
+    it('keeps unseated bookings unseated', () => {
+        expect(evaluateRescheduleFit([], new Map(), 6, true)).toBe(true);
+    });
+
+    it('fits when capacity covers the party with headroom', () => {
+        expect(evaluateRescheduleFit(rows, new Map([[1, 1]]), 6, false)).toBe(true);
+    });
+
+    it('rejects when capacity is short', () => {
+        expect(evaluateRescheduleFit(rows, new Map(), 8, false)).toBe(false);
+    });
+
+    it('rejects when a kept table hits the overlap limit', () => {
+        expect(
+            evaluateRescheduleFit(rows, new Map([[2, MAX_BOOKINGS_PER_TABLE]]), 4, false),
+        ).toBe(false);
+    });
+
+    it('rejects empty explicit tables for a seated party', () => {
+        expect(evaluateRescheduleFit([], new Map(), 2, false)).toBe(false);
     });
 });

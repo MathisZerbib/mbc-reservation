@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Check, Copy, Loader2, PartyPopper, Store, Euro, LayoutGrid, ImagePlus, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Copy, Loader2, PartyPopper, Store, Euro, LayoutGrid, ImagePlus, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { api, fileUrl } from '../services/api';
 import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
 import { FloorPlanImageDropzone } from './FloorPlanImageDropzone';
@@ -48,8 +48,15 @@ export const OnboardingPage: React.FC = () => {
     const [slugState, setSlugState] = useState<'idle' | 'checking' | 'free' | 'taken' | 'invalid'>('idle');
     const [avgTicket, setAvgTicket] = useState('');
     const [tablesChoice, setTablesChoice] = useState<number | null>(null);
+    const [rulesDone, setRulesDone] = useState(false);
+    const [autoCancel, setAutoCancel] = useState(true);
+    const [graceChoice, setGraceChoice] = useState(15);
+    const [depositOn, setDepositOn] = useState(false);
+    const [depositMin, setDepositMin] = useState('6');
 
-    const STEPS = [t('onboarding.s1'), t('onboarding.s2'), t('onboarding.s3'), t('onboarding.s4'), t('onboarding.s5')];
+    const GRACE_CHOICES = [15, 30, 45, 60];
+
+    const STEPS = [t('onboarding.s1'), t('onboarding.s2'), t('onboarding.s3'), t('onboarding.s4'), t('onboarding.sRules'), t('onboarding.s5')];
     const PRESETS = [
         { label: t('onboarding.intimate'), desc: t('onboarding.intimateDesc'), count: 12 },
         { label: t('onboarding.classic'), desc: t('onboarding.classicDesc'), count: 24 },
@@ -65,6 +72,14 @@ export const OnboardingPage: React.FC = () => {
     useEffect(() => {
         if (settings && !avgTicket) setAvgTicket(String(settings.avgTicket));
     }, [settings, avgTicket]);
+    useEffect(() => {
+        if (settings && !rulesDone) {
+            setAutoCancel(settings.autoCancelLate ?? true);
+            setGraceChoice(settings.lateGraceMinutes ?? 15);
+            setDepositOn(settings.depositEnabled ?? false);
+            setDepositMin(String(settings.depositMinSize ?? 6));
+        }
+    }, [settings, rulesDone]);
 
     // Live availability check for the public address (debounced).
     useEffect(() => {
@@ -143,6 +158,30 @@ export const OnboardingPage: React.FC = () => {
             go(3);
         } catch (e) {
             setError(e instanceof Error ? e.message : t('onboarding.createError'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const saveRules = async () => {
+        const minSize = Number(depositMin);
+        if (depositOn && (!Number.isInteger(minSize) || minSize < 2 || minSize > 100)) {
+            setError(t('onboarding.depositError'));
+            return;
+        }
+        setSaving(true);
+        try {
+            await api.updateSettings({
+                autoCancelLate: autoCancel,
+                lateGraceMinutes: graceChoice,
+                depositEnabled: depositOn,
+                depositMinSize: depositOn ? minSize : 6,
+            });
+            await refreshSettings();
+            setRulesDone(true);
+            go(5);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : t('onboarding.saveError'));
         } finally {
             setSaving(false);
         }
@@ -376,6 +415,92 @@ export const OnboardingPage: React.FC = () => {
         </div>
     );
 
+    if (step === 4) return shell(
+        <div>
+            {stepIcon(ShieldCheck, 'bg-red-50', 'text-red-600')}
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">{t('onboarding.rulesTitle')}</h2>
+            <p className="text-sm text-slate-500 font-medium mt-2">{t('onboarding.rulesMsg')}</p>
+
+            <div className="mt-6 rounded-2xl border-2 border-slate-100 p-4">
+                <button
+                    onClick={() => setAutoCancel(v => !v)}
+                    className="w-full flex items-center gap-3 cursor-pointer text-left"
+                >
+                    <span className={cn(
+                        "w-11 h-6 rounded-full p-0.5 transition-colors shrink-0",
+                        autoCancel ? "bg-emerald-500" : "bg-slate-200",
+                    )}>
+                        <span className={cn(
+                            "block w-5 h-5 rounded-full bg-white shadow transition-transform",
+                            autoCancel && "translate-x-5",
+                        )} />
+                    </span>
+                    <span className="text-sm font-black text-slate-900">{t('onboarding.autoCancelTitle')}</span>
+                </button>
+                <p className="text-xs text-slate-400 font-medium mt-2 ml-14">{t('onboarding.autoCancelMsg')}</p>
+                {autoCancel && (
+                    <>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3 ml-14">
+                            {t('onboarding.graceLabel')}
+                        </p>
+                        <div className="flex gap-2 mt-2 ml-14">
+                            {GRACE_CHOICES.map(m => (
+                                <button
+                                    key={m}
+                                    onClick={() => setGraceChoice(m)}
+                                    className={cn(
+                                        "flex-1 h-11 rounded-xl text-sm font-black tabular-nums transition-all cursor-pointer border-2",
+                                        graceChoice === m
+                                            ? "bg-slate-900 text-white border-slate-900 shadow-lg"
+                                            : "bg-white text-slate-500 border-slate-100 hover:border-slate-300",
+                                    )}
+                                >
+                                    {m} <span className="text-[10px] font-bold opacity-70">{t('onboarding.minSuffix')}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <div className="mt-3 rounded-2xl border-2 border-slate-100 p-4">
+                <button
+                    onClick={() => setDepositOn(v => !v)}
+                    className="w-full flex items-center gap-3 cursor-pointer text-left"
+                >
+                    <span className={cn(
+                        "w-11 h-6 rounded-full p-0.5 transition-colors shrink-0",
+                        depositOn ? "bg-emerald-500" : "bg-slate-200",
+                    )}>
+                        <span className={cn(
+                            "block w-5 h-5 rounded-full bg-white shadow transition-transform",
+                            depositOn && "translate-x-5",
+                        )} />
+                    </span>
+                    <span className="text-sm font-black text-slate-900">{t('onboarding.depositTitle')}</span>
+                </button>
+                <p className="text-xs text-slate-400 font-medium mt-2 ml-14">{t('onboarding.depositMsg')}</p>
+                {depositOn && (
+                    <div className="flex items-center gap-2 mt-3 ml-14">
+                        <input
+                            type="number"
+                            min={2}
+                            max={100}
+                            step={1}
+                            value={depositMin}
+                            onChange={e => setDepositMin(e.target.value)}
+                            className="w-28 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        />
+                        <span className="text-xs font-bold text-slate-400">{t('onboarding.depositMinLabel')}</span>
+                    </div>
+                )}
+            </div>
+
+            {error && <p className="text-sm font-bold text-red-500 mt-3">{error}</p>}
+            <Nav onBack={() => go(3)} onNext={saveRules} />
+        </div>
+    );
+
     return shell(
         <div>
             {stepIcon(Store, 'bg-emerald-50', 'text-emerald-600')}
@@ -394,6 +519,7 @@ export const OnboardingPage: React.FC = () => {
                     [t('onboarding.checkTicket'), avgTicket !== ''],
                     [tablesChoice ? t('onboarding.checkTablesDone').replace('{n}', String(tablesChoice)) : t('onboarding.checkTables'), tablesChoice !== null],
                     [t('onboarding.checkImage'), !!settings?.floorPlanImageUrl],
+                    [t('onboarding.checkRules'), rulesDone],
                 ].map(([label, done]) => (
                     <div key={label as string} className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-600">
                         <span className={cn("w-5 h-5 rounded-full flex items-center justify-center", done ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-300")}>
@@ -405,7 +531,7 @@ export const OnboardingPage: React.FC = () => {
             </div>
             {error && <p className="text-sm font-bold text-red-500 mt-3">{error}</p>}
             <div className="flex items-center justify-between mt-8">
-                <button onClick={() => go(3)} className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer">
+                <button onClick={() => go(4)} className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer">
                     <ChevronLeft className="w-4 h-4" /> {t('common.back')}
                 </button>
                 <button

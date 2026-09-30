@@ -66,10 +66,10 @@
  *           type: string
  *           format: date-time
  *           description: End time of the reservation
- *         status:
- *           type: string
- *           enum: [CONFIRMED, CANCELLED, COMPLETED, NO_SHOW]
- *           description: Status of the booking
+  *         status:
+  *           type: string
+  *           enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
+  *           description: Status of the booking (late no-shows auto-cancel to CANCELLED)
  *   securitySchemes:
  *     bearerAuth:
  *       type: http

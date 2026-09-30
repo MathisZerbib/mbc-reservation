@@ -137,5 +137,5 @@ app.get('/version', (_req, res) => {
 
 server.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
-    startCleanupTask();
+    startCleanupTask(io);
 });

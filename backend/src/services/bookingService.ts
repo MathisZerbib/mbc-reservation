@@ -355,6 +355,25 @@ export type RescheduleResult =
     | { conflict: true; suggestion: string[] };
 
 /**
+ * Pure kept-tables decision: enough capacity for the new size and every
+ * kept table still has overlap headroom in the target window.
+ * Unseated bookings trivially fit (they stay unseated).
+ */
+export function evaluateRescheduleFit(
+    candidateRows: { id: number; capacity: number }[],
+    counts: Map<number, number>,
+    newSize: number,
+    staysUnseated: boolean,
+): boolean {
+    if (staysUnseated) return true;
+    const capacity = candidateRows.reduce((s, t) => s + t.capacity, 0);
+    return (
+        capacity >= newSize &&
+        candidateRows.every(t => (counts.get(t.id) ?? 0) < MAX_BOOKINGS_PER_TABLE)
+    );
+}
+
+/**
  * Moves a booking to a new time/size, keeping its tables when they still
  * fit (capacity + overlap headroom in the buffered window).
  *
@@ -426,11 +445,7 @@ export async function rescheduleBooking(input: RescheduleInput): Promise<Resched
         const allTables = await tx.table.findMany({ where: { tenantId } });
         const byName = new Map(allTables.map(t => [t.name, t]));
         const candidateRows = candidateNames.map(n => byName.get(n)).filter(Boolean) as any[];
-        const capacity = candidateRows.reduce((s, t) => s + t.capacity, 0);
-        const fits =
-            staysUnseated ||
-            (capacity >= newSize &&
-                candidateRows.every(t => (counts.get(t.id) ?? 0) < MAX_BOOKINGS_PER_TABLE));
+        const fits = evaluateRescheduleFit(candidateRows, counts, newSize, staysUnseated);
 
         if (!fits && input.tableNames === undefined) {
             const adjacency = await getAdjacencyMap(tenantId);

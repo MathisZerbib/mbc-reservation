@@ -157,7 +157,7 @@ export const api = {
     getSettings: () =>
         client.get<RestaurantSettings>('/settings', { auth: true }),
 
-    updateSettings: (data: { avgTicket?: number; lateGraceMinutes?: number }) =>
+    updateSettings: (data: { avgTicket?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number }) =>
         client.patch<RestaurantSettings>('/settings', { body: data, auth: true }),
 
     uploadFloorPlanImage: (file: File) => {

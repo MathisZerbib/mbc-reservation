@@ -78,6 +78,11 @@ model RestaurantSettings {
   floorPlanImageUrl String?
   /** Minutes after startTime before an open booking counts as late. */
   lateGraceMinutes  Int      @default(15)
+  /** Auto-cancel open bookings past the late threshold. */
+  autoCancelLate    Boolean  @default(true)
+  /** Require a card hold for parties at or above the size threshold. */
+  depositEnabled    Boolean  @default(false)
+  depositMinSize    Int      @default(6)
   updatedAt         DateTime @updatedAt
 }
 
