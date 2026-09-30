@@ -78,7 +78,7 @@ export async function analyzeFloorPlanImage(
     // Lazy import so the backend boots without the optional dep installed.
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL ?? 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL ?? 'gemini-3.8-flash' });
 
     const base64 = buffer.toString('base64');
     const result = await model.generateContent([
