@@ -2,16 +2,8 @@ import React, { useRef, useState } from 'react';
 import { ImagePlus, Loader2, Trash2, Replace } from 'lucide-react';
 import { api } from '../services/api';
 import { useTranslation } from '../i18n/useTranslation';
+import { MAX_FLOOR_PLAN_MB, validateFloorPlanFile } from '../utils/floorPlanImage';
 import { cn } from '../lib/utils';
-
-export const MAX_FLOOR_PLAN_MB = 5;
-const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
-
-export function validateFloorPlanFile(file: File): string | null {
-    if (!ACCEPTED.includes(file.type)) return 'type';
-    if (file.size > MAX_FLOOR_PLAN_MB * 1024 * 1024) return 'size';
-    return null;
-}
 
 interface Props {
     previewUrl: string | null;
