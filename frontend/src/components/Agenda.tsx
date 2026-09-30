@@ -5,7 +5,9 @@ import clsx from 'clsx';
 import { cn } from '../lib/utils';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
-import { calculateAffluence, affluenceClassNames, formatTableLabels, matchesHostQuery } from '../utils/bookingUtils';
+import { calculateAffluence, affluenceClassNames, formatTableLabels, matchesHostQuery, bookingUrgency } from '../utils/bookingUtils';
+import { useRestaurantSettings } from '../hooks/useFloorPlan';
+import type { Booking } from '../types';
 import { useBookingsContext } from '../context/useBookingsContext';
 import { useTranslation } from '../i18n/useTranslation';
 interface AgendaProps {
@@ -29,6 +31,9 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
   const [searchName, setSearchName] = useState('');
   const [searchSize, setSearchSize] = useState<string>('');
   const [onlyUnseated, setOnlyUnseated] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+  const { settings } = useRestaurantSettings();
+  const grace = settings?.lateGraceMinutes ?? 15;
 
   const handleCheckIn = async (id: string) => {
     try {
@@ -88,6 +93,40 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
       if (ra !== rb) return ra - rb;
       return dayjs(a.startTime).unix() - dayjs(b.startTime).unix();
     });
+
+  // Visual sections: happening now → upcoming → done (collapsed).
+  const nowStamp = dayjs();
+  const urgencyOf = (b: Booking) => bookingUrgency(b, nowStamp, grace);
+  const openList = filteredBookings.filter(b => b.status !== 'CANCELLED' && b.status !== 'COMPLETED');
+  const doneList = filteredBookings.filter(b => b.status === 'CANCELLED' || b.status === 'COMPLETED');
+  const nowList = openList.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') <= 45);
+  const laterList = openList.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') > 45);
+  const coversOf = (list: Booking[]) => list.reduce((s, b) => s + b.size, 0);
+
+  type Item =
+    | { kind: 'head'; key: string; title: string; sub: string }
+    | { kind: 'doneToggle'; key: string }
+    | { kind: 'row'; b: Booking };
+  const items: Item[] = [];
+  const pushSection = (key: string, title: string, list: Booking[]) => {
+    if (list.length === 0) return;
+    items.push({
+      kind: 'head',
+      key: `head-${key}`,
+      title,
+      sub: t('agenda.countFmt').replace('{n}', String(list.length)).replace('{g}', String(coversOf(list))),
+    });
+    list.forEach(b => items.push({ kind: 'row', b }));
+  };
+  pushSection('now', t('agenda.secNow'), nowList);
+  pushSection('later', t('agenda.secLater'), laterList);
+  if (doneList.length > 0) {
+    if (showDone) {
+      pushSection('done', t('agenda.secDone'), doneList);
+    } else {
+      items.push({ kind: 'doneToggle', key: 'done-toggle' });
+    }
+  }
 
   return (
     <div className={cn("bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden h-full flex flex-col relative", className)}>
@@ -161,7 +200,41 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
             <p className="text-[11px] text-slate-500 font-medium mt-1">{t('agenda.adjustFilters')}</p>
           </div>
         ) : (
-          filteredBookings.map(b => (
+          items.map(it => {
+            if (it.kind === 'head') {
+              const inner = (
+                <>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{it.title}</span>
+                  <span className="text-[10px] font-bold text-slate-400 tabular-nums">{it.sub}</span>
+                </>
+              );
+              return it.key === 'head-done' ? (
+                <button
+                  key={it.key}
+                  onClick={() => setShowDone(false)}
+                  className="sticky top-0 z-10 w-full flex items-baseline justify-between gap-2 px-2 pt-1.5 pb-1 bg-slate-50 rounded-lg cursor-pointer"
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div key={it.key} className="sticky top-0 z-10 flex items-baseline justify-between gap-2 px-1 pt-1.5 pb-1 bg-slate-50 rounded-lg">
+                  {inner}
+                </div>
+              );
+            }
+            if (it.kind === 'doneToggle') {
+              return (
+                <button
+                  key={it.key}
+                  onClick={() => setShowDone(true)}
+                  className="w-full min-h-[44px] rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                >
+                  {t('agenda.secDone')} ({doneList.length}) +
+                </button>
+              );
+            }
+            const b = it.b;
+            return (
             <div key={b.id}
               onMouseEnter={() => setHoveredBookingId(b.id)}
               onMouseLeave={() => setHoveredBookingId(null)}
@@ -175,7 +248,10 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
               <div className={clsx(
                 "absolute left-0 top-0 bottom-0 w-2 transition-all duration-700 ease-out",
                 b.status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]" :
-                  b.status === 'CANCELLED' ? "bg-slate-300" : "bg-slate-100 group-hover:bg-indigo-600 group-hover:w-3 group-hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
+                  b.status === 'CANCELLED' ? "bg-slate-300" :
+                  urgencyOf(b) === 'late' ? "bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.4)]" :
+                  urgencyOf(b) === 'expected' ? "bg-amber-400 group-hover:w-3" :
+                  "bg-slate-100 group-hover:bg-indigo-600 group-hover:w-3 group-hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
               )}></div>
 
               <div className="flex justify-between items-start gap-3">
@@ -275,7 +351,8 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                 )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 

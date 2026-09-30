@@ -133,6 +133,21 @@ export const bookingRoutes = (io: Server) => {
     router.get('/bookings', isAuthenticated, requireTenant, controller.getAllBookings);
 
     router.patch('/bookings/:id/tables', isAuthenticated, requireTenant, requireActiveTrial, controller.updateAssignment);
+    /**
+     * @swagger
+     * /bookings/{id}:
+     *   patch:
+     *     summary: Reschedule a booking (time/size), keeping tables when compatible
+     *     tags: [Bookings]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Rescheduled booking
+     *       409:
+     *         description: Kept tables conflict — returns a suggested combination
+     */
+    router.patch('/bookings/:id', isAuthenticated, requireTenant, requireActiveTrial, controller.rescheduleBooking);
     router.post('/bookings/:id/check-in', isAuthenticated, requireTenant, requireActiveTrial, controller.checkIn);
     router.post('/bookings/:id/cancel', isAuthenticated, requireTenant, requireActiveTrial, controller.cancelBooking);
 

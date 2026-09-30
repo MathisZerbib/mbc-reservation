@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserRouter, Routes, Route, Link, useSearchParams, Navigate } from 'react-router-dom';
-import { Map as MapIcon, X, Settings as SettingsIcon, ChartColumn } from 'lucide-react';
+import { Map as MapIcon, List, Settings as SettingsIcon, ChartColumn } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from './utils/dayjs';
 import { FloorPlan } from './components/FloorPlan';
 import { Agenda } from './components/Agenda';
@@ -37,16 +36,27 @@ function AdminDashboard() {
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(dateFromQuery || dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'));
   const [isQuickResOpen, setIsQuickResOpen] = useState(false);
-  const [showMobileFloorPlan, setShowMobileFloorPlan] = useState(false);
+  const [quickTable, setQuickTable] = useState<string | null>(null);
+  // Small screens: both views stay mounted, only one is shown — switching
+  // never loses search, selection or an ongoing placement.
+  const [mobileView, setMobileView] = useState<'map' | 'list'>('list');
   // Host console state: one query drives the arrivals list + map glow,
   // and one selected booking drives inline placement on the map.
   const [hostQuery, setHostQuery] = useState('');
   const [placementBookingId, setPlacementBookingId] = useState<string | null>(null);
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const { bookings, refresh } = useBookingsContext();
 
   const dayBookings = bookings.filter(
     b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === selectedDate && b.status !== 'CANCELLED',
   );
+  const nowStamp = dayjs();
+  const arrivalsNow = dayBookings.filter(b => {
+    if (b.status !== 'PENDING' && b.status !== 'CONFIRMED') return false;
+    const unseated = !b.tables || b.tables.length === 0;
+    const arriving = dayjs(b.startTime).diff(nowStamp, 'minute') <= 45;
+    return unseated || arriving;
+  }).length;
   const queryMatches = hostQuery.trim() === '' ? [] : dayBookings.filter(b => matchesHostQuery(b, hostQuery));
   const placementBooking = placementBookingId ? (bookings.find(b => b.id === placementBookingId) ?? null) : null;
 
@@ -88,15 +98,6 @@ function AdminDashboard() {
               <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">Faci<span className="text-indigo-500">-</span>Table</h1>
               <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">{dayjs.tz(selectedDate, RESTAURANT_TZ).format('dddd, D MMM YYYY')}</p>
             </div>
-            {/* Mobile Map Toggle */}
-            <div className="flex items-center gap-2 md:hidden">
-              <button 
-                onClick={() => setShowMobileFloorPlan(true)}
-                className="md:hidden p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-sm text-indigo-600 active:scale-95 transition-all"
-              >
-                <MapIcon className="w-5 h-5" />
-              </button>
-            </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <button 
@@ -133,9 +134,30 @@ function AdminDashboard() {
           />
         </div>
 
+        {/* Small screens: Carte / Arrivées tabs (both views stay mounted). */}
+        <div className="flex-none md:hidden flex bg-white border-2 border-slate-100 rounded-2xl p-1 gap-1 shadow-sm">
+          <button
+            onClick={() => setMobileView('map')}
+            className={`flex-1 h-11 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 ${mobileView === 'map' ? 'bg-slate-900 text-white shadow' : 'text-slate-400'}`}
+          >
+            <MapIcon className="w-4 h-4" /> {t('dashboard.tabMap')}
+          </button>
+          <button
+            onClick={() => setMobileView('list')}
+            className={`flex-1 h-11 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 ${mobileView === 'list' ? 'bg-slate-900 text-white shadow' : 'text-slate-400'}`}
+          >
+            <List className="w-4 h-4" /> {t('dashboard.tabList')}
+            {arrivalsNow > 0 && (
+              <span className={`min-w-5 h-5 px-1 rounded-full text-[10px] font-black flex items-center justify-center tabular-nums ${mobileView === 'list' ? 'bg-indigo-500 text-white' : 'bg-red-500 text-white'}`}>
+                {arrivalsNow}
+              </span>
+            )}
+          </button>
+        </div>
+
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Main Content: live map (analytics moved to /app/analytics) */}
-          <div className="hidden md:flex md:col-span-7 xl:col-span-9 flex-col gap-4 min-h-0">
+          <div className={`${mobileView === 'map' ? 'flex' : 'hidden'} md:flex md:col-span-7 xl:col-span-9 flex-col gap-4 min-h-0`}>
             <div className="flex-1 min-h-[480px] overflow-hidden relative rounded-[2.5rem] bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60">
               <FloorPlan
                 hoveredBookingId={hoveredBookingId}
@@ -145,12 +167,22 @@ function AdminDashboard() {
                 placementBooking={placementBooking}
                 onPlacementSave={handlePlacementSave}
                 onPlacementCancel={() => setPlacementBookingId(null)}
+                selectedTableId={selectedTableId}
+                onSelectTable={setSelectedTableId}
+                onFocusBooking={name => {
+                  setHostQuery(name);
+                  setMobileView('list');
+                }}
+                onQuickCreate={tableId => {
+                  setQuickTable(tableId);
+                  setIsQuickResOpen(true);
+                }}
               />
             </div>
           </div>
 
           {/* Right Column: Agenda (Full width on mobile) */}
-          <div className="col-span-1 md:col-span-5 xl:col-span-3 flex flex-col gap-4 min-h-0">
+          <div className={`${mobileView === 'list' ? 'flex' : 'hidden'} md:flex col-span-1 md:col-span-5 xl:col-span-3 flex-col gap-4 min-h-0`}>
             <div className="flex-1 min-h-0 overflow-hidden">
                  <Agenda 
                     setHoveredBookingId={setHoveredBookingId} 
@@ -170,53 +202,14 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* Full-Screen Mobile Floor Plan Overlay */}
-      <AnimatePresence>
-        {showMobileFloorPlan && (
-          <motion.div 
-            initial={{ opacity: 0, y: '100%' }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-[100] bg-white flex flex-col"
-          >
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
-                  <MapIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{t('dashboard.mapTitle')}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold">{t('dashboard.mapHint')}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowMobileFloorPlan(false)}
-                className="p-3 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-900 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="flex-1 relative bg-slate-50 overflow-hidden">
-               <div className="w-full h-full p-2">
-                  <div className="w-full h-full rounded-3xl overflow-hidden border-2 border-indigo-100 shadow-2xl bg-white relative">
-                    <FloorPlan 
-                      hoveredBookingId={hoveredBookingId} 
-                      selectedDate={selectedDate} 
-                      hideControls={true}
-                    />
-                  </div>
-               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <AdminQuickReservation 
         isOpen={isQuickResOpen} 
-        onClose={() => setIsQuickResOpen(false)} 
+        onClose={() => {
+          setIsQuickResOpen(false);
+          setQuickTable(null);
+        }} 
         selectedDate={selectedDate}
+        initialTable={quickTable}
         onSuccess={(bookedDate) => {
           if (bookedDate && bookedDate !== selectedDate) {
             setSelectedDate(bookedDate);

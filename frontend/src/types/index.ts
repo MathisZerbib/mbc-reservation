@@ -71,6 +71,7 @@ export interface DailyAvailability {
 export interface RestaurantSettings {
     avgTicket: number;
     floorPlanImageUrl: string | null;
+    lateGraceMinutes: number;
     updatedAt: string;
 }
 

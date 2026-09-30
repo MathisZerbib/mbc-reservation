@@ -97,3 +97,23 @@ export const matchesHostQuery = (b: Booking, q: string): boolean => {
         (b.tables ?? []).some(t => t.name.toLowerCase().includes(s))
     );
 };
+
+export type BookingUrgency = 'upcoming' | 'expected' | 'late' | 'seated' | 'done';
+
+/**
+ * Live state of a booking for the host view, given the tenant's late
+ * tolerance (graceMin): `expected` inside [start − 45 min, start + grace],
+ * `late` past grace while still open.
+ */
+export const bookingUrgency = (b: Booking, now: dayjs.Dayjs, graceMin: number): BookingUrgency => {
+    if (b.status === 'COMPLETED') return 'seated';
+    if (b.status === 'CANCELLED') return 'done';
+    const start = dayjs(b.startTime);
+    if (now.isAfter(start.add(graceMin, 'minute'))) return 'late';
+    if (now.isAfter(start.subtract(45, 'minute'))) return 'expected';
+    return 'upcoming';
+};
+
+/** Whole minutes past startTime (0 when early) — shown as « en retard ». */
+export const lateMinutes = (b: Booking, now: dayjs.Dayjs): number =>
+    Math.max(0, now.diff(dayjs(b.startTime), 'minute'));

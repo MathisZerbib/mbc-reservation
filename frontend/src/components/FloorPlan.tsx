@@ -7,6 +7,7 @@ import isBetween from "dayjs/plugin/isBetween";
 import { cn } from "../lib/utils";
 import { useBookingsContext } from "../context/useBookingsContext";
 import { Maximize2, Minimize2, X, Check } from "lucide-react";
+import { TableSheet } from "./TableSheet";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Booking } from "../types";
 
@@ -24,6 +25,13 @@ interface FloorPlanProps {
   /** Persist the tapped tables; andCheckIn also checks the guest in. */
   onPlacementSave?: (bookingId: string, tableNames: string[], andCheckIn: boolean) => Promise<void>;
   onPlacementCancel?: () => void;
+  /** Table tapped by the host (action sheet). Null = closed. */
+  selectedTableId?: string | null;
+  onSelectTable?: (id: string | null) => void;
+  /** Jump to the arrivals list filtered on a guest name. */
+  onFocusBooking?: (name: string) => void;
+  /** Open a quick-résa prefilled for a table. */
+  onQuickCreate?: (tableId: string) => void;
 }
 
 export const FloorPlan: React.FC<FloorPlanProps> = ({
@@ -35,6 +43,10 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   placementBooking = null,
   onPlacementSave,
   onPlacementCancel,
+  selectedTableId = null,
+  onSelectTable,
+  onFocusBooking,
+  onQuickCreate,
 }) => {
   const { bookings: allBookings } = useBookingsContext();
   const { t } = useTranslation();
@@ -255,7 +267,10 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           const rect = e.currentTarget.getBoundingClientRect();
           setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
         }}
-        onClick={() => setHoveredTable(null)}
+        onClick={() => {
+          setHoveredTable(null);
+          onSelectTable?.(null);
+        }}
       >
         <svg
           viewBox="0 0 1000 800"
@@ -324,11 +339,8 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                       togglePlacementTable(table.id);
                       return;
                     }
-                    const ownerSvg = e.currentTarget.ownerSVGElement;
-                    if (!ownerSvg) return;
-                    const rect = ownerSvg.getBoundingClientRect();
-                    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                    setHoveredTable(prev => prev === table.id ? null : table.id);
+                    // Tap = host action sheet (hover tooltip stays desktop-only).
+                    onSelectTable?.(selectedTableId === table.id ? null : table.id);
                   }}
                 />
                 <text x={table.width / 2} y={table.height / 2} dy="0.35em" textAnchor="middle" fill={labelFill} fontSize="16" fontWeight="800" pointerEvents="none">
@@ -388,9 +400,24 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           </div>
         )}
 
+        {/* Host action sheet for the tapped table. */}
+        {selectedTableId && (() => {
+          const cfg = layoutTables.find(tbl => tbl.id === selectedTableId);
+          if (!cfg) return null;
+          return (
+            <TableSheet
+              tableId={selectedTableId}
+              seats={cfg.seats ?? 2}
+              date={selectedDate}
+              onClose={() => onSelectTable?.(null)}
+              onFocusBooking={name => onFocusBooking?.(name)}
+              onQuickCreate={id => onQuickCreate?.(id)}
+            />
+          );
+        })()}
+
         <AnimatePresence>
-          {hoveredTable && (
-            <motion.div
+          {hoveredTable && hoveredTable !== selectedTableId && (            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{
                 opacity: 1,

@@ -23,6 +23,9 @@ export const RESERVATION_DURATION = 120;
 
 export const MAX_BOOKINGS_PER_TABLE = 3;
 
+/** Buffer applied around the target window when checking kept tables. */
+export const RESCHEDULE_BUFFER_MINUTES = 15;
+
 // ──────────────────────────────────────────
 // 1️⃣  AVAILABILITY — Single query, no N+1
 // ──────────────────────────────────────────
@@ -331,4 +334,123 @@ export async function getSuggestions(date: string, size: number, requestedTime: 
 function timeToMinutes(time: string) {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
+}
+
+// ──────────────────────────────────────────
+// 4️⃣  RESCHEDULE — move a booking, keep tables when compatible
+// ──────────────────────────────────────────
+
+export interface RescheduleInput {
+    bookingId: string;
+    tenantId: string;
+    /** New start (date and/or hour). End is recomputed (+2h). */
+    startTime?: Date;
+    size?: number;
+    /** Explicit table names (e.g. host accepted the suggested combination). */
+    tableNames?: string[];
+}
+
+export type RescheduleResult =
+    | { booking: any }
+    | { conflict: true; suggestion: string[] };
+
+/**
+ * Moves a booking to a new time/size, keeping its tables when they still
+ * fit (capacity + overlap headroom in the buffered window).
+ *
+ * Without explicit `tableNames`: incompatible kept tables yield
+ * `{ conflict: true, suggestion }` (controller maps to 409) instead of
+ * silently dropping the seating. Unseated bookings stay unseated.
+ */
+export async function rescheduleBooking(input: RescheduleInput): Promise<RescheduleResult> {
+    const { bookingId, tenantId } = input;
+    const existing = (await prisma.booking.findFirst({
+        where: { id: bookingId, tenantId },
+        include: { tables: true },
+    } as any)) as any;
+    if (!existing) throw new Error('Booking not found');
+    if (existing.status === 'CANCELLED' || existing.status === 'COMPLETED') {
+        throw new Error('Cannot reschedule a closed booking');
+    }
+
+    let newSize: number = existing.size;
+    if (input.size !== undefined) {
+        const s = typeof input.size === 'string' ? Number(input.size) : input.size;
+        if (!Number.isInteger(s) || s < 1 || s > 100) throw new Error('Invalid guest size');
+        newSize = s;
+    }
+    let newStart: Date = existing.startTime;
+    if (input.startTime !== undefined) {
+        const d = input.startTime instanceof Date ? input.startTime : new Date(input.startTime as unknown as string);
+        if (isNaN(d.getTime())) throw new Error('Invalid date/time');
+        newStart = d;
+    }
+    if (input.startTime === undefined && input.size === undefined && input.tableNames === undefined) {
+        throw new Error('Nothing to reschedule');
+    }
+    const newEnd = addMinutes(newStart, RESERVATION_DURATION);
+
+    // Candidate tables: explicit override, else currently assigned.
+    let candidateNames: string[];
+    if (input.tableNames !== undefined) {
+        candidateNames = input.tableNames;
+        const rows = await prisma.table.findMany({ where: { tenantId, name: { in: candidateNames } } });
+        const found = new Set(rows.map(r => r.name));
+        const unknown = candidateNames.filter(n => !found.has(n));
+        if (unknown.length > 0) throw new Error(`Unknown tables: ${unknown.join(', ')}`);
+    } else {
+        candidateNames = ((existing.tables ?? []) as any[]).map((t: any) => t.name);
+    }
+    const staysUnseated = candidateNames.length === 0 && input.tableNames === undefined;
+
+    const bufStart = addMinutes(newStart, -RESCHEDULE_BUFFER_MINUTES);
+    const bufEnd = addMinutes(newEnd, RESCHEDULE_BUFFER_MINUTES);
+
+    return prisma.$transaction(async (tx) => {
+        // Overlap counts per table in the buffered window, excluding self.
+        const overlapping = (await tx.booking.findMany({
+            where: {
+                tenantId,
+                status: { not: 'CANCELLED' },
+                id: { not: bookingId },
+                AND: [{ startTime: { lt: bufEnd } }, { endTime: { gt: bufStart } }],
+            },
+            include: { tables: { select: { id: true } } },
+        } as any)) as any[];
+
+        const counts = new Map<number, number>();
+        for (const b of overlapping) {
+            for (const t of (b.tables ?? []) as any[]) counts.set(t.id, (counts.get(t.id) ?? 0) + 1);
+        }
+
+        const allTables = await tx.table.findMany({ where: { tenantId } });
+        const byName = new Map(allTables.map(t => [t.name, t]));
+        const candidateRows = candidateNames.map(n => byName.get(n)).filter(Boolean) as any[];
+        const capacity = candidateRows.reduce((s, t) => s + t.capacity, 0);
+        const fits =
+            staysUnseated ||
+            (capacity >= newSize &&
+                candidateRows.every(t => (counts.get(t.id) ?? 0) < MAX_BOOKINGS_PER_TABLE));
+
+        if (!fits && input.tableNames === undefined) {
+            const adjacency = await getAdjacencyMap(tenantId);
+            const available = allTables.filter(t => (counts.get(t.id) ?? 0) < MAX_BOOKINGS_PER_TABLE);
+            const suggestion = findTableCombination(newSize, available, adjacency);
+            return { conflict: true, suggestion: suggestion ? suggestion.map((t: any) => t.name) : [] };
+        }
+        if (!fits) {
+            throw new Error('Tables are not available in the new time window');
+        }
+
+        const updated = await tx.booking.update({
+            where: { id: bookingId },
+            data: {
+                size: newSize,
+                startTime: newStart,
+                endTime: newEnd,
+                tables: { set: [], connect: candidateRows.map(t => ({ id: t.id })) },
+            },
+        } as any);
+        return { booking: updated };
+    });
 }

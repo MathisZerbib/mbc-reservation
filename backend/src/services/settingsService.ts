@@ -3,12 +3,19 @@ import { prisma } from '../lib/prisma';
 export const MIN_AVG_TICKET = 1;
 export const MAX_AVG_TICKET = 1000;
 
+export const MIN_LATE_GRACE_MINUTES = 0;
+export const MAX_LATE_GRACE_MINUTES = 120;
+
 /** Starting value for fresh installs (tenant changes it in Settings). */
 export const DEFAULT_AVG_TICKET = 55;
+
+/** Starting late tolerance in minutes (tenant changes it in Settings). */
+export const DEFAULT_LATE_GRACE_MINUTES = 15;
 
 export interface RestaurantSettingsDTO {
     avgTicket: number;
     floorPlanImageUrl: string | null;
+    lateGraceMinutes: number;
     updatedAt: string;
 }
 
@@ -27,9 +34,25 @@ export function parseAvgTicket(input: unknown): number {
     return Math.round(value * 100) / 100;
 }
 
-const toDTO = (row: { avgTicket: number; floorPlanImageUrl: string | null; updatedAt: Date }): RestaurantSettingsDTO => ({
+/**
+ * Pure validation for the late-tolerance input. Returns whole minutes
+ * or throws with a human-readable message (controller maps to 400).
+ */
+export function parseLateGraceMinutes(input: unknown): number {
+    const value = typeof input === 'string' ? Number(input) : (input as number);
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error('lateGraceMinutes must be a number');
+    }
+    if (value < MIN_LATE_GRACE_MINUTES || value > MAX_LATE_GRACE_MINUTES) {
+        throw new Error(`lateGraceMinutes must be between ${MIN_LATE_GRACE_MINUTES} and ${MAX_LATE_GRACE_MINUTES}`);
+    }
+    return Math.round(value);
+}
+
+const toDTO = (row: { avgTicket: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
     avgTicket: row.avgTicket,
     floorPlanImageUrl: row.floorPlanImageUrl,
+    lateGraceMinutes: row.lateGraceMinutes,
     updatedAt: row.updatedAt.toISOString(),
 });
 
@@ -43,10 +66,13 @@ export async function getSettings(tenantId: string): Promise<RestaurantSettingsD
     return toDTO(row);
 }
 
-export async function updateSettings(tenantId: string, input: { avgTicket?: unknown }): Promise<RestaurantSettingsDTO> {
-    const data: { avgTicket?: number } = {};
+export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; lateGraceMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
+    const data: { avgTicket?: number; lateGraceMinutes?: number } = {};
     if (input.avgTicket !== undefined) {
         data.avgTicket = parseAvgTicket(input.avgTicket);
+    }
+    if (input.lateGraceMinutes !== undefined) {
+        data.lateGraceMinutes = parseLateGraceMinutes(input.lateGraceMinutes);
     }
     const row = await prisma.restaurantSettings.upsert({
         where: { tenantId },

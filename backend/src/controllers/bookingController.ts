@@ -2,7 +2,7 @@ import { Response } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma';
-import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions, createReservation, MIN_BOOKING_ADVANCE_HOURS } from '../services/bookingService';
+import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions, createReservation, rescheduleBooking, MIN_BOOKING_ADVANCE_HOURS } from '../services/bookingService';
 import { getAdjacencyMap } from '../services/floorPlanService';
 import { getDailyAnalytics } from '../services/analyticsService';
 import { verifyTurnstile } from '../utils/turnstile';
@@ -308,8 +308,44 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    getAnalytics: async (req: AuthRequest, res: Response) => {
+    rescheduleBooking: async (req: AuthRequest, res: Response) => {
         try {
+            let { id } = req.params;
+            if (Array.isArray(id)) id = id[0];
+            const tid = tenantId(req);
+            const { startTime, size, tableNames } = (req.body ?? {}) as {
+                startTime?: string;
+                size?: number;
+                tableNames?: string[];
+            };
+            const result = await rescheduleBooking({
+                bookingId: id,
+                tenantId: tid,
+                startTime: startTime !== undefined ? new Date(startTime) : undefined,
+                size,
+                tableNames,
+            });
+            if ('conflict' in result) {
+                return res.status(409).json(result);
+            }
+            const completeBooking = await prisma.booking.findUnique({
+                where: { id: id },
+                include: { tables: true } as any,
+            });
+            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            res.json(completeBooking);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : '';
+            if (/not found/i.test(msg)) return res.status(404).json({ error: msg });
+            if (/Invalid|Unknown|Nothing|closed|not available/i.test(msg)) {
+                return res.status(400).json({ error: msg });
+            }
+            console.error(error);
+            res.status(500).json({ error: 'Failed to reschedule booking' });
+        }
+    },
+
+    getAnalytics: async (req: AuthRequest, res: Response) => {        try {
             const { date } = req.query;
             if (!date || typeof date !== 'string') {
                 return res.status(400).json({ error: 'Missing date (YYYY-MM-DD)' });

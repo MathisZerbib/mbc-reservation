@@ -32,12 +32,15 @@ export const settingsController = (io: Server) => ({
 
     patchSettings: async (req: AuthRequest, res: Response) => {
         try {
-            const updated = await updateSettings(req.tenant!.id, { avgTicket: (req.body as any)?.avgTicket });
+            const updated = await updateSettings(req.tenant!.id, {
+                avgTicket: (req.body as any)?.avgTicket,
+                lateGraceMinutes: (req.body as any)?.lateGraceMinutes,
+            });
             io.emit('settings-update', { settings: updated });
             res.json(updated);
         } catch (error) {
             console.error(error);
-            if (error instanceof Error && /avgTicket/.test(error.message)) {
+            if (error instanceof Error && /avgTicket|lateGraceMinutes/.test(error.message)) {
                 return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: 'Internal server error' });

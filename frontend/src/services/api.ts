@@ -48,9 +48,11 @@ class ApiClient {
             const err = new Error(error.error || `Request failed with status ${res.status}`) as Error & {
                 status?: number;
                 upcomingCount?: number;
+                suggestion?: string[];
             };
             err.status = res.status;
             if (typeof error.upcomingCount === 'number') err.upcomingCount = error.upcomingCount;
+            if (Array.isArray(error.suggestion)) err.suggestion = error.suggestion.map(String);
             throw err;
         }
         return res.json();
@@ -137,6 +139,10 @@ export const api = {
     updateAssignment: (id: string, tableNames: string[]) =>
         client.patch<Booking>(`/bookings/${id}/tables`, { body: { tableNames }, auth: true }),
 
+    /** Host reschedule: move time and/or size, keeping tables when compatible. */
+    rescheduleBooking: (id: string, data: { startTime?: string; size?: number; tableNames?: string[] }) =>
+        client.patch<Booking>(`/bookings/${id}`, { body: data, auth: true }),
+
     checkIn: (id: string) =>
         client.post<Booking>(`/bookings/${id}/check-in`, { auth: true }),
 
@@ -151,7 +157,7 @@ export const api = {
     getSettings: () =>
         client.get<RestaurantSettings>('/settings', { auth: true }),
 
-    updateSettings: (data: { avgTicket: number }) =>
+    updateSettings: (data: { avgTicket?: number; lateGraceMinutes?: number }) =>
         client.patch<RestaurantSettings>('/settings', { body: data, auth: true }),
 
     uploadFloorPlanImage: (file: File) => {

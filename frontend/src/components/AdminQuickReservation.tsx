@@ -11,34 +11,36 @@ import {
 import { COUNTRIES } from '../utils/countries';
 import { cn } from '../lib/utils';
 import { useBookingsContext } from '../context/useBookingsContext';
-import { useTenant } from '../hooks/useFloorPlan';
+import { useTenant, useLayoutTables } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
 import { NumberField } from './NumberField';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
+import type { Booking } from '../types';
+
+const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
 interface AdminQuickReservationProps {
     isOpen: boolean;
     onClose: () => void;
     selectedDate: string;
     onSuccess?: (date: string) => void;
+    /** Prefill from the table sheet: seat the new booking here after create. */
+    initialTable?: string | null;
+    onCreated?: (booking: Booking) => void;
 }
 
 export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
     isOpen,
     onClose,
     selectedDate,
-    onSuccess
+    onSuccess,
+    initialTable = null,
+    onCreated
 }) => {
-const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
-const getFirstAvailableTime = (date: string) => {
-    return TIME_SLOTS.find(slot => dayjs.tz(`${date} ${slot}`, RESTAURANT_TZ).isAfter(dayjs().tz(RESTAURANT_TZ))) || null;
-};
-
-
-
     const { bookings, refresh } = useBookingsContext();
     const { t } = useTranslation();
     const { tenant } = useTenant();
+    const { raw: layoutTables } = useLayoutTables();
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -56,6 +58,8 @@ const getFirstAvailableTime = (date: string) => {
     const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
 
     const currentOccupancyRate = useMemo(() => {
+        const totalTables = layoutTables.length;
+        if (totalTables === 0) return 0;
         const dailyBookings = bookings.filter(b => 
             dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === formData.date && 
             b.status !== 'CANCELLED'
@@ -63,8 +67,8 @@ const getFirstAvailableTime = (date: string) => {
         const occupied = new Set(
             dailyBookings.flatMap(b => b.tables?.map(t => t.name) || [])
         ).size;
-        return (occupied / 36) * 100;
-    }, [bookings, formData.date]);
+        return Math.min(100, (occupied / totalTables) * 100);
+    }, [bookings, formData.date, layoutTables]);
     const [fetchingAvailability, setFetchingAvailability] = useState(false);
     const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
     const [phoneValue, setPhoneValue] = useState('');
@@ -100,10 +104,18 @@ const getFirstAvailableTime = (date: string) => {
         if (isOpen) fetchDaily();
     }, [formData.date, formData.size, isOpen, tenant]);
 
-    // Keep date in sync with selectedDate prop when dialog opens
+    // Keep date in sync with selectedDate prop when dialog opens;
+    // from the table sheet, prefill the next usable slot for that day.
     React.useEffect(() => {
         if (isOpen) {
-            setFormData(f => ({ ...f, date: selectedDate }));
+            const nextSlot = TIME_SLOTS.find(slot =>
+                dayjs.tz(`${selectedDate} ${slot}`, RESTAURANT_TZ).isAfter(dayjs().tz(RESTAURANT_TZ)),
+            );
+            setFormData(f => ({
+                ...f,
+                date: selectedDate,
+                time: nextSlot ?? f.time,
+            }));
         }
     }, [isOpen, selectedDate]);
 
@@ -135,7 +147,7 @@ const getFirstAvailableTime = (date: string) => {
                 setLoading(false);
                 return;
             }
-            await api.createBooking({
+            const created: Booking = await api.createBooking({
                 name: sanitizedName,
                 phone: sanitizedPhone,
                 email: sanitizedEmail,
@@ -146,7 +158,18 @@ const getFirstAvailableTime = (date: string) => {
             }, tenant.slug);
             
             await refresh(); // Force refresh of context data before proceeding
-            
+
+            // From the table sheet: seat the new booking at the tapped table.
+            // Best-effort — the server auto-assignment stands on conflict.
+            if (initialTable) {
+                try {
+                    await api.updateAssignment(created.id, [initialTable]);
+                    await refresh();
+                } catch (e) {
+                    console.error('Seating new booking at table failed', e);
+                }
+            }
+            if (onCreated) onCreated(created);
             if (onSuccess) onSuccess(formData.date);
             onClose();
             // Reset form
@@ -197,6 +220,11 @@ const getFirstAvailableTime = (date: string) => {
                                 <div>
                                     <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                                         {t('quickres.title')}
+                                        {initialTable && (
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-100 px-2 py-1 rounded-lg">
+                                                {t('quickres.forTable').replace('{t}', initialTable)}
+                                            </span>
+                                        )}
                                         {currentOccupancyRate >= 70 && (
                                             <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-600 rounded-lg animate-pulse border border-amber-100">
                                                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -353,8 +381,8 @@ const getFirstAvailableTime = (date: string) => {
                                                     date={dayjs(formData.date).toDate()} 
                                                     setDate={d => {
                                                         const nextDate = dayjs(d).format('YYYY-MM-DD');
-                                                        const nextTime = dayjs(`${nextDate} ${formData.time}`).isBefore(dayjs()) 
-                                                            ? getFirstAvailableTime(nextDate)
+                                                        const nextTime = dayjs(`${nextDate} ${formData.time}`).isBefore(dayjs())
+                                                            ? (TIME_SLOTS.find(slot => dayjs.tz(`${nextDate} ${slot}`, RESTAURANT_TZ).isAfter(dayjs().tz(RESTAURANT_TZ))) ?? '')
                                                             : formData.time;
                                                         setFormData({...formData, date: nextDate, time: nextTime || ''});
                                                     }}

@@ -76,6 +76,8 @@ model RestaurantSettings {
   tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   avgTicket         Float    @default(55)
   floorPlanImageUrl String?
+  /** Minutes after startTime before an open booking counts as late. */
+  lateGraceMinutes  Int      @default(15)
   updatedAt         DateTime @updatedAt
 }
 

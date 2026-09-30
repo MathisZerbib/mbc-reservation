@@ -198,4 +198,104 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
              expect(status).toHaveBeenCalledWith(404);
         });
     });
+
+    describe('rescheduleBooking (host time/size move)', () => {
+        const atHour = (dayOffset: number, hour: number) => {
+            const d = new Date();
+            d.setDate(d.getDate() + dayOffset);
+            d.setHours(hour, 0, 0, 0);
+            return d;
+        };
+
+        it('keeps tables when the new window is free', async () => {
+            const table10 = await prisma.table.findFirstOrThrow({ where: { tenantId, name: '10' } });
+            const existing = await prisma.booking.create({
+                data: {
+                    name: 'Mover',
+                    size: 2,
+                    startTime: atHour(1, 19),
+                    endTime: atHour(1, 21),
+                    language: 'en',
+                    tenantId,
+                    tables: { connect: { id: table10.id } },
+                },
+            });
+
+            req = {
+                tenant: tenant(),
+                params: { id: existing.id },
+                body: { startTime: atHour(1, 20).toISOString() },
+            };
+
+            await bookingController(io).rescheduleBooking(req as AuthRequest, res as Response);
+
+            const updated = await prisma.booking.findUnique({
+                where: { id: existing.id },
+                include: { tables: true },
+            });
+            expect(updated?.startTime.getHours()).toBe(20);
+            expect(updated?.tables.map((t: { name: string }) => t.name)).toEqual(['10']);
+            expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'update' }));
+        });
+
+        it('returns 409 with a suggestion when kept tables conflict', async () => {
+            const table10 = await prisma.table.findFirstOrThrow({ where: { tenantId, name: '10' } });
+            // Blocker occupies table 10 at 20:00 (3 stacked bookings to fill it).
+            for (let i = 0; i < 3; i++) {
+                await prisma.booking.create({
+                    data: {
+                        name: `Blocker ${i}`,
+                        size: 2,
+                        startTime: atHour(1, 20),
+                        endTime: atHour(1, 22),
+                        language: 'en',
+                        tenantId,
+                        tables: { connect: { id: table10.id } },
+                    },
+                });
+            }
+            const existing = await prisma.booking.create({
+                data: {
+                    name: 'Mover',
+                    size: 2,
+                    startTime: atHour(1, 19),
+                    endTime: atHour(1, 21),
+                    language: 'en',
+                    tenantId,
+                    tables: { connect: { id: table10.id } },
+                },
+            });
+
+            req = {
+                tenant: tenant(),
+                params: { id: existing.id },
+                body: { startTime: atHour(1, 20).toISOString() },
+            };
+
+            await bookingController(io).rescheduleBooking(req as AuthRequest, res as Response);
+
+            expect(status).toHaveBeenCalledWith(409);
+            const payload = json.mock.calls[0][0];
+            expect(payload.conflict).toBe(true);
+            expect(Array.isArray(payload.suggestion)).toBe(true);
+        });
+
+        it('returns 400 for invalid input and closed bookings', async () => {
+            const existing = await prisma.booking.create({
+                data: {
+                    name: 'Bad Move',
+                    size: 2,
+                    startTime: atHour(1, 19),
+                    endTime: atHour(1, 21),
+                    language: 'en',
+                    status: 'CANCELLED',
+                    tenantId,
+                },
+            });
+
+            req = { tenant: tenant(), params: { id: existing.id }, body: { startTime: atHour(1, 20).toISOString() } };
+            await bookingController(io).rescheduleBooking(req as AuthRequest, res as Response);
+            expect(status).toHaveBeenCalledWith(400);
+        });
+    });
 });
