@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Save, Plus, Trash2, MousePointer2, Link2, Loader2, X, Sparkles, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Save, Plus, Trash2, MousePointer2, Link2, Loader2, X, Sparkles, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { api } from '../services/api';
 import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
@@ -44,6 +44,7 @@ export const FloorPlanEditor: React.FC = () => {
     const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
     const [aiBanner, setAiBanner] = useState<string[] | null>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [showBackground, setShowBackground] = useState(true);
     const [upcomingCount, setUpcomingCount] = useState(0);
     const [searchParams, setSearchParams] = useSearchParams();
     const svgRef = useRef<SVGSVGElement>(null);
@@ -293,6 +294,20 @@ export const FloorPlanEditor: React.FC = () => {
                 >
                     <Plus className="w-4 h-4" />
                 </button>
+                {backgroundUrl && (
+                    <button
+                        onClick={() => setShowBackground(v => !v)}
+                        className={cn(
+                            "p-2.5 bg-white border rounded-xl transition-all cursor-pointer",
+                            showBackground
+                                ? "border-indigo-200 text-indigo-600"
+                                : "border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200",
+                        )}
+                        title={showBackground ? "Masquer l'image de fond" : "Afficher l'image de fond"}
+                    >
+                        {showBackground ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                )}
                 <button
                     onClick={() => handleSave(false)}
                     disabled={saving || !dirty}
@@ -358,8 +373,8 @@ export const FloorPlanEditor: React.FC = () => {
                                 </pattern>
                             </defs>
                             <rect width="100%" height="100%" fill="url(#editor-dots)" />
-                            {backgroundUrl && (
-                                <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="xMidYMid slice" opacity={0.4} />
+                            {showBackground && backgroundUrl && (
+                                <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="none" opacity={0.35} />
                             )}
 
                             {/* Adjacency edges */}

@@ -221,7 +221,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
           <rect width="100%" height="100%" fill="url(#floorGrad)" />
           <rect width="100%" height="100%" fill="url(#grid)" />
           {backgroundUrl && (
-            <image href={backgroundUrl} x={-20} y={20} width={920} height={670} preserveAspectRatio="xMidYMid slice" opacity={0.4} />
+            <image href={backgroundUrl} x={-20} y={20} width={920} height={670} preserveAspectRatio="none" opacity={0.4} />
           )}
 
           {layoutTables.map((table) => {

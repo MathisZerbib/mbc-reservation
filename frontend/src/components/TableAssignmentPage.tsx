@@ -434,7 +434,7 @@ export const TableAssignmentPage: React.FC = () => {
                             </defs>
                             <rect width="100%" height="100%" fill="url(#dots)" />
                             {backgroundUrl && (
-                                <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="xMidYMid slice" opacity={0.4} />
+                                <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="none" opacity={0.4} />
                             )}
 
                             {layoutTables.map((table) => {
