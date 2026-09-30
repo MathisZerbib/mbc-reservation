@@ -149,8 +149,22 @@ export async function getLayout(tenantId: string): Promise<LayoutTableDTO[]> {
  * from the payload. The editor always sends complete state, so full replace
  * keeps DB and UI trivially in sync (single-admin YAGNI).
  */
-export async function saveLayout(rawTables: unknown[], rawDeleteIds: unknown[] = [], tenantId: string): Promise<LayoutTableDTO[]> {
+export async function saveLayout(
+    rawTables: unknown[],
+    rawDeleteIds: unknown[] = [],
+    tenantId: string,
+    opts: { confirmDeleteReservations?: boolean } = {},
+): Promise<LayoutTableDTO[]> {
     const tables = rawTables.map(parseLayoutTable);
+
+    // Any layout save hard-deletes upcoming reservations once confirmed.
+    const now = new Date();
+    const upcomingCount = await prisma.booking.count({
+        where: { tenantId, status: { not: 'CANCELLED' }, endTime: { gt: now } },
+    });
+    if (upcomingCount > 0 && !opts.confirmDeleteReservations) {
+        throw new Error(`UPCOMING_BOOKINGS:${upcomingCount}: Saving the floor plan will permanently delete all upcoming reservations.`);
+    }
 
     // Duplicate names within the payload would violate the unique constraint.
     const seen = new Set<string>();
@@ -165,22 +179,13 @@ export async function saveLayout(rawTables: unknown[], rawDeleteIds: unknown[] =
     const conflicting = deleteIds.filter(id => payloadIds.has(id));
     if (conflicting.length > 0) throw new Error('Cannot delete tables that are also in the layout payload');
 
-    // Guard: no deletion of tables with upcoming active bookings.
-    if (deleteIds.length > 0) {
-        const now = new Date();
-        const blockers = await prisma.booking.findMany({
-            where: {
-                tenantId,
-                status: { not: 'CANCELLED' },
-                endTime: { gt: now },
-                tables: { some: { id: { in: deleteIds } } },
-            },
-            select: { id: true },
-            take: 1,
+    // Confirmed save: hard-delete upcoming reservations first so table
+    // deletes/renames never hit FK conflicts. Unconfirmed saves never reach
+    // here (guard above throws with the UPCOMING_BOOKINGS count).
+    if (upcomingCount > 0 && opts.confirmDeleteReservations) {
+        await prisma.booking.deleteMany({
+            where: { tenantId, status: { not: 'CANCELLED' }, endTime: { gt: now } },
         });
-        if (blockers.length > 0) {
-            throw new Error('Cannot delete tables with upcoming bookings. Reassign those bookings first.');
-        }
     }
 
     // NOTE: upserts run OUTSIDE the interactive transaction on purpose — an

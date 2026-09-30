@@ -1,9 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { ImagePlus, Loader2, Trash2, Replace } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ImagePlus, Loader2, Trash2, Replace, Sparkles } from 'lucide-react';
 import { api } from '../services/api';
 import { useTranslation } from '../i18n/useTranslation';
 import { MAX_FLOOR_PLAN_MB, validateFloorPlanFile } from '../utils/floorPlanImage';
 import { cn } from '../lib/utils';
+
+export const AI_DRAFT_KEY = 'faci-ai-draft';
 
 interface Props {
     previewUrl: string | null;
@@ -17,8 +20,10 @@ interface Props {
  */
 export const FloorPlanImageDropzone: React.FC<Props> = ({ previewUrl, onChanged }) => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const [dragging, setDragging] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [analyzing, setAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const dragCount = useRef(0);
@@ -31,7 +36,7 @@ export const FloorPlanImageDropzone: React.FC<Props> = ({ previewUrl, onChanged 
                 : code;
 
     const upload = async (file: File | undefined) => {
-        if (!file || uploading) return;
+        if (!file || uploading || analyzing) return;
         const invalid = validateFloorPlanFile(file);
         if (invalid) {
             setError(errText(invalid));
@@ -44,8 +49,22 @@ export const FloorPlanImageDropzone: React.FC<Props> = ({ previewUrl, onChanged 
             await onChanged();
         } catch (e) {
             setError(e instanceof Error ? e.message : (t('settings.uploadFailed') || 'Upload failed'));
+            setUploading(false);
+            return;
         } finally {
             setUploading(false);
+        }
+        // Image is live as background — now auto-detect tables with AI so the
+        // interactive map fits the image. Non-blocking: upload already saved.
+        setAnalyzing(true);
+        try {
+            const draft = await api.analyzeFloorPlanImage(file);
+            sessionStorage.setItem(AI_DRAFT_KEY, JSON.stringify({ ...draft, at: Date.now() }));
+            navigate('/app/floor-plan?ai=1');
+        } catch (e) {
+            setError(e instanceof Error ? e.message : (t('settings.aiFailed') || 'AI detection failed — use the manual editor.'));
+        } finally {
+            setAnalyzing(false);
         }
     };
 
@@ -105,10 +124,10 @@ export const FloorPlanImageDropzone: React.FC<Props> = ({ previewUrl, onChanged 
                     dragging
                         ? "border-indigo-500 bg-indigo-50/60 scale-[1.01] shadow-lg shadow-indigo-500/10"
                         : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30",
-                    uploading && "opacity-70 pointer-events-none",
+                    (uploading || analyzing) && "opacity-70 pointer-events-none",
                 )}
             >
-                {uploading ? (
+                {uploading || analyzing ? (
                     <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
                 ) : (
                     <ImagePlus className={cn("w-8 h-8 mb-2 transition-colors", dragging ? "text-indigo-500" : "text-slate-300")} />
@@ -116,15 +135,22 @@ export const FloorPlanImageDropzone: React.FC<Props> = ({ previewUrl, onChanged 
                 <span className="text-sm font-bold text-slate-500 text-center">
                     {uploading
                         ? (t('settings.uploading') || 'Uploading…')
-                        : dragging
-                            ? (t('settings.dropHere') || 'Drop the image here')
-                            : previewUrl
-                                ? (t('settings.replace') || 'Replace image')
-                                : (t('onboarding.uploadCta') || t('settings.upload') || 'Upload image')}
+                        : analyzing
+                            ? (t('settings.analyzing') || 'AI is reading your floor plan…')
+                            : dragging
+                                ? (t('settings.dropHere') || 'Drop the image here')
+                                : previewUrl
+                                    ? (t('settings.replace') || 'Replace image')
+                                    : (t('onboarding.uploadCta') || t('settings.upload') || 'Upload image')}
                 </span>
                 <span className="text-[11px] font-medium text-slate-400 mt-1 text-center">
                     {t('settings.dropHint') || 'Drag & drop, paste, or click — JPEG, PNG, WebP · 5MB max'}
                 </span>
+                {!uploading && !analyzing && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-indigo-500 mt-2">
+                        <Sparkles className="w-3.5 h-3.5" /> {t('settings.aiAuto') || 'AI auto-detects tables'}
+                    </span>
+                )}
                 <input
                     ref={inputRef}
                     type="file"

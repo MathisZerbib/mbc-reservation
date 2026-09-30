@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronLeft, Save, Plus, Trash2, MousePointer2, Link2, Loader2, X } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ChevronLeft, Save, Plus, Trash2, MousePointer2, Link2, Loader2, X, Sparkles, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
@@ -8,6 +8,7 @@ import { NumberField } from './NumberField';
 import { FLOOR_PLAN_DATA, tableShapePath } from '../utils/floorPlanData';
 import type { LayoutTable, LayoutTableType } from '../types/index';
 import { cn } from '../lib/utils';
+import { AI_DRAFT_KEY } from './FloorPlanImageDropzone';
 
 const TABLE_TYPES: LayoutTableType[] = ['RECTANGULAR', 'SQUARE', 'ROUND', 'OCTAGONAL', 'CAPSULE', 'BAR'];
 const TEMP_ID = () => -Math.floor(Math.random() * 1_000_000_000);
@@ -41,11 +42,37 @@ export const FloorPlanEditor: React.FC = () => {
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+    const [aiBanner, setAiBanner] = useState<string[] | null>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [upcomingCount, setUpcomingCount] = useState(0);
+    const [searchParams, setSearchParams] = useSearchParams();
     const svgRef = useRef<SVGSVGElement>(null);
     const dragRef = useRef<{ name: string; dx: number; dy: number } | null>(null);
 
     useEffect(() => {
         if (!tenant) return;
+        // AI draft from a fresh plan-image upload wins over the saved layout:
+        // review it here, then Save to go live.
+        if (searchParams.get('ai') === '1') {
+            try {
+                const raw = sessionStorage.getItem(AI_DRAFT_KEY);
+                if (raw) {
+                    const draft = JSON.parse(raw) as { tables?: LayoutTable[]; warnings?: string[] };
+                    if (Array.isArray(draft.tables) && draft.tables.length > 0) {
+                        setTables(draft.tables.map(t => ({ ...t, id: TEMP_ID() })));
+                        setAiBanner(draft.warnings ?? []);
+                        setDirty(true);
+                        sessionStorage.removeItem(AI_DRAFT_KEY);
+                        setSearchParams({}, { replace: true });
+                        return;
+                    }
+                    if (draft.warnings) setAiBanner(draft.warnings);
+                }
+            } catch {
+                // Corrupt draft — fall through to the saved layout.
+            }
+            setSearchParams({}, { replace: true });
+        }
         api.getLayout(tenant.slug)
             .then(layout => setTables(layout.length > 0 ? layout : fallbackCopy()))
             .catch(() => setTables(fallbackCopy()));
@@ -168,19 +195,28 @@ export const FloorPlanEditor: React.FC = () => {
         setSelected(null);
     };
 
-    const handleSave = async () => {
+    const handleSave = async (confirmDeleteReservations = false) => {
         if (!tables) return;
         setSaving(true);
         try {
             // Temp ids are stripped so the backend upserts newcomers by name.
             const payload = tables.map(t => (t.id < 0 ? { ...t, id: undefined } : t));
-            const saved = await api.saveLayout(payload as LayoutTable[], deleteIds);
+            const saved = await api.saveLayout(payload as LayoutTable[], deleteIds, confirmDeleteReservations);
             setTables(saved);
             setDeleteIds([]);
             setDirty(false);
+            setAiBanner(null);
+            setConfirmOpen(false);
             flash('ok', tr('editor.saved'));
         } catch (e) {
-            flash('err', e instanceof Error ? e.message : tr('editor.saveFailed'));
+            const err = e as Error & { status?: number; upcomingCount?: number };
+            // 409 = upcoming reservations would be hard-deleted → ask first.
+            if (err.status === 409 && typeof err.upcomingCount === 'number') {
+                setUpcomingCount(err.upcomingCount);
+                setConfirmOpen(true);
+            } else {
+                flash('err', e instanceof Error ? e.message : tr('editor.saveFailed'));
+            }
         } finally {
             setSaving(false);
         }
@@ -258,7 +294,7 @@ export const FloorPlanEditor: React.FC = () => {
                     <Plus className="w-4 h-4" />
                 </button>
                 <button
-                    onClick={handleSave}
+                    onClick={() => handleSave(false)}
                     disabled={saving || !dirty}
                     className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 lg:px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shadow-lg shadow-indigo-600/20"
                 >
@@ -273,6 +309,20 @@ export const FloorPlanEditor: React.FC = () => {
                     message.kind === 'ok' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-600 border-red-200"
                 )}>
                     {message.text}
+                </div>
+            )}
+
+            {aiBanner && (
+                <div className="flex-none mx-4 lg:mx-6 mt-3 px-4 py-2.5 rounded-2xl text-xs font-bold bg-violet-50 text-violet-800 border border-violet-200 flex items-start gap-2">
+                    <Sparkles className="w-4 h-4 flex-none mt-0.5" />
+                    <div>
+                        <p>{tr('editor.aiDraft').replace('{n}', String(tables?.length ?? 0))}</p>
+                        {aiBanner.length > 0 && (
+                            <ul className="mt-1 font-medium list-disc list-inside">
+                                {aiBanner.map((w, i) => <li key={i}>{w}</li>)}
+                            </ul>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -441,6 +491,39 @@ export const FloorPlanEditor: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {confirmOpen && (
+                <div className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setConfirmOpen(false)}>
+                    <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-200 max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-11 h-11 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center">
+                                <AlertTriangle className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-lg font-black text-slate-900 tracking-tight">{tr('editor.confirmDeleteTitle')}</h2>
+                        </div>
+                        <p className="text-sm text-slate-600 font-medium">
+                            {tr('editor.confirmDeleteMsg').replace('{n}', String(upcomingCount))}
+                        </p>
+                        <div className="flex gap-2 mt-6">
+                            <button
+                                onClick={() => setConfirmOpen(false)}
+                                disabled={saving}
+                                className="flex-1 px-4 py-3 rounded-2xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer disabled:opacity-50"
+                            >
+                                {tr('common.cancel')}
+                            </button>
+                            <button
+                                onClick={() => handleSave(true)}
+                                disabled={saving}
+                                className="flex-1 px-4 py-3 rounded-2xl text-sm font-bold bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {tr('editor.confirmDeleteYes')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

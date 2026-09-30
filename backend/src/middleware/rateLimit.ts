@@ -49,3 +49,12 @@ export const bookingLimiter = rateLimit({
     legacyHeaders: false,
     handler: jsonHandler,
 });
+
+/** AI floor-plan analysis: vision calls are slow + billed per call. */
+export const aiAnalyzeLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: jsonHandler,
+});

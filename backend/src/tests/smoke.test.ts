@@ -32,7 +32,7 @@ describe('route wiring smoke', () => {
 
     it('exposes table layout + settings + tenant routes', () => {
         expect(pathsOf(tableRoutes(io))).toEqual(
-            expect.arrayContaining(['GET /tables', 'PUT /tables/layout', 'DELETE /tables/:id']),
+            expect.arrayContaining(['GET /tables', 'PUT /tables/layout', 'DELETE /tables/:id', 'POST /tables/analyze-image']),
         );
         expect(pathsOf(settingsRoutes(io))).toEqual(
             expect.arrayContaining(['GET /settings', 'PATCH /settings', 'POST /settings/floor-plan-image']),
