@@ -152,6 +152,9 @@ export const api = {
         return client.upload<RestaurantSettings>('/settings/floor-plan-image', formData, true);
     },
 
+    deleteFloorPlanImage: () =>
+        client.delete<RestaurantSettings>('/settings/floor-plan-image', { auth: true }),
+
     // ── Floor-plan layout (geometry + manual adjacency) ──
     getLayout: (slug: string) =>
         client.get<LayoutTable[]>('/tables', { params: { slug } }),

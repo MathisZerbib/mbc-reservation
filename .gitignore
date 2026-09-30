@@ -25,3 +25,4 @@ backend/etc/secrets/ca.pem
 backend/public/uploads/
 # Vercel CLI
 .vercel
+plan de table_mbc.png

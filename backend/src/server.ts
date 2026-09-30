@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
 import http from 'http';
+import path from 'path';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { bookingRoutes } from './routes/bookingRoutes';
@@ -81,8 +82,18 @@ app.set('trust proxy', 1);
 app.use(cors(corsOptions));
 app.use(express.json());
 // CSP disabled: swagger-ui serves inline assets; other helmet protections on.
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(express.static('public'));
+// crossOriginResourcePolicy is cross-origin so Vercel frontends can <img>
+// backend-served /uploads/* (Cloudinary URLs are unaffected, this is for the
+// local-disk dev fallback).
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(express.static('public', {
+    setHeaders: (res, filePath) => {
+        if (filePath.includes(`${path.sep}uploads${path.sep}`) || filePath.includes('/uploads/')) {
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+    },
+}));
 
 // Socket.io connection
 io.on('connection', (socket) => {

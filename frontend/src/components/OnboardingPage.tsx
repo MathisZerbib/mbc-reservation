@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Check, Copy, Loader2, PartyPopper, Store, Euro, LayoutGrid, ImagePlus, type LucideIcon } from 'lucide-react';
 import { api, fileUrl } from '../services/api';
 import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
+import { FloorPlanImageDropzone } from './FloorPlanImageDropzone';
 import { useTranslation } from '../i18n/useTranslation';
 import { LangToggle } from './LangToggle';
 import type { LayoutTable } from '../types/index';
@@ -142,19 +143,6 @@ export const OnboardingPage: React.FC = () => {
             go(3);
         } catch (e) {
             setError(e instanceof Error ? e.message : t('onboarding.createError'));
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const uploadImage = async (file: File | undefined) => {
-        if (!file) return;
-        setSaving(true);
-        try {
-            await api.uploadFloorPlanImage(file);
-            await refreshSettings();
-        } catch (e) {
-            setError(e instanceof Error ? e.message : t('onboarding.uploadError'));
         } finally {
             setSaving(false);
         }
@@ -377,25 +365,12 @@ export const OnboardingPage: React.FC = () => {
                 {t('onboarding.imageTitle')} <span className="text-slate-300 font-bold">{t('onboarding.optional')}</span>
             </h2>
             <p className="text-sm text-slate-500 font-medium mt-2">{t('onboarding.imageMsg')}</p>
-            {fileUrl(settings?.floorPlanImageUrl ?? null) ? (
-                <img
-                    src={fileUrl(settings?.floorPlanImageUrl ?? null) ?? ''}
-                    alt={t('onboarding.imageTitle')}
-                    className="w-full max-h-56 object-contain bg-slate-50 rounded-2xl border border-slate-100 mt-6"
+            <div className="mt-6">
+                <FloorPlanImageDropzone
+                    previewUrl={fileUrl(settings?.floorPlanImageUrl ?? null)}
+                    onChanged={refreshSettings}
                 />
-            ) : (
-                <label className="mt-6 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl py-10 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-all">
-                    <ImagePlus className="w-8 h-8 text-slate-300 mb-2" />
-                    <span className="text-sm font-bold text-slate-500">{saving ? t('onboarding.uploading') : t('onboarding.uploadCta')}</span>
-                    <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        disabled={saving}
-                        onChange={e => { uploadImage(e.target.files?.[0]); e.target.value = ''; }}
-                    />
-                </label>
-            )}
+            </div>
             {error && <p className="text-sm font-bold text-red-500 mt-3">{error}</p>}
             <Nav onBack={() => go(2)} onNext={() => go(4)} />
         </div>

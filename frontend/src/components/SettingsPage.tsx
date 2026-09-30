@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2 } from 'lucide-react';
 import { api, fileUrl } from '../services/api';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
+import { FloorPlanImageDropzone } from './FloorPlanImageDropzone';
 import { useTranslation } from '../i18n/useTranslation';
 import { cn } from '../lib/utils';
 
@@ -11,7 +12,6 @@ export const SettingsPage: React.FC = () => {
     const { settings, loading, refresh } = useRestaurantSettings();
     const [avgTicket, setAvgTicket] = useState('');
     const [saving, setSaving] = useState(false);
-    const [uploading, setUploading] = useState(false);
     const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
     useEffect(() => {
@@ -36,18 +36,9 @@ export const SettingsPage: React.FC = () => {
         }
     };
 
-    const handleUpload = async (file: File | undefined) => {
-        if (!file) return;
-        setUploading(true);
-        try {
-            await api.uploadFloorPlanImage(file);
-            await refresh();
-            flash('ok', t('settings.imageSaved'));
-        } catch (e) {
-            flash('err', e instanceof Error ? e.message : t('settings.uploadFailed'));
-        } finally {
-            setUploading(false);
-        }
+    const handleImageChanged = async () => {
+        await refresh();
+        flash('ok', t('settings.imageSaved'));
     };
 
     const previewUrl = fileUrl(settings?.floorPlanImageUrl ?? null);
@@ -123,20 +114,7 @@ export const SettingsPage: React.FC = () => {
                     <p className="text-xs text-slate-500 font-medium mb-4">
                         {t('settings.imageMsg')}
                     </p>
-                    {previewUrl && (
-                        <img src={previewUrl} alt={t('settings.imageTitle')} className="w-full max-h-64 object-contain bg-slate-50 rounded-2xl border border-slate-100 mb-4" />
-                    )}
-                    <label className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition-all shadow-lg shadow-indigo-600/20">
-                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-                        {uploading ? t('settings.uploading') : previewUrl ? t('settings.replace') : t('settings.upload')}
-                        <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            className="hidden"
-                            disabled={uploading}
-                            onChange={e => { handleUpload(e.target.files?.[0]); e.target.value = ''; }}
-                        />
-                    </label>
+                    <FloorPlanImageDropzone previewUrl={previewUrl} onChanged={handleImageChanged} />
                 </div>
 
                 {/* Floor plan editor */}

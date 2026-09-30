@@ -34,6 +34,7 @@ export const settingsRoutes = (io: Server) => {
         },
         controller.uploadFloorPlanImage,
     );
+    router.delete('/settings/floor-plan-image', isAuthenticated, requireTenant, requireActiveTrial, controller.deleteFloorPlanImage);
 
     return router;
 };
