@@ -401,6 +401,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
         )}
 
         {/* Host action sheet for the tapped table. */}
+        <AnimatePresence>
         {selectedTableId && (() => {
           const cfg = layoutTables.find(tbl => tbl.id === selectedTableId);
           if (!cfg) return null;
@@ -415,6 +416,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
             />
           );
         })()}
+        </AnimatePresence>
 
         <AnimatePresence>
           {hoveredTable && hoveredTable !== selectedTableId && (            <motion.div

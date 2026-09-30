@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { X, Check, Plus, Clock, Users } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { api } from '../services/api';
@@ -144,8 +145,31 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     };
 
     return (
-        <div className="absolute inset-x-3 bottom-3 md:left-auto md:right-4 md:bottom-4 md:w-[340px] z-40 bg-white rounded-[1.75rem] shadow-2xl border border-slate-200 overflow-hidden max-h-[70%] flex flex-col">
-            <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-slate-100 flex-none">
+        <>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="absolute inset-0 z-30 bg-slate-900/25 cursor-pointer"
+            />
+            <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                drag="y"
+                dragConstraints={{ top: 0 }}
+                dragElastic={{ top: 0, bottom: 0.6 }}
+                onDragEnd={(_, info) => {
+                    if (info.offset.y > 120 || info.velocity.y > 500) onClose();
+                }}
+                className="absolute inset-x-0 bottom-0 z-40 bg-white rounded-t-[2rem] shadow-2xl border-t border-x border-slate-200 overflow-hidden max-h-[75%] flex flex-col"
+            >
+            <div className="pt-2.5 pb-1 flex justify-center flex-none touch-none">
+                <div className="w-10 h-1.5 rounded-full bg-slate-200" />
+            </div>
+            <div className="flex items-center gap-3 px-4 sm:px-6 pb-3 border-b border-slate-100 flex-none">
                 <div className="min-w-0 mr-auto">
                     <p className="text-base font-black text-slate-900 tracking-tight leading-none">
                         Table {tableId} <span className="text-slate-400 font-bold text-xs">· {seats} {t('sheet.covers')}</span>
@@ -164,7 +188,8 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                 </button>
             </div>
 
-            <div className="overflow-y-auto p-3 space-y-2">
+            <div className="overflow-y-auto px-4 sm:px-6 py-3 space-y-2">
+                <div className="max-w-3xl mx-auto w-full space-y-2 pb-2">
                 {rows.length === 0 && (
                     <p className="text-xs font-bold text-slate-400 text-center py-3">{t('sheet.noBookings')}</p>
                 )}
@@ -300,7 +325,9 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                 >
                     <Plus className="w-4 h-4" /> {t('sheet.newBooking')}
                 </button>
+                </div>
             </div>
-        </div>
+            </motion.div>
+        </>
     );
 };

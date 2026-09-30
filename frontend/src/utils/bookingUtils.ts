@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { RESTAURANT_TZ } from './dayjs';
 import type { Booking } from '../types';
 export type AffluenceLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -117,3 +118,16 @@ export const bookingUrgency = (b: Booking, now: dayjs.Dayjs, graceMin: number): 
 /** Whole minutes past startTime (0 when early) — shown as « en retard ». */
 export const lateMinutes = (b: Booking, now: dayjs.Dayjs): number =>
     Math.max(0, now.diff(dayjs(b.startTime), 'minute'));
+
+/**
+ * Badge counter for the Planning tab: open bookings for the day that are
+ * unseated or starting within 45 minutes.
+ */
+export const countArrivalsNow = (bookings: Booking[], date: string, now: dayjs.Dayjs): number =>
+    bookings.filter(b => {
+        if (dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') !== date) return false;
+        if (b.status !== 'PENDING' && b.status !== 'CONFIRMED') return false;
+        const unseated = !b.tables || b.tables.length === 0;
+        const arriving = dayjs(b.startTime).diff(now, 'minute') <= 45;
+        return unseated || arriving;
+    }).length;

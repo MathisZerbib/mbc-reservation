@@ -20,7 +20,7 @@ export const AnalyticsPage: React.FC = () => {
             <div className="max-w-[1200px] mx-auto flex flex-col gap-4 pb-8">
                 <header className="flex items-center gap-3">
                     <Link
-                        to={`/app/dashboard?date=${date}`}
+                        to={`/app/live?date=${date}`}
                         className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-all"
                         title={t('analyticsPage.back')}
                     >

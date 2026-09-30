@@ -1,0 +1,63 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Settings as SettingsIcon, ChartColumn } from 'lucide-react';
+import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
+import { useTranslation } from '../i18n/useTranslation';
+import { HostTabs } from './HostTabs';
+
+interface HostHeaderProps {
+    date: string;
+    arrivalsNow: number;
+    /** When provided, shows the quick-résa button (live page). */
+    onQuickRes?: () => void;
+}
+
+/**
+ * Shared header for the host workspaces: title + day, workspace tabs,
+ * and the global actions. One inset scale everywhere.
+ */
+export const HostHeader: React.FC<HostHeaderProps> = ({ date, arrivalsNow, onQuickRes }) => {
+    const { t } = useTranslation();
+
+    return (
+        <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 flex-none">
+            <div>
+                <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">
+                    Faci<span className="text-indigo-500">-</span>Table
+                </h1>
+                <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">
+                    {dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM YYYY')}
+                </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full xl:w-auto">
+                <div className="flex-1 sm:flex-none sm:min-w-80">
+                    <HostTabs date={date} arrivalsNow={arrivalsNow} />
+                </div>
+                <div className="flex gap-2">
+                    {onQuickRes && (
+                        <button
+                            onClick={onQuickRes}
+                            className="flex-1 sm:flex-none bg-slate-900 hover:bg-slate-800 text-white px-4 lg:px-6 h-12 rounded-2xl font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-sm"
+                        >
+                            <span className="text-lg font-black leading-none">+</span> <span>{t('dashboard.quickRes')}</span>
+                        </button>
+                    )}
+                    <Link
+                        to={`/app/analytics?date=${date}`}
+                        className="p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-sm text-slate-500 hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center"
+                        title={t('dashboard.analyticsTitle')}
+                    >
+                        <ChartColumn className="w-5 h-5" />
+                    </Link>
+                    <Link
+                        to="/app/settings"
+                        className="p-3 bg-white border-2 border-slate-100 rounded-2xl shadow-sm text-slate-500 hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center"
+                        title={t('dashboard.settingsTitle')}
+                    >
+                        <SettingsIcon className="w-5 h-5" />
+                    </Link>
+                </div>
+            </div>
+        </header>
+    );
+};
