@@ -1,21 +1,32 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
-import { CheckCircle2, XCircle, AlertTriangle, Search, Users } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Search, Users, ListFilter, Clock3 } from 'lucide-react';
 import clsx from 'clsx';
 import { cn } from '../lib/utils';
 import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
-import { calculateAffluence, affluenceClassNames, formatTableLabels, matchesHostQuery, bookingUrgency } from '../utils/bookingUtils';
+import {
+  calculateAffluence,
+  affluenceClassNames,
+  formatTableLabels,
+  matchesHostQuery,
+  bookingUrgency,
+  lateMinutes,
+  groupBySlot,
+  matchesSizeBand,
+  type SizeBand,
+} from '../utils/bookingUtils';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
 import type { Booking } from '../types';
 import { useBookingsContext } from '../context/useBookingsContext';
 import { useTranslation } from '../i18n/useTranslation';
+
 interface AgendaProps {
   setHoveredBookingId: (id: string | null) => void;
   date: string;
   setDate: (date: string) => void;
   className?: string;
-  /** Query from the host command bar — combined with the local filters. */
+  /** Query from the host command bar — the single search field. */
   externalQuery?: string;
   /** Booking currently in map placement mode (highlighted row). */
   selectedBookingId?: string | null;
@@ -23,17 +34,39 @@ interface AgendaProps {
   onPlaceTables?: (id: string) => void;
 }
 
+type AgendaView = 'timeline' | 'arrivals';
+
+const SIZE_BANDS: { id: SizeBand; label: string }[] = [
+  { id: 'all', label: 'Tout' },
+  { id: '2', label: '2' },
+  { id: '4', label: '4' },
+  { id: '6p', label: '6+' },
+];
+
 export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDate, className, externalQuery = '', selectedBookingId = null, onPlaceTables }) => {
   const { t } = useTranslation();
   const { bookings, refresh } = useBookingsContext();
   const [showModal, setShowModal] = useState<{ id: string, name: string } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchName, setSearchName] = useState('');
-  const [searchSize, setSearchSize] = useState<string>('');
+  const [sizeBand, setSizeBand] = useState<SizeBand>('all');
   const [onlyUnseated, setOnlyUnseated] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [view, setView] = useState<AgendaView>(() =>
+    typeof localStorage !== 'undefined' && localStorage.getItem('agenda-view') === 'arrivals' ? 'arrivals' : 'timeline',
+  );
   const { settings } = useRestaurantSettings();
   const grace = settings?.lateGraceMinutes ?? 15;
+  const listRef = useRef<HTMLDivElement>(null);
+  const nowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('agenda-view', view);
+    } catch {
+      // Private mode — view simply resets next visit.
+    }
+  }, [view]);
 
   const handleCheckIn = async (id: string) => {
     try {
@@ -63,6 +96,28 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
     }
   };
 
+  /** Inline 2-tap cancel (same pattern as the table sheet). */
+  const askCancel = (id: string) => {
+    setConfirmCancelId(id);
+    window.setTimeout(() => {
+      setConfirmCancelId(prev => (prev === id ? null : prev));
+    }, 4000);
+  };
+
+  const doCancel = async (id: string) => {
+    try {
+      setLoading(true);
+      await api.cancelBooking(id);
+      setConfirmCancelId(null);
+      refresh();
+    } catch (e) {
+      console.error(e);
+      alert(t('agenda.cancelFailed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const dayBookings = bookings
     .filter(b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === date);
 
@@ -70,127 +125,350 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
     b => (b.status === 'PENDING' || b.status === 'CONFIRMED') && (!b.tables || b.tables.length === 0),
   ).length;
 
+  const activeDay = dayBookings.filter(b => b.status !== 'CANCELLED');
+  const seatedDay = dayBookings.filter(b => b.status === 'COMPLETED').length;
+
   const filteredBookings = dayBookings
-    .filter(b => matchesHostQuery(b, searchName) && matchesHostQuery(b, externalQuery))
-    .filter(b => {
-      // Exact Size match
-      if (searchSize) {
-        if (b.size !== parseInt(searchSize)) return false;
-      }
-      if (onlyUnseated && !(!b.tables || b.tables.length === 0)) return false;
+    .filter(b => matchesHostQuery(b, externalQuery))
+    .filter(b => matchesSizeBand(b, sizeBand))
+    .filter(b => !onlyUnseated || !b.tables || b.tables.length === 0)
+    .sort((a, b) => dayjs(a.startTime).unix() - dayjs(b.startTime).unix());
 
-      return true;
-    })
-    .sort((a, b) => {
-      // Rush relevance: arriving now (±45 min) → upcoming → done/cancelled.
-      const now = dayjs();
-      const rank = (x: typeof a) => {
-        if (x.status === 'CANCELLED' || x.status === 'COMPLETED') return 2;
-        return dayjs(x.startTime).diff(now, 'minute') <= 45 ? 0 : 1;
-      };
-      const ra = rank(a);
-      const rb = rank(b);
-      if (ra !== rb) return ra - rb;
-      return dayjs(a.startTime).unix() - dayjs(b.startTime).unix();
-    });
+  // Rush relevance (arrivals view): arriving now (±45 min) → upcoming → done.
+  const rankedBookings = [...filteredBookings].sort((a, b) => {
+    const now = dayjs();
+    const rank = (x: Booking) => {
+      if (x.status === 'CANCELLED' || x.status === 'COMPLETED') return 2;
+      return dayjs(x.startTime).diff(now, 'minute') <= 45 ? 0 : 1;
+    };
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    return dayjs(a.startTime).unix() - dayjs(b.startTime).unix();
+  });
 
-  // Visual sections: happening now → upcoming → done (collapsed).
+  // Visual sections for the arrivals view.
   const nowStamp = dayjs();
+  const isToday = dayjs.tz(date, RESTAURANT_TZ).format('YYYY-MM-DD') === nowStamp.tz(RESTAURANT_TZ).format('YYYY-MM-DD');
   const urgencyOf = (b: Booking) => bookingUrgency(b, nowStamp, grace);
-  const openList = filteredBookings.filter(b => b.status !== 'CANCELLED' && b.status !== 'COMPLETED');
-  const doneList = filteredBookings.filter(b => b.status === 'CANCELLED' || b.status === 'COMPLETED');
-  const nowList = openList.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') <= 45);
-  const laterList = openList.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') > 45);
+  const openRanked = rankedBookings.filter(b => b.status !== 'CANCELLED' && b.status !== 'COMPLETED');
+  const doneRanked = rankedBookings.filter(b => b.status === 'CANCELLED' || b.status === 'COMPLETED');
+  const nowRanked = openRanked.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') <= 45);
+  const laterRanked = openRanked.filter(b => dayjs(b.startTime).diff(nowStamp, 'minute') > 45);
   const coversOf = (list: Booking[]) => list.reduce((s, b) => s + b.size, 0);
+
+  // Timeline grouping (default view).
+  const openFiltered = filteredBookings.filter(b => b.status !== 'CANCELLED' && b.status !== 'COMPLETED');
+  const doneFiltered = filteredBookings.filter(b => b.status === 'CANCELLED' || b.status === 'COMPLETED');
+  const slotGroups = groupBySlot(openFiltered);
+  const nowSlot = slotKeyOf(nowStamp);
+
+  function slotKeyOf(d: dayjs.Dayjs): string {
+    const dd = d.tz(RESTAURANT_TZ);
+    return `${dd.format('HH')}:${dd.minute() < 30 ? '00' : '30'}`;
+  }
+
+  const scrollToNow = () => {
+    nowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const urgencyLabel = (b: Booking) => {
+    const u = urgencyOf(b);
+    if (u === 'seated') return <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600">{t('sheet.seated')}</span>;
+    if (u === 'done') return null;
+    if (u === 'late')
+      return (
+        <span className="text-[11px] font-black uppercase tracking-wider text-red-600 animate-pulse">
+          {t('sheet.lateFmt').replace('{n}', String(lateMinutes(b, nowStamp)))}
+        </span>
+      );
+    if (u === 'expected')
+      return <span className="text-[11px] font-black uppercase tracking-wider text-amber-600">{t('sheet.expected')}</span>;
+    return null;
+  };
+
+  const tableChips = (b: Booking) => {
+    if (!b.tables || b.tables.length === 0) {
+      if (b.status === 'CANCELLED' || b.status === 'COMPLETED') return null;
+      return (
+        <span className="text-[9px] font-black uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-md">
+          {t('agenda.unmappedBadge')}
+        </span>
+      );
+    }
+    return (
+      <span className="flex flex-wrap gap-1">
+        {formatTableLabels(b.tables).map((label, idx) => (
+          <span key={idx} className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+            {label}
+          </span>
+        ))}
+      </span>
+    );
+  };
+
+  const primaryAction = (b: Booking) => {
+    if (b.status === 'COMPLETED') {
+      return (
+        <span className="inline-flex items-center gap-1 bg-emerald-50 px-2.5 h-12 rounded-xl border border-emerald-100">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          <span className="text-[10px] font-black text-emerald-600 uppercase">OK</span>
+        </span>
+      );
+    }
+    if (b.status === 'CANCELLED') {
+      return (
+        <span className={cn(
+          "inline-flex items-center px-2.5 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest border",
+          b.cancelledBy === 'AUTO'
+            ? "bg-red-50 border-red-200 text-red-500"
+            : "bg-slate-100 border-slate-200 text-slate-400",
+        )}>
+          {b.cancelledBy === 'AUTO' ? t('agenda.noShowBadge') : t('agenda.cancelledBadge')}
+        </span>
+      );
+    }
+    if ((!b.tables || b.tables.length === 0) && onPlaceTables) {
+      return (
+        <button
+          className="h-12 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-indigo-600/25 active:scale-95"
+          onClick={(e) => { e.stopPropagation(); onPlaceTables(b.id); }}
+        >
+          {t('agenda.placeTables')}
+        </button>
+      );
+    }
+    return (
+      <button
+        className="h-12 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+        onClick={(e) => { e.stopPropagation(); handleCheckIn(b.id); }}
+        disabled={loading}
+      >
+        <CheckCircle2 className="w-4 h-4" /> {t('agenda.checkin')}
+      </button>
+    );
+  };
+
+  const inlineCancel = (b: Booking) => {
+    if (b.status === 'CANCELLED' || b.status === 'COMPLETED') return null;
+    return confirmCancelId === b.id ? (
+      <button
+        onClick={(e) => { e.stopPropagation(); doCancel(b.id); }}
+        disabled={loading}
+        className="h-11 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-50 animate-pulse"
+      >
+        {t('sheet.confirmCancel')}
+      </button>
+    ) : (
+      <button
+        onClick={(e) => { e.stopPropagation(); askCancel(b.id); }}
+        aria-label={t('sheet.cancel')}
+        className="h-11 w-11 rounded-xl bg-white border border-slate-200 text-slate-300 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer flex items-center justify-center shrink-0"
+      >
+        <XCircle className="w-5 h-5" />
+      </button>
+    );
+  };
+
+  const renderRow = (b: Booking) => (
+    <div
+      key={b.id}
+      onMouseEnter={() => setHoveredBookingId(b.id)}
+      onMouseLeave={() => setHoveredBookingId(null)}
+      className={clsx(
+        "group bg-white border rounded-2xl p-3 pl-4 grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 transition-all duration-300 relative overflow-hidden",
+        selectedBookingId === b.id
+          ? "border-indigo-400 ring-2 ring-indigo-500/40 shadow-[0_20px_40px_-10px_rgba(79,70,229,0.25)]"
+          : b.status === 'CANCELLED'
+            ? "opacity-60 grayscale border-slate-100"
+            : "border-slate-100 hover:border-indigo-200 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)]",
+      )}
+    >
+      <div className={clsx(
+        "absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-500",
+        b.status === 'COMPLETED' ? "bg-emerald-500" :
+          b.status === 'CANCELLED' ? "bg-slate-300" :
+          urgencyOf(b) === 'late' ? "bg-red-500 animate-pulse" :
+          urgencyOf(b) === 'expected' ? "bg-amber-400" :
+          "bg-slate-200",
+      )} />
+
+      <div className="min-w-0">
+        <div className="text-sm font-black text-slate-900 tabular-nums leading-none">
+          {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
+        </div>
+        <div className="text-[10px] font-bold text-slate-400 tabular-nums mt-1">
+          {dayjs(b.endTime).tz(RESTAURANT_TZ).format('HH:mm')}
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <h3 className="text-[15px] font-black text-slate-900 tracking-tight truncate">
+            {b.language === 'fr' ? '🇫🇷 ' : b.language === 'en' ? '🇬🇧 ' : b.language === 'it' ? '🇮🇹 ' : ''}
+            {b.name}
+          </h3>
+          <span className="flex-shrink-0 inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full text-[10px] font-black tabular-nums">
+            <Users className="w-3 h-3" />
+            {b.size}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 mt-1 min-w-0">
+          {urgencyLabel(b)}
+          {b.lowTable && (
+            <span className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md border border-indigo-100 uppercase">
+              {t('agenda.lowBadge')}
+            </span>
+          )}
+          {tableChips(b)}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        {primaryAction(b)}
+        {inlineCancel(b)}
+      </div>
+    </div>
+  );
 
   type Item =
     | { kind: 'head'; key: string; title: string; sub: string }
     | { kind: 'doneToggle'; key: string }
     | { kind: 'row'; b: Booking };
-  const items: Item[] = [];
+  const arrivalItems: Item[] = [];
   const pushSection = (key: string, title: string, list: Booking[]) => {
     if (list.length === 0) return;
-    items.push({
+    arrivalItems.push({
       kind: 'head',
       key: `head-${key}`,
       title,
       sub: t('agenda.countFmt').replace('{n}', String(list.length)).replace('{g}', String(coversOf(list))),
     });
-    list.forEach(b => items.push({ kind: 'row', b }));
+    list.forEach(b => arrivalItems.push({ kind: 'row', b }));
   };
-  pushSection('now', t('agenda.secNow'), nowList);
-  pushSection('later', t('agenda.secLater'), laterList);
-  if (doneList.length > 0) {
+  pushSection('now', t('agenda.secNow'), nowRanked);
+  pushSection('later', t('agenda.secLater'), laterRanked);
+  if (doneRanked.length > 0) {
     if (showDone) {
-      pushSection('done', t('agenda.secDone'), doneList);
+      pushSection('done', t('agenda.secDone'), doneRanked);
     } else {
-      items.push({ kind: 'doneToggle', key: 'done-toggle' });
+      arrivalItems.push({ kind: 'doneToggle', key: 'done-toggle' });
     }
   }
 
+  const sectionHead = (key: string, title: string, sub: string, collapsible?: () => void) => {
+    const inner = (
+      <>
+        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">{title}</span>
+        <span className="text-[11px] font-bold text-slate-400 tabular-nums">{sub}</span>
+      </>
+    );
+    return collapsible ? (
+      <button
+        key={key}
+        onClick={collapsible}
+        className="sticky top-0 z-10 w-full flex items-baseline justify-between gap-2 px-2 py-2 bg-slate-50 rounded-xl cursor-pointer"
+      >
+        {inner}
+      </button>
+    ) : (
+      <div key={key} className="sticky top-0 z-10 flex items-baseline justify-between gap-2 px-1 py-2 bg-slate-50 rounded-xl">
+        {inner}
+      </div>
+    );
+  };
+
+  const progressPct = activeDay.length === 0 ? 0 : Math.round((seatedDay / activeDay.length) * 100);
+
   return (
     <div className={cn("bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden h-full flex flex-col relative", className)}>
-      {/* Header Section */}
-      <div className="p-5 pb-4 flex-none space-y-4 bg-gradient-to-b from-slate-50/50 to-white border-b border-slate-100/50">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.25em] pl-0.5">{t('agenda.schedule')}</span>
-            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM')}</p>
+      {/* Slim header: date + view toggle */}
+      <div className="px-4 pt-4 pb-3 flex-none space-y-3 bg-gradient-to-b from-slate-50/60 to-white border-b border-slate-100/50">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.25em]">{t('agenda.schedule')}</span>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider truncate">{dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM')}</p>
           </div>
           <DatePicker
             date={dayjs(date).toDate()}
             setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
-            className="h-10 text-[10px] font-black cursor-pointer bg-white border-2 border-slate-100 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-4 w-full sm:w-auto min-w-0"
+            className="h-11 text-[11px] font-black cursor-pointer bg-white border-2 border-slate-100 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-3 shrink-0"
             modifiers={calculateAffluence(bookings)}
             modifiersClassNames={affluenceClassNames}
           />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 group-focus-within:text-indigo-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder={t('agenda.searchPh')}
-              value={searchName}
-              onChange={e => setSearchName(e.target.value)}
-              className="w-full bg-white border-2 border-slate-50/80 rounded-xl py-2 pl-8 pr-8 text-[11px] font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/30 transition-all placeholder:text-slate-300 shadow-sm"
-            />
-            {searchName && (
-              <button onClick={() => setSearchName('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-50 rounded-lg text-slate-200 hover:text-slate-400 transition-colors">
-                <XCircle className="w-3.5 h-3.5" />
-              </button>
+        <div className="flex bg-slate-100/80 p-1 rounded-xl gap-1">
+          <button
+            onClick={() => setView('timeline')}
+            className={cn(
+              "flex-1 h-10 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5",
+              view === 'timeline' ? "bg-white shadow text-indigo-600" : "text-slate-400 hover:text-slate-600",
             )}
-          </div>
+          >
+            <Clock3 className="w-4 h-4" /> {t('agenda.viewTimeline')}
+          </button>
+          <button
+            onClick={() => setView('arrivals')}
+            className={cn(
+              "flex-1 h-10 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5",
+              view === 'arrivals' ? "bg-white shadow text-indigo-600" : "text-slate-400 hover:text-slate-600",
+            )}
+          >
+            <ListFilter className="w-4 h-4" /> {t('agenda.viewArrivals')}
+          </button>
+        </div>
 
-          <div className="relative group">
-            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 group-focus-within:text-indigo-400 pointer-events-none" />
-            <input
-              type="number"
-              placeholder={t('agenda.sizePh')}
-              value={searchSize}
-              onChange={e => setSearchSize(e.target.value)}
-              className="w-full bg-white border-2 border-slate-50/80 rounded-xl py-2 pl-8 pr-1 text-[11px] font-black text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/30 transition-all placeholder:text-slate-300 shadow-sm"
+        {/* Service progress */}
+        <div>
+          <div className="flex items-baseline justify-between mb-1.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('agenda.service')}</span>
+            <span className="text-[11px] font-black text-slate-600 tabular-nums">
+              {t('agenda.progressFmt').replace('{s}', String(seatedDay)).replace('{t}', String(activeDay.length))}
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
+
+        {/* Size chips + unseated filter */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          {SIZE_BANDS.map(band => (
+            <button
+              key={band.id}
+              onClick={() => setSizeBand(band.id)}
+              className={cn(
+                "h-10 px-4 rounded-xl text-[11px] font-black tabular-nums transition-all cursor-pointer border-2 shrink-0",
+                sizeBand === band.id
+                  ? "bg-slate-900 text-white border-slate-900 shadow"
+                  : "bg-white text-slate-400 border-slate-100 hover:border-slate-300",
+              )}
+            >
+              {band.id === 'all' ? t('agenda.bandAll') : band.label}
+            </button>
+          ))}
+          {unseatedCount > 0 && (
+            <button
+              onClick={() => setOnlyUnseated(v => !v)}
+              className={cn(
+                "h-10 px-4 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer border-2 shrink-0 flex items-center gap-1.5",
+                onlyUnseated
+                  ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/25"
+                  : "bg-red-50 text-red-600 border-red-200 hover:border-red-300",
+              )}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              {unseatedCount}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pt-4 space-y-3 bg-slate-50/20">
-        {unseatedCount > 0 && (
-          <button
-            onClick={() => setOnlyUnseated(v => !v)}
-            className={cn(
-              "w-full flex items-center justify-center gap-2 px-3 min-h-[44px] rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer border",
-              onlyUnseated
-                ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/25"
-                : "bg-red-50 text-red-600 border-red-200 hover:border-red-300 animate-pulse",
-            )}
-          >
-            <AlertTriangle className="w-4 h-4" />
-            {t('agenda.unseatedFmt').replace('{n}', String(unseatedCount))}
-          </button>
-        )}
+      <div ref={listRef} className="flex-1 overflow-y-auto p-3 space-y-2.5 bg-slate-50/40 relative">
         {filteredBookings.length === 0 ? (
           <div className="text-center py-20 flex flex-col items-center">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-slate-200">
@@ -199,28 +477,63 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
             <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">{t('agenda.noMatch')}</p>
             <p className="text-[11px] text-slate-500 font-medium mt-1">{t('agenda.adjustFilters')}</p>
           </div>
-        ) : (
-          items.map(it => {
-            if (it.kind === 'head') {
-              const inner = (
-                <>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{it.title}</span>
-                  <span className="text-[10px] font-bold text-slate-400 tabular-nums">{it.sub}</span>
-                </>
-              );
-              return it.key === 'head-done' ? (
-                <button
-                  key={it.key}
-                  onClick={() => setShowDone(false)}
-                  className="sticky top-0 z-10 w-full flex items-baseline justify-between gap-2 px-2 pt-1.5 pb-1 bg-slate-50 rounded-lg cursor-pointer"
-                >
-                  {inner}
-                </button>
-              ) : (
-                <div key={it.key} className="sticky top-0 z-10 flex items-baseline justify-between gap-2 px-1 pt-1.5 pb-1 bg-slate-50 rounded-lg">
-                  {inner}
+        ) : view === 'timeline' ? (
+          <>
+            {slotGroups.map(({ slot, rows }) => {
+              const lateInSlot = rows.filter(b => urgencyOf(b) === 'late').length;
+              return (
+                <div key={slot}>
+                  {sectionHead(
+                    `slot-${slot}`,
+                    slot,
+                    t('agenda.countFmt').replace('{n}', String(rows.length)).replace('{g}', String(coversOf(rows))),
+                  )}
+                  {isToday && slot === nowSlot && (
+                    <div ref={nowRef} className="flex items-center gap-2 my-1.5">
+                      <span className="text-[10px] font-black tabular-nums text-white bg-red-500 px-2 py-0.5 rounded-md shadow">
+                        {nowStamp.tz(RESTAURANT_TZ).format('HH:mm')}
+                      </span>
+                      <div className="flex-1 h-0.5 bg-red-500/70 rounded-full" />
+                    </div>
+                  )}
+                  <div className="space-y-2.5 mt-1.5">
+                    {lateInSlot > 0 && (
+                      <p className="text-[10px] font-black uppercase tracking-wider text-red-500 px-1">
+                        {t('agenda.lateInSlot').replace('{n}', String(lateInSlot))}
+                      </p>
+                    )}
+                    {rows.map(renderRow)}
+                  </div>
                 </div>
               );
+            })}
+            {isToday && doneFiltered.length > 0 && (
+              <div>
+                {showDone ? (
+                  <>
+                    {sectionHead(
+                      'head-done',
+                      `${t('agenda.secDone')} (${doneFiltered.length})`,
+                      t('agenda.countFmt').replace('{n}', String(doneFiltered.length)).replace('{g}', String(coversOf(doneFiltered))),
+                      () => setShowDone(false),
+                    )}
+                    <div className="space-y-2.5 mt-1.5">{doneFiltered.map(renderRow)}</div>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowDone(true)}
+                    className="w-full min-h-[44px] rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                  >
+                    {t('agenda.secDone')} ({doneFiltered.length}) +
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          arrivalItems.map(it => {
+            if (it.kind === 'head') {
+              return sectionHead(it.key, it.title, it.sub, it.key === 'head-done' ? () => setShowDone(false) : undefined);
             }
             if (it.kind === 'doneToggle') {
               return (
@@ -229,134 +542,24 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                   onClick={() => setShowDone(true)}
                   className="w-full min-h-[44px] rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
                 >
-                  {t('agenda.secDone')} ({doneList.length}) +
+                  {t('agenda.secDone')} ({doneRanked.length}) +
                 </button>
               );
             }
-            const b = it.b;
-            return (
-            <div key={b.id}
-              onMouseEnter={() => setHoveredBookingId(b.id)}
-              onMouseLeave={() => setHoveredBookingId(null)}
-              className={clsx(
-                "group bg-white border rounded-[1.5rem] p-4 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)] transition-all duration-500 relative overflow-hidden cursor-pointer",
-                selectedBookingId === b.id
-                  ? "border-indigo-400 ring-2 ring-indigo-500/40 shadow-[0_20px_40px_-10px_rgba(79,70,229,0.25)]"
-                  : b.status === 'CANCELLED' ? "opacity-60 grayscale border-slate-100" : "border-slate-100 hover:border-indigo-200 active:scale-[0.99]"
-              )}
-            >
-              <div className={clsx(
-                "absolute left-0 top-0 bottom-0 w-2 transition-all duration-700 ease-out",
-                b.status === 'COMPLETED' ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]" :
-                  b.status === 'CANCELLED' ? "bg-slate-300" :
-                  urgencyOf(b) === 'late' ? "bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.4)]" :
-                  urgencyOf(b) === 'expected' ? "bg-amber-400 group-hover:w-3" :
-                  "bg-slate-100 group-hover:bg-indigo-600 group-hover:w-3 group-hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
-              )}></div>
-
-              <div className="flex justify-between items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="bg-slate-900 text-white px-2 py-0.5 rounded-md text-[10px] font-black tracking-tighter">
-                      {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
-                    </div>
-                    <div className="text-slate-400 text-[9px] font-bold uppercase tracking-widest opacity-60">
-                      {dayjs(b.endTime).tz(RESTAURANT_TZ).format('HH:mm')}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <h3 className="text-sm font-black text-slate-900 tracking-tight truncate">
-                      {b.language === 'fr' ? '🇫🇷 ' : b.language === 'en' ? '🇬🇧 ' : b.language === 'it' ? '🇮🇹 ' : ''}
-                      {b.name}
-                    </h3>
-                    <div className="flex-shrink-0 flex items-center gap-1 bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full text-[9px] font-black">
-                      <Users className="w-2.5 h-2.5" />
-                      {b.size}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {b.lowTable && (
-                      <div className="text-[8px] font-black bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md border border-indigo-100 uppercase tracking-tighter">
-                        {t('agenda.lowBadge')}
-                      </div>
-                    )}
-                    {b.phone && (
-                      <span className="text-[9px] text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-1 opacity-70 min-w-0 max-w-[140px]">
-                        <span className="w-1 h-1 rounded-full bg-slate-200 flex-shrink-0"></span>
-                        <span className="truncate">{b.phone}</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col justify-between items-end shrink-0 ml-auto self-stretch pr-4">
-                  {/* Top Right: Status/Tables */}
-                  <div className="flex flex-col items-end gap-1 mb-2">
-                    {b.status === 'CANCELLED' ? (
-                      <div className={b.cancelledBy === 'AUTO'
-                        ? "px-2 py-0.5 bg-red-50 border border-red-200 rounded-lg text-[8px] font-black uppercase tracking-widest text-red-500"
-                        : "px-2 py-0.5 bg-slate-100 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-400"}>
-                        {b.cancelledBy === 'AUTO' ? t('agenda.noShowBadge') : t('agenda.cancelledBadge')}
-                      </div>
-                    ) : b.tables.length > 0 ? (
-                      <div className="flex flex-wrap justify-end gap-1 max-w-[120px]">
-                        {formatTableLabels(b.tables).map((label, idx) => (
-                          <span key={idx} className="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
-                            {label}
-                          </span>
-                        ))}
-                      </div>
-                    ) : b.status !== 'COMPLETED' && (
-                      <div className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded text-[8px] font-black animate-pulse uppercase tracking-wider">
-                        {t('agenda.unmappedBadge')}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom Right: Primary Action */}
-                  <div className="-mb-1 -mr-1">
-                    {b.status === 'COMPLETED' ? (
-                      <div className="flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                        <span className="text-[8px] font-black text-emerald-600 uppercase">OK</span>
-                      </div>
-                    ) : b.status !== 'CANCELLED' && (!b.tables || b.tables.length === 0) && onPlaceTables ? (
-                      <button
-                        className="h-11 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-indigo-600/25 active:scale-95"
-                        onClick={(e) => { e.stopPropagation(); onPlaceTables(b.id); }}
-                      >
-                        {t('agenda.placeTables')}
-                      </button>
-                    ) : b.status !== 'CANCELLED' && (
-                      <button
-                        className="h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
-                        onClick={(e) => { e.stopPropagation(); handleCheckIn(b.id); }}
-                        disabled={loading}
-                      >
-                        <CheckCircle2 className="w-4 h-4" /> {t('agenda.checkin')}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Absolute Cancel Cross */}
-                {b.status !== 'CANCELLED' && b.status !== 'COMPLETED' && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowModal({ id: b.id, name: b.name }); }}
-                    className="absolute top-1.5 right-1.5 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-10"
-                    title={t('agenda.cancelTitle')}
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-            );
+            return renderRow(it.b);
           })
         )}
       </div>
+
+      {/* Back to now */}
+      {view === 'timeline' && isToday && (
+        <button
+          onClick={scrollToNow}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 h-11 px-5 rounded-full bg-slate-900/95 backdrop-blur text-white text-[11px] font-black uppercase tracking-widest shadow-2xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 z-20"
+        >
+          <Clock3 className="w-4 h-4" /> {t('agenda.backToNow')}
+        </button>
+      )}
 
       {/* Confirmation Modal */}
       {showModal && (

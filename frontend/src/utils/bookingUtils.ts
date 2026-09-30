@@ -131,3 +131,33 @@ export const countArrivalsNow = (bookings: Booking[], date: string, now: dayjs.D
         const arriving = dayjs(b.startTime).diff(now, 'minute') <= 45;
         return unseated || arriving;
     }).length;
+
+/** 30-minute slot label in restaurant time, e.g. "19:30". */
+export const slotKey = (startTime: string | Date): string => {
+    const d = dayjs(startTime).tz(RESTAURANT_TZ);
+    return `${d.format('HH')}:${d.minute() < 30 ? '00' : '30'}`;
+};
+
+/** Group rows into ascending 30-min slots (pure, unit-tested). */
+export const groupBySlot = (list: Booking[]): { slot: string; rows: Booking[] }[] => {
+    const map = new Map<string, Booking[]>();
+    for (const b of list) {
+        const key = slotKey(b.startTime);
+        const arr = map.get(key) ?? [];
+        arr.push(b);
+        map.set(key, arr);
+    }
+    return [...map.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([slot, rows]) => ({ slot, rows }));
+};
+
+export type SizeBand = 'all' | '2' | '4' | '6p';
+
+/** Rush-friendly party-size bands (no exact typing). */
+export const matchesSizeBand = (b: Booking, band: SizeBand): boolean => {
+    if (band === 'all') return true;
+    if (band === '2') return b.size <= 2;
+    if (band === '4') return b.size >= 3 && b.size <= 4;
+    return b.size >= 5;
+};
