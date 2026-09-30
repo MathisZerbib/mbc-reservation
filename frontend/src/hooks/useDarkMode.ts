@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 
-type DarkPref = 'auto' | 'on' | 'off';
-
 const KEY = 'host-dark-mode';
 
 /** Evening service window in restaurant time (18:00 → 07:00). */
@@ -12,38 +10,31 @@ const isEveningNow = (): boolean => {
 };
 
 /**
- * Host dark mode: automatic during the evening service, manually
- * overridable (persisted). Toggles the `.dark` class consumed by the
+ * Host dark mode: on in the evening by default, one tap toggles
+ * moon/sun (persisted). Toggles the `.dark` class consumed by the
  * Tailwind v4 dark variant on host surfaces.
  */
 export function useDarkMode() {
-    const [pref, setPref] = useState<DarkPref>(() => {
+    const [dark, setDark] = useState<boolean>(() => {
         try {
             const saved = localStorage.getItem(KEY);
-            if (saved === 'on' || saved === 'off' || saved === 'auto') return saved;
+            if (saved === 'on') return true;
+            if (saved === 'off') return false;
         } catch {
-            // Private mode — fall back to auto.
+            // Private mode — fall back to the evening default.
         }
-        return 'auto';
+        return isEveningNow();
     });
-    const [dark, setDark] = useState(false);
 
     useEffect(() => {
-        const apply = () => {
-            const on = pref === 'on' || (pref === 'auto' && isEveningNow());
-            setDark(on);
-            document.documentElement.classList.toggle('dark', on);
-        };
-        apply();
-        const id = window.setInterval(apply, 60_000);
-        return () => window.clearInterval(id);
-    }, [pref]);
+        document.documentElement.classList.toggle('dark', dark);
+    }, [dark]);
 
-    const cycle = useCallback(() => {
-        setPref(prev => {
-            const next: DarkPref = prev === 'auto' ? 'on' : prev === 'on' ? 'off' : 'auto';
+    const toggle = useCallback(() => {
+        setDark(prev => {
+            const next = !prev;
             try {
-                localStorage.setItem(KEY, next);
+                localStorage.setItem(KEY, next ? 'on' : 'off');
             } catch {
                 // Private mode — preference simply won't persist.
             }
@@ -51,5 +42,5 @@ export function useDarkMode() {
         });
     }, []);
 
-    return { dark, pref, cycle };
+    return { dark, toggle };
 }

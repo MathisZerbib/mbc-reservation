@@ -33,7 +33,7 @@ export const LivePage: React.FC = () => {
     const [dragOverTableId, setDragOverTableId] = useState<string | null>(null);
     const dragOverRef = useRef<string | null>(null);
     const { bookings, refresh } = useBookingsContext();
-    const { dark, pref, cycle } = useDarkMode();
+    const { dark, toggle } = useDarkMode();
 
     useHostShortcuts({
         onQuickRes: () => setIsQuickResOpen(true),
@@ -106,7 +106,7 @@ export const LivePage: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 lg:p-4 h-screen overflow-hidden flex flex-col">
             <div className="max-w-[1600px] mx-auto w-full flex flex-col h-full gap-4">
-                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} darkPref={pref} dark={dark} onToggleDark={cycle} />
+                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} dark={dark} onToggleDark={toggle} />
                 <TrialBanner />
                 <div className="flex-none">
                     <HostSearchBar

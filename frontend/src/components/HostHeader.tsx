@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, ChartColumn, Sun, Moon, Sunset } from 'lucide-react';
+import { Settings as SettingsIcon, ChartColumn, Sun, Moon } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { useTranslation } from '../i18n/useTranslation';
 import { HostTabs } from './HostTabs';
@@ -10,8 +10,7 @@ interface HostHeaderProps {
     arrivalsNow: number;
     /** When provided, shows the quick-résa button (live page). */
     onQuickRes?: () => void;
-    /** Dark-mode preference: auto (evening) / on / off. */
-    darkPref?: 'auto' | 'on' | 'off';
+    /** Dark mode on/off (moon/sun toggle). */
     dark?: boolean;
     onToggleDark?: () => void;
 }
@@ -20,7 +19,7 @@ interface HostHeaderProps {
  * Shared header for the host workspaces: title + day, workspace tabs,
  * and the global actions. One inset scale everywhere.
  */
-export const HostHeader: React.FC<HostHeaderProps> = ({ date, arrivalsNow, onQuickRes, darkPref = 'auto', dark = false, onToggleDark }) => {
+export const HostHeader: React.FC<HostHeaderProps> = ({ date, arrivalsNow, onQuickRes, dark = false, onToggleDark }) => {
     const { t } = useTranslation();
 
     return (
@@ -52,7 +51,7 @@ export const HostHeader: React.FC<HostHeaderProps> = ({ date, arrivalsNow, onQui
                             title={t('dashboard.darkTitle')}
                             className="min-w-[48px] min-h-[48px] p-3 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl shadow-sm text-slate-500 dark:text-amber-300 hover:text-slate-900 dark:hover:text-amber-200 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                         >
-                            {darkPref === 'auto' ? <Sunset className="w-5 h-5" /> : dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                            {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         </button>
                     )}
                     <Link

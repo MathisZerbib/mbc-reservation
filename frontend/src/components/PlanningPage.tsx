@@ -25,7 +25,7 @@ export const PlanningPage: React.FC = () => {
     const [, setHoveredBookingId] = useState<string | null>(null);
     const [isQuickResOpen, setIsQuickResOpen] = useState(false);
     const { bookings } = useBookingsContext();
-    const { dark, pref, cycle } = useDarkMode();
+    const { dark, toggle } = useDarkMode();
 
     useHostShortcuts({
         onQuickRes: () => setIsQuickResOpen(true),
@@ -49,7 +49,7 @@ export const PlanningPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 lg:p-4 overflow-y-auto">
             <div className="max-w-2xl mx-auto flex flex-col gap-4 pb-10">
-                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} darkPref={pref} dark={dark} onToggleDark={cycle} />
+                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} dark={dark} onToggleDark={toggle} />
                 <TrialBanner />
                 <div className="flex-none">
                     <HostSearchBar
