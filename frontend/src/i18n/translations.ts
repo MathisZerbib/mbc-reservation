@@ -354,6 +354,7 @@ export const TRANSLATIONS = {
             countFmt: '{n} bookings · {g} guests',
             cancelFailed: 'Cancellation failed',
             cancelledBadge: 'Cancel',
+            noShowBadge: 'No-show',
             unmappedBadge: 'Map?',
             lowBadge: 'Low',
         },
@@ -382,6 +383,10 @@ export const TRANSLATIONS = {
             noSolution: 'No room at this time',
             seatHere: 'Seat here',
             newBooking: 'New booking here',
+            cancel: 'Cancel booking',
+            confirmCancel: 'Confirm?',
+            noShow: 'No-show',
+            noShowTitle: 'No-shows',
         },
         analytics: {
             bookings: 'Bookings',
@@ -458,6 +463,7 @@ export const TRANSLATIONS = {
             reservations: 'Reservations',
             availAllDay: 'Available all day',
             guestsFmt: '{n} guests',
+            noShow: 'No-show',
         },
         autoconsec: {
             confirmMsg: 'Trigger auto-consecutive bookings for {date}?',
@@ -819,6 +825,7 @@ export const TRANSLATIONS = {
             countFmt: '{n} résas · {g} couverts',
             cancelFailed: 'Échec de l’annulation',
             cancelledBadge: 'Annulée',
+            noShowBadge: 'No-show',
             unmappedBadge: 'Plan ?',
             lowBadge: 'Basse',
         },
@@ -847,6 +854,10 @@ export const TRANSLATIONS = {
             noSolution: 'Complet sur ce créneau',
             seatHere: 'Installer ici',
             newBooking: 'Nouvelle résa ici',
+            cancel: 'Annuler la résa',
+            confirmCancel: 'Confirmer ?',
+            noShow: 'No-show',
+            noShowTitle: 'No-shows',
         },
         analytics: {
             bookings: 'Réservations',
@@ -923,6 +934,7 @@ export const TRANSLATIONS = {
             reservations: 'Réservations',
             availAllDay: 'Libre toute la journée',
             guestsFmt: '{n} couverts',
+            noShow: 'No-show',
         },
         autoconsec: {
             confirmMsg: 'Déclencher les réservations auto-consécutives pour le {date} ?',

@@ -450,6 +450,22 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
                     </div>
                   ))
                 )}
+                {allBookings
+                  .filter((b: Booking) =>
+                    b.status === 'CANCELLED' &&
+                    b.cancelledBy === 'AUTO' &&
+                    dayjs(b.startTime).format("YYYY-MM-DD") === selectedDate &&
+                    b.tables?.some((t: { name: string }) => t.name === hoveredTable),
+                  )
+                  .map((b: Booking) => (
+                    <div key={b.id} className="p-3 bg-red-500/10 rounded-xl border border-red-500/30 flex justify-between items-center">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-red-200 line-through truncate">{b.name}</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-red-400">{t('mapview.noShow')}</p>
+                      </div>
+                      <p className="text-xs font-black text-red-300 shrink-0">{dayjs(b.startTime).format("HH:mm")}</p>
+                    </div>
+                  ))}
               </div>
             </motion.div>
           )}

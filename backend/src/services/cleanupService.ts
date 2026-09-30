@@ -64,7 +64,7 @@ export async function autoCancelNoShows(io?: Server): Promise<number> {
                     status: { in: ['PENDING', 'CONFIRMED'] },
                     startTime: { lt: cutoff },
                 },
-                data: { status: 'CANCELLED' },
+                data: { status: 'CANCELLED', cancelledBy: 'AUTO' },
             });
             total += res.count;
         }

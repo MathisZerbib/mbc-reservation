@@ -39,6 +39,17 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const [moveDate, setMoveDate] = useState<string | null>(null);
     const [suggestion, setSuggestion] = useState<{ forId: string; tables: string[] } | null>(null);
     const [busy, setBusy] = useState(false);
+    const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+
+    const noShows = useMemo(
+        () =>
+            bookings
+                .filter(b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === date)
+                .filter(b => b.status === 'CANCELLED' && b.cancelledBy === 'AUTO')
+                .filter(b => b.tables?.some(x => x.name === tableId))
+                .sort((a, b) => dayjs(a.startTime).unix() - dayjs(b.startTime).unix()),
+        [bookings, date, tableId],
+    );
 
     const rows = useMemo(
         () =>
@@ -105,6 +116,25 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
         setBusy(true);
         try {
             await api.checkIn(id);
+            await refresh();
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    /** Inline 2-tap cancel: first tap arms, second confirms (auto-disarms). */
+    const askCancel = (id: string) => {
+        setConfirmCancelId(id);
+        window.setTimeout(() => {
+            setConfirmCancelId(prev => (prev === id ? null : prev));
+        }, 4000);
+    };
+
+    const doCancel = async (id: string) => {
+        setBusy(true);
+        try {
+            await api.cancelBooking(id);
+            setConfirmCancelId(null);
             await refresh();
         } finally {
             setBusy(false);
@@ -240,6 +270,23 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                             >
                                                 <Check className="w-3.5 h-3.5" /> {t('sheet.seat')}
                                             </button>
+                                            {confirmCancelId === b.id ? (
+                                                <button
+                                                    onClick={() => doCancel(b.id)}
+                                                    disabled={busy}
+                                                    className="h-9 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-50 animate-pulse"
+                                                >
+                                                    {t('sheet.confirmCancel')}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => askCancel(b.id)}
+                                                    aria-label={t('sheet.cancel')}
+                                                    className="h-9 w-9 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            )}
                                         </>
                                     )}
                                 </div>
@@ -294,6 +341,28 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                         </div>
                     );
                 })}
+
+                {noShows.length > 0 && (
+                    <div className="pt-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-red-400 px-1 mb-1.5">
+                            {t('sheet.noShowTitle')}
+                        </p>
+                        {noShows.map(b => (
+                            <div
+                                key={b.id}
+                                className="w-full flex items-center gap-2 bg-red-50/60 border border-red-100 rounded-2xl px-3 min-h-[48px] mb-1.5"
+                            >
+                                <span className="text-[11px] font-black tabular-nums text-red-400">
+                                    {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
+                                </span>
+                                <span className="text-sm font-bold text-slate-500 line-through truncate flex-1 min-w-0">{b.name}</span>
+                                <span className="text-[9px] font-black uppercase tracking-wider text-red-500 shrink-0">
+                                    {t('sheet.noShow')}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {!current && unseatedHere.length > 0 && (
                     <div className="pt-1">

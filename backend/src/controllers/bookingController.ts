@@ -243,7 +243,7 @@ export const bookingController = (io: Server) => ({
 
             await prisma.booking.update({
                 where: { id: id },
-                data: { status: 'CANCELLED' }
+                data: { status: 'CANCELLED', cancelledBy: 'HOST' }
             } as any);
 
             const completeBooking = await prisma.booking.findUnique({

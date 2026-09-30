@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vites
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/isAuthenticated';
 import { bookingController } from '../controllers/bookingController';
+import { autoCancelNoShows } from './cleanupService';
 import { prisma } from '../lib/prisma'; // Real prisma
 import { emailService } from './emailService';
 import { FLOOR_PLAN_DATA, getCapacity } from '../utils/floorPlanData';
@@ -196,6 +197,55 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
              await bookingController(io).cancelBooking(req as AuthRequest, res as Response);
 
              expect(status).toHaveBeenCalledWith(404);
+        });
+
+        it('should tag manual cancels as HOST', async () => {
+             const existing = await prisma.booking.create({
+                 data: {
+                     name: 'Host Cancel',
+                     size: 2,
+                     startTime: new Date(),
+                     endTime: new Date(),
+                     language: 'en',
+                     status: 'CONFIRMED',
+                     tenantId,
+                 },
+             });
+
+             req = { tenant: tenant(), params: { id: existing.id } };
+
+             await bookingController(io).cancelBooking(req as AuthRequest, res as Response);
+
+             const dbBooking = await prisma.booking.findUnique({ where: { id: existing.id } });
+             expect(dbBooking?.status).toBe('CANCELLED');
+             expect((dbBooking as any)?.cancelledBy).toBe('HOST');
+        });
+    });
+
+    describe('autoCancelNoShows (no-show sweep)', () => {
+        it('should tag sweep cancels as AUTO and spare seated bookings', async () => {
+            await prisma.restaurantSettings.upsert({
+                where: { tenantId },
+                update: { autoCancelLate: true, lateGraceMinutes: 0 },
+                create: { tenantId, autoCancelLate: true, lateGraceMinutes: 0 },
+            });
+            const past = new Date(Date.now() - 60 * 60 * 1000);
+            const late = await prisma.booking.create({
+                data: { name: 'No Show', size: 2, startTime: past, endTime: past, language: 'en', status: 'CONFIRMED', tenantId },
+            });
+            const seated = await prisma.booking.create({
+                data: { name: 'Seated', size: 2, startTime: past, endTime: past, language: 'en', status: 'COMPLETED', tenantId },
+            });
+
+            const count = await autoCancelNoShows(io);
+
+            expect(count).toBe(1);
+            const dbLate = await prisma.booking.findUnique({ where: { id: late.id } });
+            expect(dbLate?.status).toBe('CANCELLED');
+            expect((dbLate as any)?.cancelledBy).toBe('AUTO');
+            const dbSeated = await prisma.booking.findUnique({ where: { id: seated.id } });
+            expect(dbSeated?.status).toBe('COMPLETED');
+            expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'no-show-sweep' }));
         });
     });
 

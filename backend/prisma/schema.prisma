@@ -110,6 +110,8 @@ model Booking {
   name      String
   phone     String?
   lowTable  Boolean       @default(false)
+  /** Who cancelled: 'HOST' (manual) or 'AUTO' (no-show sweep). Null = never cancelled. */
+  cancelledBy String?
   tenantId  String
   tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tables    Table[]       @relation("BookingTables")

@@ -295,8 +295,10 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
                   {/* Top Right: Status/Tables */}
                   <div className="flex flex-col items-end gap-1 mb-2">
                     {b.status === 'CANCELLED' ? (
-                      <div className="px-2 py-0.5 bg-slate-100 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-400">
-                        {t('agenda.cancelledBadge')}
+                      <div className={b.cancelledBy === 'AUTO'
+                        ? "px-2 py-0.5 bg-red-50 border border-red-200 rounded-lg text-[8px] font-black uppercase tracking-widest text-red-500"
+                        : "px-2 py-0.5 bg-slate-100 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-400"}>
+                        {b.cancelledBy === 'AUTO' ? t('agenda.noShowBadge') : t('agenda.cancelledBadge')}
                       </div>
                     ) : b.tables.length > 0 ? (
                       <div className="flex flex-wrap justify-end gap-1 max-w-[120px]">

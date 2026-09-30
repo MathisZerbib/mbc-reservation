@@ -17,6 +17,8 @@ export interface Booking {
     endTime: string;
     lowTable: boolean;
     status: BookingStatus;
+    /** Who cancelled: 'HOST' (manual) or 'AUTO' (no-show sweep). */
+    cancelledBy?: string | null;
     tables: Table[];
 }
 
