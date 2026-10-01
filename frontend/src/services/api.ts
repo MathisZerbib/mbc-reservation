@@ -181,11 +181,18 @@ export const api = {
     seedDemo: () =>
         client.post<{ message: string; bookings: number; tableLinks: number; tables: number }>('/tests/seed-demo', { auth: true }),
 
+    /** Stripe Connect Express onboarding for this restaurant (owner). */
+    stripeConnect: () =>
+        client.post<{ url: string; accountId: string }>('/stripe/connect', { auth: true }),
+
+    stripeStatus: () =>
+        client.get<{ configured: boolean; accountId: string | null; onboarded: boolean }>('/stripe/status', { auth: true }),
+
     // ── Tenant settings ──
     getSettings: () =>
         client.get<RestaurantSettings>('/settings', { auth: true }),
 
-    updateSettings: (data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; retentionMonths?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number }) =>
+    updateSettings: (data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; retentionMonths?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; depositAmount?: number; tableTurnoverMinutes?: number }) =>
         client.patch<RestaurantSettings>('/settings', { body: data, auth: true }),
 
     /** Host toggle for the guest-confirmed flag. */

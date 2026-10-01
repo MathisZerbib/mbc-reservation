@@ -47,6 +47,17 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
   };
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
+  const [depositReturn, setDepositReturn] = useState<'held' | 'open' | null>(null);
+
+  // Back from Stripe Checkout (?deposit=held|open&booking=…) → receipt step.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('deposit');
+    if (q === 'held' || q === 'open') {
+      setDepositReturn(q);
+      setStep(4);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
   const [formData, setFormData] = useState({
     size: 2,
     date: dayjs().format('YYYY-MM-DD'),
@@ -175,8 +186,15 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
         turnstileToken: token,
       };
 
-      await api.createBooking(payload, slug);
-      nextStep(4);
+      await api.createBooking(payload, slug).then(res => {
+        // Large party with a deposit hold → Stripe Checkout, then back here.
+        const withDeposit = res as unknown as { depositUrl?: string | null };
+        if (withDeposit?.depositUrl) {
+          window.location.href = withDeposit.depositUrl;
+          return;
+        }
+        nextStep(4);
+      });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t.error);
       console.error('[Booking Execution Error]:', e);
@@ -724,6 +742,11 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                       <p className="text-sm text-slate-600 font-bold leading-tight">
                         {t.success_msg.split('!')[0]}!
                       </p>
+                      {depositReturn && (
+                        <p className={`text-xs font-black leading-tight rounded-2xl px-4 py-2.5 ${depositReturn === 'held' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                          {depositReturn === 'held' ? t.deposit_held : t.deposit_open}
+                        </p>
+                      )}
                       <p className="text-[11px] text-slate-400 font-medium flex items-center justify-center gap-2">
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                         {t.success_msg.split('!')[1]}

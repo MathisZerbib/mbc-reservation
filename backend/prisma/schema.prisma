@@ -90,6 +90,12 @@ model RestaurantSettings {
   depositMinSize    Int      @default(6)
   /** Months of booking history kept before PII anonymization (GDPR). */
   retentionMonths   Int      @default(13)
+  /** Fixed deposit hold per booking in euros (Stripe, manual capture). */
+  depositAmount     Float    @default(20)
+  /** Stripe Connect Express account of the restaurant (direct charges). */
+  stripeAccountId   String?
+  /** True once the restaurant finished Stripe onboarding (charges enabled). */
+  stripeOnboarded   Boolean  @default(false)
   updatedAt         DateTime @updatedAt
 }
 
@@ -133,6 +139,11 @@ model Booking {
   leftAt DateTime?
   /** Soft-delete (GDPR erasure): excluded from every query, PII wiped. */
   deletedAt DateTime?
+  /** Deposit hold: NONE | PENDING | HELD | CAPTURED | RELEASED | FAILED. */
+  depositStatus String @default("NONE")
+  depositAmountCents Int?
+  stripePaymentIntentId String?
+  stripeCheckoutSessionId String?
   /** Guest confirmed (host toggle). Drives the confirmation icon. */
   guestConfirmed Boolean @default(false)
   /** Seated at (set on check-in). Drives overtime detection. */

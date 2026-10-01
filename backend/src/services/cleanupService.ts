@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { sandboxSlugs } from './tenantService';
 import { emitToTenant } from '../lib/tenantSocket';
+import { captureDeposit } from './depositService';
 import dayjs from 'dayjs';
 import type { Server } from 'socket.io';
 
@@ -79,11 +80,32 @@ export async function autoCancelNoShows(io?: Server): Promise<number> {
         // their future bookings into no-shows day after day.
         const policies = await prisma.restaurantSettings.findMany({
             where: { autoCancelLate: true, tenant: { slug: { notIn: [...sandboxSlugs()] } } },
-            select: { tenantId: true, lateGraceMinutes: true },
+            select: { tenantId: true, lateGraceMinutes: true, stripeAccountId: true, stripeOnboarded: true },
         });
         let total = 0;
         for (const policy of policies) {
             const cutoff = dayjs().subtract(policy.lateGraceMinutes, 'minutes').toDate();
+            // No-show with a held deposit → capture it before cancelling.
+            const held = await prisma.booking.findMany({
+                where: {
+                    tenantId: policy.tenantId,
+                    deletedAt: null,
+                    status: { in: ['PENDING', 'CONFIRMED'] },
+                    startTime: { lt: cutoff },
+                    depositStatus: 'HELD',
+                },
+                select: { id: true, tenantId: true, depositStatus: true, depositAmountCents: true, stripePaymentIntentId: true, stripeCheckoutSessionId: true },
+            });
+            for (const h of held) {
+                try {
+                    await captureDeposit(h as any, {
+                        stripeAccountId: policy.stripeAccountId,
+                        stripeOnboarded: policy.stripeOnboarded,
+                    });
+                } catch (e) {
+                    console.error('No-show capture failed:', (e as Error).message);
+                }
+            }
             const res = await prisma.booking.updateMany({
                 where: {
                     tenantId: policy.tenantId,

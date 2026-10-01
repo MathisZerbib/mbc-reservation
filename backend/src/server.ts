@@ -15,11 +15,13 @@ import authRoutes from './routes/authRoutes';
 import protectedRoutes from './routes/protectedRoutes';
 import testRoutes from './routes/testRoutes';
 import userRoutes from './routes/userRoutes';
+import stripeRoutes from './routes/stripeRoutes';
 import { prisma } from './lib/prisma';
 import swaggerUi from 'swagger-ui-express';
 import { startCleanupTask } from './services/cleanupService';
 import { swaggerSpec } from './docs/swagger';
 import { tenantRoom } from './lib/tenantSocket';
+import { handleStripeWebhook } from './services/depositService';
 
 const app = express();
 const server = http.createServer(app);
@@ -83,6 +85,17 @@ const io = new Server(server, {
 app.set('trust proxy', 1);
 
 app.use(cors(corsOptions));
+// Stripe webhook needs the raw body for signature verification —
+// register before express.json() consumes it.
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+        await handleStripeWebhook(req.body as Buffer, req.headers['stripe-signature'] as string);
+        res.json({ received: true });
+    } catch (e) {
+        console.error('Stripe webhook failed:', (e as Error).message);
+        res.status(400).json({ error: 'Webhook error' });
+    }
+});
 app.use(express.json());
 // CSP disabled: swagger-ui serves inline assets; other helmet protections on.
 // crossOriginResourcePolicy is cross-origin so Vercel frontends can <img>
@@ -143,6 +156,7 @@ app.use('/api', protectedRoutes);
 // Dev/demo helpers (bulk booking). Guarded by demo-session auth in testRoutes.
 app.use('/api/tests', testRoutes); // Tests routes
 app.use('/api', userRoutes);
+app.use('/api', stripeRoutes);
 app.get('/health', async (_req, res) => {
     try {
         await prisma.$queryRaw`SELECT 1`;

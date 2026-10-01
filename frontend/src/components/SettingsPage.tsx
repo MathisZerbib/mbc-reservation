@@ -6,6 +6,7 @@ import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
 import { useUserRole } from '../hooks/useUserRole';
 import { TeamCard } from './TeamCard';
 import { FloorPlanImageDropzone } from './FloorPlanImageDropzone';
+import { StripeConnectBlock } from './StripeConnectBlock';
 import { useTranslation } from '../i18n/useTranslation';
 import { cn } from '../lib/utils';
 
@@ -22,6 +23,7 @@ export const SettingsPage: React.FC = () => {
     const [autoCancel, setAutoCancel] = useState(true);
     const [depositOn, setDepositOn] = useState(false);
     const [depositMin, setDepositMin] = useState('6');
+    const [depositAmount, setDepositAmount] = useState('20');
     const [saving, setSaving] = useState(false);
     const [savingGrace, setSavingGrace] = useState(false);
     const [savingRules, setSavingRules] = useState(false);
@@ -40,6 +42,7 @@ export const SettingsPage: React.FC = () => {
             setTurnover(String(settings.tableTurnoverMinutes ?? 105));
             setDepositOn(settings.depositEnabled ?? false);
             setDepositMin(String(settings.depositMinSize ?? 6));
+            setDepositAmount(String(settings.depositAmount ?? 20));
             setRetention(String(settings.retentionMonths ?? 13));
         }
     }, [settings]);
@@ -89,9 +92,14 @@ export const SettingsPage: React.FC = () => {
             flash('err', t('settings.depositError'));
             return;
         }
+        const amount = Number(depositAmount);
+        if (!Number.isFinite(amount) || amount < 1 || amount > 500) {
+            flash('err', t('settings.depositAmountError'));
+            return;
+        }
         setSavingRules(true);
         try {
-            await api.updateSettings({ depositEnabled: depositOn, depositMinSize: minSize });
+            await api.updateSettings({ depositEnabled: depositOn, depositMinSize: minSize, depositAmount: amount });
             await refresh();
             flash('ok', t('settings.depositSaved'));
         } catch (e) {
@@ -357,7 +365,19 @@ export const SettingsPage: React.FC = () => {
                                     value={depositMin}
                                     onChange={e => setDepositMin(e.target.value)}
                                     disabled={!depositOn}
+                                    aria-label={t('settings.depositMin')}
                                     className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 disabled:opacity-50"
+                                />
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={500}
+                                    step={1}
+                                    value={depositAmount}
+                                    onChange={e => setDepositAmount(e.target.value)}
+                                    disabled={!depositOn}
+                                    aria-label={t('settings.depositAmount')}
+                                    className="w-28 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 disabled:opacity-50"
                                 />
                                 <button
                                     onClick={handleSaveDeposit}
@@ -368,6 +388,7 @@ export const SettingsPage: React.FC = () => {
                                     {savingRules ? t('common.saving') : t('common.save')}
                                 </button>
                             </div>
+                            <StripeConnectBlock refresh={refresh} flash={flash} />
                         </div>
                     )}
                 </div>

@@ -7,6 +7,8 @@ import { getAdjacencyMap } from '../services/floorPlanService';
 import { getDailyAnalytics } from '../services/analyticsService';
 import { getRangeAnalytics } from '../services/rangeAnalyticsService';
 import { verifyTurnstile } from '../utils/turnstile';
+import { getSettings } from '../services/settingsService';
+import { isStripeEnabled, depositRequired, createDepositHold, releaseDeposit } from '../services/depositService';
 import { Server } from 'socket.io';
 import { emitToTenant } from '../lib/tenantSocket';
 import { emailService } from '../services/emailService';
@@ -192,8 +194,39 @@ export const bookingController = (io: Server) => ({
                 emailService.sendConfirmationEmail(newBooking);
             }
 
+            // Deposit hold for large public parties (Stripe Checkout, manual
+            // capture). Booking stands even if the hold fails — host sees FAILED.
+            let depositUrl: string | null = null;
+            if (!getIsAdmin(req) && isStripeEnabled()) {
+                try {
+                    const settings = await getSettings(tenantId(req));
+                    if (depositRequired(settings.depositEnabled, settings.depositMinSize, guestSize)) {
+                        const base = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/${req.tenant!.slug}`;
+                        const hold = await createDepositHold(
+                            (newBooking as any).id,
+                            tenantId(req),
+                            Math.round(settings.depositAmount * 100),
+                            {
+                                successUrl: `${base}?deposit=held&booking=${(newBooking as any).id}`,
+                                cancelUrl: `${base}?deposit=open&booking=${(newBooking as any).id}`,
+                            },
+                            // Direct charge on the restaurant's Connect account
+                            // when onboarded, platform account otherwise.
+                            { stripeAccountId: settings.stripeAccountId, stripeOnboarded: settings.stripeOnboarded },
+                        );
+                        depositUrl = hold.url;
+                    }
+                } catch (e) {
+                    console.error('Deposit hold failed (booking kept):', (e as Error).message);
+                    await prisma.booking.update({
+                        where: { id: (newBooking as any).id },
+                        data: { depositStatus: 'FAILED' } as any,
+                    });
+                }
+            }
+
             emitToTenant(io, tenantId(req), 'booking-update', { type: 'new', booking: newBooking });
-            res.json(newBooking);
+            res.json({ ...newBooking, depositUrl });
 
         } catch (error) {
             console.error(error);
@@ -215,6 +248,17 @@ export const bookingController = (io: Server) => ({
                 where: { id: id },
                 data: { status: 'COMPLETED', seatedAt: new Date() }
             } as any);
+
+            // Guest showed up → release the hold (best-effort).
+            try {
+                const settings = await getSettings(tid);
+                await releaseDeposit(existing as any, {
+                    stripeAccountId: settings.stripeAccountId,
+                    stripeOnboarded: settings.stripeOnboarded,
+                });
+            } catch (e) {
+                console.error('Deposit release on check-in failed:', (e as Error).message);
+            }
 
             // Send feedback email after visit
             if (updatedBooking.email) {
@@ -284,6 +328,17 @@ export const bookingController = (io: Server) => ({
                 where: { id: id },
                 data: { status: 'CANCELLED', cancelledBy: 'HOST' }
             } as any);
+
+            // Timely cancel → release any deposit hold (best-effort).
+            try {
+                const settings = await getSettings(tid);
+                await releaseDeposit(existing as any, {
+                    stripeAccountId: settings.stripeAccountId,
+                    stripeOnboarded: settings.stripeOnboarded,
+                });
+            } catch (e) {
+                console.error('Deposit release on cancel failed:', (e as Error).message);
+            }
 
             const completeBooking = await prisma.booking.findUnique({
                 where: { id: id },

@@ -31,6 +31,8 @@ export interface Booking {
     seatedAt?: string | null;
     leftAt?: string | null;
     source?: 'RESERVATION' | 'WALKIN';
+    depositStatus?: string;
+    depositAmountCents?: number | null;
     tables: Table[];
 }
 
@@ -135,6 +137,9 @@ export interface RestaurantSettings {
     autoCancelLate: boolean;
     depositEnabled: boolean;
     depositMinSize: number;
+    depositAmount: number;
+    stripeAccountId: string | null;
+    stripeOnboarded: boolean;
     tableTurnoverMinutes: number;
     updatedAt: string;
 }

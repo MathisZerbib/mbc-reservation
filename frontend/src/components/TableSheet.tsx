@@ -279,6 +279,16 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                     {dayjs(b.startTime).tz(RESTAURANT_TZ).format('HH:mm')}
                                 </span>
                                 <p className="text-sm font-black text-slate-900 dark:text-white truncate flex-1 min-w-0">{b.name}</p>
+                                {b.depositStatus && b.depositStatus !== 'NONE' && (
+                                    <span
+                                        title={t('sheet.depositHint')}
+                                        className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${b.depositStatus === 'HELD' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : b.depositStatus === 'CAPTURED' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'}`}
+                                    >
+                                        {t('sheet.depositFmt')
+                                            .replace('{a}', String(Math.round((b.depositAmountCents ?? 0) / 100)))
+                                            .replace('{s}', t(`sheet.deposit_${b.depositStatus}` as 'sheet.deposit_HELD'))}
+                                    </span>
+                                )}
                                 {(b.tags ?? []).slice(0, 3).map(tag => (
                                     <span key={tag} className="text-xs leading-none" title={tagDetail(b, tag) ?? tag}>{TAG_EMOJI[tag] ?? '•'}</span>
                                 ))}

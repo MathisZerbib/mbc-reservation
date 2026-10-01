@@ -3,6 +3,7 @@ import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 
 import { prisma } from '../lib/prisma';
+import { parseDepositAmount } from './depositService';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -37,6 +38,9 @@ export interface RestaurantSettingsDTO {
     autoCancelLate: boolean;
     depositEnabled: boolean;
     depositMinSize: number;
+    depositAmount: number;
+    stripeAccountId: string | null;
+    stripeOnboarded: boolean;
     tableTurnoverMinutes: number;
     updatedAt: string;
 }
@@ -121,7 +125,7 @@ export function parseRetentionMonths(input: unknown): number {
     return value;
 }
 
-const toDTO = (row: { avgTicket: number; avgTicketLunch: number | null; avgTicketDinner: number | null; retentionMonths: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; tableTurnoverMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
+const toDTO = (row: { avgTicket: number; avgTicketLunch: number | null; avgTicketDinner: number | null; retentionMonths: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; depositAmount: number; stripeAccountId: string | null; stripeOnboarded: boolean; tableTurnoverMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
     avgTicket: row.avgTicket,
     avgTicketLunch: row.avgTicketLunch,
     avgTicketDinner: row.avgTicketDinner,
@@ -131,6 +135,9 @@ const toDTO = (row: { avgTicket: number; avgTicketLunch: number | null; avgTicke
     autoCancelLate: row.autoCancelLate,
     depositEnabled: row.depositEnabled,
     depositMinSize: row.depositMinSize,
+    depositAmount: row.depositAmount,
+    stripeAccountId: row.stripeAccountId,
+    stripeOnboarded: row.stripeOnboarded,
     tableTurnoverMinutes: row.tableTurnoverMinutes,
     updatedAt: row.updatedAt.toISOString(),
 });
@@ -145,8 +152,8 @@ export async function getSettings(tenantId: string): Promise<RestaurantSettingsD
     return toDTO(row);
 }
 
-export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; avgTicketLunch?: unknown; avgTicketDinner?: unknown; retentionMonths?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown; tableTurnoverMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
-    const data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; retentionMonths?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number } = {};
+export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; avgTicketLunch?: unknown; avgTicketDinner?: unknown; retentionMonths?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown; depositAmount?: unknown; tableTurnoverMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
+    const data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; retentionMonths?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; depositAmount?: number; tableTurnoverMinutes?: number } = {};
     if (input.avgTicket !== undefined) {
         data.avgTicket = parseAvgTicket(input.avgTicket);
     }
@@ -170,6 +177,9 @@ export async function updateSettings(tenantId: string, input: { avgTicket?: unkn
     }
     if (input.depositMinSize !== undefined) {
         data.depositMinSize = parseDepositMinSize(input.depositMinSize);
+    }
+    if (input.depositAmount !== undefined) {
+        data.depositAmount = parseDepositAmount(input.depositAmount);
     }
     if (input.tableTurnoverMinutes !== undefined) {
         data.tableTurnoverMinutes = parseTurnoverMinutes(input.tableTurnoverMinutes);
