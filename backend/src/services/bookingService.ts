@@ -31,6 +31,21 @@ export function sanitizeTags(input: unknown): string[] {
         .filter(t => allowed.has(t));
 }
 
+/** Trimmed free text capped at 120 chars; blank becomes null. */
+export function sanitizeNote(input: unknown): string | null {
+    if (typeof input !== 'string') return null;
+    const v = input.trim().substring(0, 120);
+    return v.length > 0 ? v : null;
+}
+
+/** Birth date (must not be in the future); blank/invalid becomes null. */
+export function sanitizeBirthday(input: unknown): Date | null {
+    if (input === null || input === undefined || input === '') return null;
+    const d = input instanceof Date ? input : new Date(input as string);
+    if (isNaN(d.getTime()) || d.getTime() > Date.now()) return null;
+    return d;
+}
+
 /** Buffer applied around the target window when checking kept tables. */
 export const RESCHEDULE_BUFFER_MINUTES = 15;
 
@@ -102,6 +117,10 @@ export async function getAvailableTables(
 export async function createReservation(input: CreateReservationInput) {
     const { name, phone, email, language, size, startTime, lowTable, tenantId } = input;
     const tags = sanitizeTags(input.tags);
+    // Details only stick when their tag is set; everything stays blankable.
+    const allergyNote = tags.includes('ALLERGY') ? sanitizeNote(input.allergyNote) : null;
+    const vipNote = tags.includes('VIP') ? sanitizeNote(input.vipNote) : null;
+    const birthdayDate = tags.includes('BIRTHDAY') ? sanitizeBirthday(input.birthdayDate) : null;
     const endTime = addMinutes(startTime, RESERVATION_DURATION);
     const adjacency = await getAdjacencyMap(tenantId);
 
@@ -150,6 +169,9 @@ export async function createReservation(input: CreateReservationInput) {
                 endTime,
                 lowTable: lowTable || false,
                 tags,
+                allergyNote,
+                birthdayDate,
+                vipNote,
                 tenantId,
                 tables: {
                     connect: combination ? combination.map((t: any) => ({ id: t.id })) : []

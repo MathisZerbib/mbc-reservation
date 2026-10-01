@@ -24,6 +24,9 @@ export interface Booking {
     cancelledBy?: string | null;
     /** Staff tags: VIP, ALLERGY, BIRTHDAY, STROLLER. */
     tags?: string[];
+    allergyNote?: string | null;
+    birthdayDate?: string | null;
+    vipNote?: string | null;
     guestConfirmed?: boolean;
     seatedAt?: string | null;
     tables: Table[];
@@ -37,6 +40,9 @@ export interface CreateBookingPayload {
     language?: string;
     lowTable?: boolean;
     tags?: string[];
+    allergyNote?: string | null;
+    birthdayDate?: string | null;
+    vipNote?: string | null;
     startTime: string;
     notify?: boolean;
     turnstileToken?: string | null;

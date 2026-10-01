@@ -116,6 +116,12 @@ model Booking {
   cancelledBy String?
   /** Staff tags: VIP, ALLERGY, BIRTHDAY, STROLLER. Shown on host cards. */
   tags String[] @default([])
+  /** Free-text allergy detail (when ALLERGY tag set). Blank = none. */
+  allergyNote String?
+  /** Birth date (when BIRTHDAY tag set). Blank = none; age is derived. */
+  birthdayDate DateTime?
+  /** Free-text VIP note (when VIP tag set). Blank = none. */
+  vipNote String?
   /** Guest confirmed (host toggle). Drives the confirmation icon. */
   guestConfirmed Boolean @default(false)
   /** Seated at (set on check-in). Drives overtime detection. */

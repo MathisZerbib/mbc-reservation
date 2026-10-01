@@ -17,7 +17,7 @@ import { NumberField } from './NumberField';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import type { Booking } from '../types';
 import { BOOKING_TAGS } from '../types';
-import { TAG_EMOJI } from '../utils/bookingUtils';
+import { TAG_EMOJI, ageYears } from '../utils/bookingUtils';
 
 const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 
@@ -56,6 +56,9 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
         time: '19:00',
         notify: true,
         tags: [] as string[],
+        allergyNote: '',
+        birthdayDate: '',
+        vipNote: '',
     });
 
     const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
@@ -159,6 +162,9 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 startTime: formData.date + ' ' + formData.time,
                 notify: formData.notify,
                 tags: formData.tags,
+                allergyNote: formData.tags.includes('ALLERGY') ? formData.allergyNote : null,
+                birthdayDate: formData.tags.includes('BIRTHDAY') && formData.birthdayDate ? formData.birthdayDate : null,
+                vipNote: formData.tags.includes('VIP') ? formData.vipNote : null,
             }, tenant.slug);
             
             await refresh(); // Force refresh of context data before proceeding
@@ -187,6 +193,9 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 date: selectedDate,
                 notify: true,
                 tags: [],
+                allergyNote: '',
+                birthdayDate: '',
+                vipNote: '',
             });
         } catch (err: unknown) {
             if (err instanceof Error) {
@@ -204,39 +213,6 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
             ...f,
             tags: f.tags.includes(tag) ? f.tags.filter(x => x !== tag) : [...f.tags, tag],
         }));
-    };
-
-    /** Walk-in (passant): create + seat in one tap, no name/phone needed. */
-    const handleWalkIn = async () => {
-        if (!tenant || loading) return;
-        setLoading(true);
-        setError('');
-        try {
-            const created: Booking = await api.createBooking({
-                name: 'Passant',
-                size: formData.size,
-                language: 'fr',
-                startTime: formData.date + ' ' + formData.time,
-                notify: false,
-                tags: formData.tags,
-            }, tenant.slug);
-            try {
-                if (initialTable) {
-                    await api.updateAssignment(created.id, [initialTable]);
-                }
-                await api.checkIn(created.id);
-            } catch (e) {
-                console.error('Walk-in seating failed', e);
-            }
-            await refresh();
-            if (onCreated) onCreated(created);
-            if (onSuccess) onSuccess(formData.date);
-            onClose();
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : t('quickres.createFailed'));
-        } finally {
-            setLoading(false);
-        }
     };
 
     return (
@@ -551,20 +527,46 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                                             );
                                         })}
                                     </div>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={handleWalkIn}
-                                    disabled={loading}
-                                    className="w-full min-h-[56px] rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-500/25 disabled:opacity-50 active:scale-[0.98] cursor-pointer text-sm"
-                                >
-                                    {loading ? (
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                    ) : (
-                                        <>{t('quickres.walkin')} · {formData.size} {t('quickres.walkinCovers')}</>
+                                    {formData.tags.includes('ALLERGY') && (
+                                        <input
+                                            type="text"
+                                            value={formData.allergyNote}
+                                            onChange={e => setFormData({ ...formData, allergyNote: e.target.value })}
+                                            placeholder={t('quickres.allergyPh')}
+                                            maxLength={120}
+                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl min-h-[48px] px-4 text-sm font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all placeholder:text-slate-300 placeholder:font-medium"
+                                        />
                                     )}
-                                </button>
+                                    {formData.tags.includes('BIRTHDAY') && (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="date"
+                                                value={formData.birthdayDate}
+                                                max={dayjs().format('YYYY-MM-DD')}
+                                                onChange={e => setFormData({ ...formData, birthdayDate: e.target.value })}
+                                                className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-xl min-h-[48px] px-4 text-sm font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all"
+                                            />
+                                            {(() => {
+                                                const age = ageYears(formData.birthdayDate || null);
+                                                return age !== null ? (
+                                                    <span className="text-xs font-black text-indigo-600 tabular-nums shrink-0">
+                                                        {t('quickres.ageFmt').replace('{n}', String(age))}
+                                                    </span>
+                                                ) : null;
+                                            })()}
+                                        </div>
+                                    )}
+                                    {formData.tags.includes('VIP') && (
+                                        <input
+                                            type="text"
+                                            value={formData.vipNote}
+                                            onChange={e => setFormData({ ...formData, vipNote: e.target.value })}
+                                            placeholder={t('quickres.vipPh')}
+                                            maxLength={120}
+                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl min-h-[48px] px-4 text-sm font-bold text-slate-900 focus:border-indigo-500/50 focus:bg-white outline-none transition-all placeholder:text-slate-300 placeholder:font-medium"
+                                        />
+                                    )}
+                                </div>
 
                                 <div className="pt-4">
                                     <button

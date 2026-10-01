@@ -160,6 +160,24 @@ export const TAG_EMOJI: Record<string, string> = {
     STROLLER: '👶',
 };
 
+/** Raw detail behind a tag (null when blank/absent). */
+export const tagDetail = (b: Booking, tag: string): string | null => {
+    if (tag === 'ALLERGY') return b.allergyNote ?? null;
+    if (tag === 'VIP') return b.vipNote ?? null;
+    if (tag === 'BIRTHDAY') return b.birthdayDate ?? null;
+    return null;
+};
+
+/** Whole years since an ISO date at a reference day (null when blank/invalid/future). */
+export const ageYears = (isoDate: string | null | undefined, at: dayjs.Dayjs = dayjs()): number | null => {
+    if (!isoDate) return null;
+    const d = dayjs(isoDate);
+    if (!d.isValid() || d.isAfter(at, 'day')) return null;
+    let age = at.year() - d.year();
+    if (at.month() < d.month() || (at.month() === d.month() && at.date() < d.date())) age -= 1;
+    return age;
+};
+
 export type SizeBand = 'all' | '2' | '4' | '6p';
 
 /** Rush-friendly party-size bands (no exact typing). */

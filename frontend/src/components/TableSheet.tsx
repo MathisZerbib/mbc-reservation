@@ -6,7 +6,7 @@ import { api } from '../services/api';
 import { useBookingsContext } from '../context/useBookingsContext';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
-import { bookingUrgency, lateMinutes, TAG_EMOJI } from '../utils/bookingUtils';
+import { bookingUrgency, lateMinutes, TAG_EMOJI, tagDetail, ageYears } from '../utils/bookingUtils';
 import { cn } from '../lib/utils';
 import type { Booking } from '../types';
 
@@ -174,6 +174,22 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
         }
     };
 
+    /** Visible tag detail lines (allergy note, birthday + age, VIP note). */
+    const tagDetailLines = (b: Booking): string[] => {
+        const out: string[] = [];
+        for (const tag of b.tags ?? []) {
+            const detail = tagDetail(b, tag);
+            if (tag === 'BIRTHDAY' && b.birthdayDate) {
+                const age = ageYears(b.birthdayDate);
+                const when = dayjs(b.birthdayDate).format('DD/MM/YYYY');
+                out.push(`🎂 ${when}${age !== null ? ` (${t('sheet.ageFmt').replace('{n}', String(age))})` : ''}`);
+            } else if (detail) {
+                out.push(`${TAG_EMOJI[tag] ?? '•'} ${detail}`);
+            }
+        }
+        return out;
+    };
+
     return (
         <>
             <motion.div
@@ -234,13 +250,20 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                 </span>
                                 <p className="text-sm font-black text-slate-900 dark:text-white truncate flex-1 min-w-0">{b.name}</p>
                                 {(b.tags ?? []).slice(0, 3).map(tag => (
-                                    <span key={tag} className="text-xs leading-none" title={tag}>{TAG_EMOJI[tag] ?? '•'}</span>
+                                    <span key={tag} className="text-xs leading-none" title={tagDetail(b, tag) ?? tag}>{TAG_EMOJI[tag] ?? '•'}</span>
                                 ))}
                                 <span className="inline-flex items-center gap-1 text-[10px] font-black text-slate-500 dark:text-slate-400 shrink-0">
                                     <Users className="w-3 h-3" />
                                     {b.size}
                                 </span>
                             </div>
+                            {tagDetailLines(b).length > 0 && (
+                                <div className="mt-1.5 space-y-0.5">
+                                    {tagDetailLines(b).map((line, i) => (
+                                        <p key={i} className="text-[11px] font-bold text-violet-600 dark:text-violet-300 truncate">{line}</p>
+                                    ))}
+                                </div>
+                            )}
                             <div className="flex items-center justify-between gap-2 mt-2">
                                 {urgencyLabel(b)}
                                 <div className="flex items-center gap-1.5 ml-auto">

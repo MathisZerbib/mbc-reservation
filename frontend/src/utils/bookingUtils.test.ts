@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { slotKey, groupBySlot, matchesSizeBand } from './bookingUtils';
+import dayjs from 'dayjs';
+import { slotKey, groupBySlot, matchesSizeBand, ageYears } from './bookingUtils';
 import type { Booking } from '../types';
 
 const booking = (over: Partial<Booking> & { startTime: string }): Booking => ({
@@ -39,8 +40,7 @@ describe('groupBySlot', () => {
     });
 });
 
-describe('matchesSizeBand', () => {
-    it('matches rush bands', () => {
+describe('matchesSizeBand', () => {    it('matches rush bands', () => {
         const b2 = booking({ startTime: '2026-09-30T19:00:00', size: 2 });
         const b4 = booking({ startTime: '2026-09-30T19:00:00', size: 4 });
         const b8 = booking({ startTime: '2026-09-30T19:00:00', size: 8 });
@@ -51,5 +51,17 @@ describe('matchesSizeBand', () => {
         expect(matchesSizeBand(b8, '4')).toBe(false);
         expect(matchesSizeBand(b8, '6p')).toBe(true);
         expect(matchesSizeBand(b2, '6p')).toBe(false);
+    });
+});
+
+describe('ageYears', () => {
+    it('computes whole years at a reference day', () => {
+        const at = dayjs('2026-09-30T12:00:00Z');
+        expect(ageYears('2014-03-15', at)).toBe(12);
+        expect(ageYears('2026-09-30', at)).toBe(0);
+        expect(ageYears(null, at)).toBeNull();
+        expect(ageYears('', at)).toBeNull();
+        expect(ageYears('not-a-date', at)).toBeNull();
+        expect(ageYears('2027-01-01', at)).toBeNull();
     });
 });

@@ -19,9 +19,11 @@ interface DatePickerProps {
   disabled?: (date: Date) => boolean
   modifiers?: Record<string, Date[]>
   modifiersClassNames?: Record<string, string>
+  /** date-fns display format for the trigger (default "PPP"). */
+  displayFormat?: string
 }
 
-export function DatePicker({ date, setDate, placeholder = "Pick a date", className, disabled, modifiers, modifiersClassNames }: DatePickerProps) {
+export function DatePicker({ date, setDate, placeholder = "Pick a date", className, disabled, modifiers, modifiersClassNames, displayFormat = "PPP" }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -37,7 +39,7 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", classNa
         >
           <CalendarIcon className="mr-3 h-4 w-4 text-slate-400 group-focus:text-indigo-500 transition-colors shrink-0" />
           <span className="truncate">
-            {date ? format(date, "PPP") : placeholder}
+            {date ? format(date, displayFormat) : placeholder}
           </span>
         </Button>
       </PopoverTrigger>

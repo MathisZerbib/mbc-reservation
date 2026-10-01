@@ -117,7 +117,7 @@ export const bookingController = (io: Server) => ({
 
     createBooking: async (req: AuthRequest, res: Response) => {
         try {
-            let { name, phone, email, size, startTime, language, lowTable, notify, turnstileToken, tags } = req.body;
+            let { name, phone, email, size, startTime, language, lowTable, notify, turnstileToken, tags, allergyNote, birthdayDate, vipNote } = req.body;
 
             // Bot protection for anonymous bookings; signed-in staff bypass it.
             if (!getIsAdmin(req)) {
@@ -177,6 +177,9 @@ export const bookingController = (io: Server) => ({
                 startTime: requestedStart.toDate(),
                 lowTable: lowTable || false,
                 tags,
+                allergyNote,
+                birthdayDate,
+                vipNote,
                 tenantId: tenantId(req)
             });
 

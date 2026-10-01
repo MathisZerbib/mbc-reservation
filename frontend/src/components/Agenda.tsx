@@ -16,6 +16,7 @@ import {
   groupBySlot,
   matchesSizeBand,
   TAG_EMOJI,
+  tagDetail,
   type SizeBand,
 } from '../utils/bookingUtils';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
@@ -401,7 +402,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
         </div>
         <div className="flex items-center gap-1.5 mt-1 min-w-0 flex-wrap">
           {(b.tags ?? []).slice(0, 3).map(tag => (
-            <span key={tag} className="text-sm leading-none" title={tag}>{TAG_EMOJI[tag] ?? '•'}</span>
+            <span key={tag} className="text-sm leading-none" title={tagDetail(b, tag) ?? tag}>{TAG_EMOJI[tag] ?? '•'}</span>
           ))}
           {(b.tags ?? []).length > 3 && (
             <span className="text-[9px] font-black text-slate-400">+{(b.tags ?? []).length - 3}</span>
@@ -486,7 +487,8 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
           <DatePicker
             date={dayjs(date).toDate()}
             setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
-            className="h-12 text-[11px] font-black cursor-pointer bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-3 shrink-0 dark:text-white"
+            displayFormat="dd/MM/yyyy"
+            className="h-12 text-[11px] font-black cursor-pointer bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-3 w-full min-w-0 max-w-[170px] dark:text-white"
             modifiers={calculateAffluence(bookings)}
             modifiersClassNames={affluenceClassNames}
           />

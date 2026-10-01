@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findTableCombination, evaluateRescheduleFit, sanitizeTags, MAX_BOOKINGS_PER_TABLE } from './bookingService';
+import { findTableCombination, evaluateRescheduleFit, sanitizeTags, sanitizeNote, sanitizeBirthday, MAX_BOOKINGS_PER_TABLE } from './bookingService';
 
 // Mock Table Data based on floorPlanData.ts
 // Adjusted capacities based on user scenarios (e.g. Capsules = 2 pax for 12pax/6tables scenario)
@@ -181,5 +181,24 @@ describe('sanitizeTags', () => {
         expect(sanitizeTags(['VIP', 'HACKER', 42])).toEqual(['VIP']);
         expect(sanitizeTags(undefined)).toEqual([]);
         expect(sanitizeTags('VIP')).toEqual([]);
+    });
+});
+
+describe('sanitizeNote', () => {
+    it('trims and caps length, blank becomes null', () => {
+        expect(sanitizeNote('  peanuts  ')).toBe('peanuts');
+        expect(sanitizeNote('   ')).toBeNull();
+        expect(sanitizeNote(undefined)).toBeNull();
+        expect(sanitizeNote('x'.repeat(200))?.length).toBe(120);
+    });
+});
+
+describe('sanitizeBirthday', () => {
+    it('accepts past dates, rejects future and garbage', () => {
+        expect(sanitizeBirthday('2014-03-15')?.toISOString().slice(0, 10)).toBe('2014-03-15');
+        expect(sanitizeBirthday('')).toBeNull();
+        expect(sanitizeBirthday(undefined)).toBeNull();
+        expect(sanitizeBirthday('not-a-date')).toBeNull();
+        expect(sanitizeBirthday('2999-01-01')).toBeNull();
     });
 });

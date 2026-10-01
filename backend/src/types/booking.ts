@@ -39,4 +39,7 @@ export interface CreateReservationInput {
     lowTable?: boolean;
     tenantId: string;
     tags?: string[];
+    allergyNote?: string | null;
+    birthdayDate?: Date | string | null;
+    vipNote?: string | null;
 }
