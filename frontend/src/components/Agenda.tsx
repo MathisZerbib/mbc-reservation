@@ -479,7 +479,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
     <div className={cn("bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-700 overflow-hidden h-full flex flex-col relative", className)}>
       {/* Slim header: date + view toggle */}
       <div className="px-4 pt-4 pb-3 flex-none space-y-3 bg-gradient-to-b from-slate-50/60 to-white dark:from-slate-900 dark:to-slate-900 border-b border-slate-100/50 dark:border-slate-700/50">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-0.5 min-w-0">
             <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.25em]">{t('agenda.schedule')}</span>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">{dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM')}</p>
@@ -488,7 +488,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
             date={dayjs(date).toDate()}
             setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
             displayFormat="dd/MM/yyyy"
-            className="h-12 text-[11px] font-black cursor-pointer bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-3 w-full min-w-0 max-w-[170px] dark:text-white"
+            className="h-12 text-[11px] font-black cursor-pointer bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-3 w-full min-w-0 dark:text-white"
             modifiers={calculateAffluence(bookings)}
             modifiersClassNames={affluenceClassNames}
           />
