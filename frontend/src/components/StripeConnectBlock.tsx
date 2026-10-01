@@ -39,8 +39,7 @@ export const StripeConnectBlock: React.FC<{
     useEffect(() => {
         // Fetch-on-mount: intentional data load, not derived state.
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (returned) void refresh().then(() => load());
-        else void load();
+        void (returned ? refresh().then(() => load()) : load());
     }, [load, refresh, returned]);
 
     const connect = async () => {
