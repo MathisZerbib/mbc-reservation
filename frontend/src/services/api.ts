@@ -200,12 +200,6 @@ export const api = {
         formData.append('image', file);
         return client.upload<{ tables: LayoutTable[]; warnings: string[] }>('/tables/analyze-image', formData, true);
     },
-
-    analyzeFloorPlanImageUrl: (imageUrl: string) =>
-        client.post<{ tables: LayoutTable[]; warnings: string[] }>('/tables/analyze-image', {
-            body: { imageUrl },
-            auth: true,
-        }),
 };
 
 /** Absolute URL for a backend-served upload path (e.g. /uploads/…). */

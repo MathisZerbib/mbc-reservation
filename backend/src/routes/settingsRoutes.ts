@@ -1,8 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { Server } from 'socket.io';
 import { settingsController } from '../controllers/settingsController';
 import { isAuthenticated, requireTenant, requireActiveTrial } from '../middleware/isAuthenticated';
-import { floorPlanUpload } from '../middleware/upload';
+import { handleFloorPlanUpload } from '../middleware/uploadHandler';
 
 export const settingsRoutes = (io: Server) => {
     const router = Router();
@@ -22,16 +22,7 @@ export const settingsRoutes = (io: Server) => {
         isAuthenticated,
         requireTenant,
         requireActiveTrial,
-        (req: Request, res: Response, next: NextFunction) => {
-            floorPlanUpload.single('image')(req, res, (err: unknown) => {
-                if (err) {
-                    const message = err instanceof Error ? err.message : 'Upload failed';
-                    const status = /file|image|only/i.test(message) ? 400 : 500;
-                    return res.status(status).json({ error: message });
-                }
-                next();
-            });
-        },
+        handleFloorPlanUpload,
         controller.uploadFloorPlanImage,
     );
     router.delete('/settings/floor-plan-image', isAuthenticated, requireTenant, requireActiveTrial, controller.deleteFloorPlanImage);

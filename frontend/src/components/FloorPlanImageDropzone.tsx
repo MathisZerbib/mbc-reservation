@@ -51,9 +51,8 @@ export const FloorPlanImageDropzone: React.FC<Props> = ({ previewUrl, onChanged 
             setError(e instanceof Error ? e.message : (t('settings.uploadFailed') || 'Upload failed'));
             setUploading(false);
             return;
-        } finally {
-            setUploading(false);
         }
+        setUploading(false);
         // Image is live as background — now auto-detect tables with AI so the
         // interactive map fits the image. Non-blocking: upload already saved.
         setAnalyzing(true);

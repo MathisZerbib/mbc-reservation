@@ -1,34 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Save, Plus, Trash2, MousePointer2, Link2, Loader2, X, Sparkles, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, Save, Plus, Trash2, Loader2, X, Sparkles, AlertTriangle, Eye, EyeOff, LayoutGrid, Eraser, Users, Check } from 'lucide-react';
 import { api } from '../services/api';
 import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
-import { NumberField } from './NumberField';
-import { FLOOR_PLAN_DATA, tableShapePath } from '../utils/floorPlanData';
-import type { LayoutTable, LayoutTableType } from '../types/index';
+import { CANVAS_W, CANVAS_H, TABLE_TYPES, presetFromConstants, presetGrid, tableShapePath } from '../utils/floorPlanData';
+import type { LayoutTable } from '../types/index';
+import { FloorPlanImageDropzone, AI_DRAFT_KEY } from './FloorPlanImageDropzone';
 import { cn } from '../lib/utils';
-import { AI_DRAFT_KEY } from './FloorPlanImageDropzone';
 
-const TABLE_TYPES: LayoutTableType[] = ['RECTANGULAR', 'SQUARE', 'ROUND', 'OCTAGONAL', 'CAPSULE', 'BAR'];
 const TEMP_ID = () => -Math.floor(Math.random() * 1_000_000_000);
 
-const center = (t: LayoutTable) => ({ x: (t.x ?? 0) + t.width / 2, y: (t.y ?? 0) + t.height / 2 });
+type WizardStep = 1 | 2 | 3;
 
-/** Fallback working copy from shipped constants so first save persists them. */
-const fallbackCopy = (): LayoutTable[] =>
-    FLOOR_PLAN_DATA.map((t, i) => ({
-        id: 10_000 + i,
-        name: t.id,
-        capacity: t.seats ?? 2,
-        type: t.shape,
-        x: t.x,
-        y: t.y,
-        width: t.width,
-        height: t.height,
-        rotation: t.rotation ?? 0,
-        adjacentNames: [],
-    }));
+const center = (t: LayoutTable) => ({ x: (t.x ?? 0) + t.width / 2, y: (t.y ?? 0) + t.height / 2 });
 
 export const FloorPlanEditor: React.FC = () => {
     const { t: tr } = useTranslation();
@@ -38,12 +23,14 @@ export const FloorPlanEditor: React.FC = () => {
     const [deleteIds, setDeleteIds] = useState<number[]>([]);
     const [selected, setSelected] = useState<string | null>(null);
     const [tool, setTool] = useState<'select' | 'link'>('select');
+    const [step, setStep] = useState<WizardStep>(1);
     const [pendingLink, setPendingLink] = useState<string | null>(null);
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
     const [aiBanner, setAiBanner] = useState<string[] | null>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmClear, setConfirmClear] = useState(false);
     const [showBackground, setShowBackground] = useState(true);
     const [upcomingCount, setUpcomingCount] = useState(0);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -63,6 +50,7 @@ export const FloorPlanEditor: React.FC = () => {
                         setTables(draft.tables.map(t => ({ ...t, id: TEMP_ID() })));
                         setAiBanner(draft.warnings ?? []);
                         setDirty(true);
+                        setStep(2);
                         sessionStorage.removeItem(AI_DRAFT_KEY);
                         setSearchParams({}, { replace: true });
                         return;
@@ -75,8 +63,11 @@ export const FloorPlanEditor: React.FC = () => {
             setSearchParams({}, { replace: true });
         }
         api.getLayout(tenant.slug)
-            .then(layout => setTables(layout.length > 0 ? layout : fallbackCopy()))
-            .catch(() => setTables(fallbackCopy()));
+            .then(layout => {
+                setTables(layout.length > 0 ? layout : presetFromConstants());
+                if (layout.length > 0) setStep(2);
+            })
+            .catch(() => setTables(presetFromConstants()));
     }, [tenant]);
 
     const byName = useMemo(() => new Map((tables ?? []).map(t => [t.name, t])), [tables]);
@@ -90,6 +81,13 @@ export const FloorPlanEditor: React.FC = () => {
     const mutate = (next: LayoutTable[]) => {
         setTables(next);
         setDirty(true);
+    };
+
+    /** Wizard step drives the canvas tool: only step 3 links. */
+    const goStep = (s: WizardStep) => {
+        setStep(s);
+        setTool(s === 3 ? 'link' : 'select');
+        setPendingLink(null);
     };
 
     const toSvgCoords = (e: React.PointerEvent) => {
@@ -112,10 +110,10 @@ export const FloorPlanEditor: React.FC = () => {
         const drag = dragRef.current;
         if (!drag || !tables) return;
         const p = toSvgCoords(e);
-        // Tables must stay inside the 1000x800 canvas — clamp by table size.
+        // Tables must stay inside the canvas — clamp by table size.
         const target = tables.find(t => t.name === drag.name);
-        const maxX = Math.max(0, 1000 - (target?.width ?? 0));
-        const maxY = Math.max(0, 800 - (target?.height ?? 0));
+        const maxX = Math.max(0, CANVAS_W - (target?.width ?? 0));
+        const maxY = Math.max(0, CANVAS_H - (target?.height ?? 0));
         const nx = Math.round(Math.max(0, Math.min(maxX, p.x - drag.dx)));
         const ny = Math.round(Math.max(0, Math.min(maxY, p.y - drag.dy)));
         mutate(tables.map(t => (t.name === drag.name ? { ...t, x: nx, y: ny } : t)));
@@ -186,7 +184,36 @@ export const FloorPlanEditor: React.FC = () => {
             { id: TEMP_ID(), name: String(n), capacity: 2, type: 'RECTANGULAR', x: 450, y: 350, width: 60, height: 80, rotation: 0, adjacentNames: [] },
         ]);
         setSelected(String(n));
-        setTool('select');
+        goStep(2);
+    };
+
+    /** Replace the canvas with a size preset (plain-word confirm when non-empty). */
+    const applyPreset = (count: number) => {
+        if (!tables) return;
+        if (tables.length > 0 && !confirmClear) {
+            setConfirmClear(true);
+            window.setTimeout(() => setConfirmClear(false), 5000);
+            return;
+        }
+        setConfirmClear(false);
+        setDeleteIds(tables.filter(t => t.id > 0).map(t => t.id));
+        mutate(presetGrid(count).map(t => ({ ...t, id: TEMP_ID() })));
+        setSelected(null);
+        goStep(2);
+    };
+
+    /** Empty the canvas (two-tap, plain words). */
+    const clearAll = () => {
+        if (!tables) return;
+        if (!confirmClear) {
+            setConfirmClear(true);
+            window.setTimeout(() => setConfirmClear(false), 5000);
+            return;
+        }
+        setConfirmClear(false);
+        setDeleteIds(prev => [...prev, ...tables.filter(t => t.id > 0).map(t => t.id)]);
+        mutate([]);
+        setSelected(null);
     };
 
     const handleDelete = () => {
@@ -254,23 +281,6 @@ export const FloorPlanEditor: React.FC = () => {
         return out;
     }, [tables, byName]);
 
-    const NumField = ({ label, value, onChange, min, max, step = 1 }: {
-        label: string; value: number; min?: number; max?: number; step?: number; onChange: (v: number) => void;
-    }) => (
-        <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
-            <NumberField
-                value={value}
-                onCommit={onChange}
-                min={min}
-                max={max}
-                step={step}
-                aria-label={label}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            />
-        </label>
-    );
-
     return (
         <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">
             {/* Header */}
@@ -286,19 +296,27 @@ export const FloorPlanEditor: React.FC = () => {
                         {tr('editor.unsaved')}
                     </span>
                 )}
-                <div className="flex bg-slate-200/50 p-1 rounded-xl border border-slate-200/50">
-                    <button
-                        onClick={() => { setTool('select'); setPendingLink(null); }}
-                        className={cn("px-3 lg:px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5", tool === 'select' ? "bg-white shadow-md text-indigo-600" : "text-slate-500")}
-                    >
-                        <MousePointer2 className="w-3.5 h-3.5" /> {tr('editor.select')}
-                    </button>
-                    <button
-                        onClick={() => setTool('link')}
-                        className={cn("px-3 lg:px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5", tool === 'link' ? "bg-white shadow-md text-indigo-600" : "text-slate-500")}
-                    >
-                        <Link2 className="w-3.5 h-3.5" /> {tr('editor.link')}
-                    </button>
+                <div className="flex bg-slate-200/50 p-1 rounded-xl border border-slate-200/50" role="tablist" aria-label={tr('editor.title')}>
+                    {([1, 2, 3] as WizardStep[]).map(s => (
+                        <button
+                            key={s}
+                            role="tab"
+                            aria-selected={step === s}
+                            onClick={() => goStep(s)}
+                            className={cn(
+                                "min-h-[44px] px-3 lg:px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5",
+                                step === s ? "bg-white shadow-md text-indigo-600" : "text-slate-500",
+                            )}
+                        >
+                            <span className={cn(
+                                "w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center",
+                                step === s ? "bg-indigo-600 text-white" : "bg-slate-300 text-white",
+                            )}>
+                                {s}
+                            </span>
+                            <span className="hidden md:inline">{tr(`editor.step${s}` as 'editor.step1')}</span>
+                        </button>
+                    ))}
                 </div>
                 <button
                     onClick={handleAdd}
@@ -316,7 +334,7 @@ export const FloorPlanEditor: React.FC = () => {
                                 ? "border-indigo-200 text-indigo-600"
                                 : "border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200",
                         )}
-                        title={showBackground ? "Masquer l'image de fond" : "Afficher l'image de fond"}
+                        title={showBackground ? tr('editor.hideBackground') : tr('editor.showBackground')}
                     >
                         {showBackground ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </button>
@@ -354,13 +372,14 @@ export const FloorPlanEditor: React.FC = () => {
                 </div>
             )}
 
-            {tool === 'link' && (
-                <div className="flex-none mx-4 lg:mx-6 mt-3 px-4 py-2.5 rounded-2xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    {pendingLink
-                        ? <>{tr('editor.linkActivePre')} <span className="font-black">{tr('editor.tableTitle').replace('{name}', pendingLink)}</span> {tr('editor.linkActivePost')}</>
-                        : tr('editor.linkIdle')}
-                </div>
-            )}
+            {/* Step helper banner: one plain sentence per step */}
+            <div className="flex-none mx-4 lg:mx-6 mt-3 px-4 py-2.5 rounded-2xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {step === 1 && tr('editor.step1Help')}
+                {step === 2 && tr('editor.step2Help')}
+                {step === 3 && (pendingLink
+                    ? <>{tr('editor.linkActivePre')} <span className="font-black">{tr('editor.tableTitle').replace('{name}', pendingLink)}</span> {tr('editor.linkActivePost')}</>
+                    : tr('editor.step3Help'))}
+            </div>
 
             {/* Main */}
             <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 p-3 lg:p-6">
@@ -372,7 +391,7 @@ export const FloorPlanEditor: React.FC = () => {
                     ) : (
                         <svg
                             ref={svgRef}
-                            viewBox="0 0 1000 800"
+                            viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
                             preserveAspectRatio="xMidYMid meet"
                             className={cn("w-full h-full bg-slate-50/50", tool === 'link' ? "cursor-crosshair" : "cursor-default")}
                             onPointerMove={handleSvgPointerMove}
@@ -385,12 +404,12 @@ export const FloorPlanEditor: React.FC = () => {
                                     <circle cx="1" cy="1" r="1" fill="#e2e8f0" />
                                 </pattern>
                                 <clipPath id="editorCanvasClip">
-                                    <rect x="0" y="0" width="1000" height="800" />
+                                    <rect x="0" y="0" width={CANVAS_W} height={CANVAS_H} />
                                 </clipPath>
                             </defs>
-                            <rect x="0" y="0" width="1000" height="800" fill="url(#editor-dots)" />
+                            <rect x="0" y="0" width={CANVAS_W} height={CANVAS_H} fill="url(#editor-dots)" />
                             {showBackground && backgroundUrl && (
-                                <image href={backgroundUrl} x={0} y={0} width={1000} height={800} preserveAspectRatio="none" opacity={0.35} clipPath="url(#editorCanvasClip)" />
+                                <image href={backgroundUrl} x={0} y={0} width={CANVAS_W} height={CANVAS_H} preserveAspectRatio="none" opacity={0.35} clipPath="url(#editorCanvasClip)" />
                             )}
 
                             {/* Adjacency edges */}
@@ -443,23 +462,84 @@ export const FloorPlanEditor: React.FC = () => {
                     )}
                 </div>
 
-                {/* Side panel */}
+                {/* Side panel: one plain task per wizard step */}
                 <div className="w-full lg:w-80 flex-none bg-white rounded-[2rem] shadow-xl border border-slate-200 p-5 overflow-y-auto max-h-[40vh] lg:max-h-none">
-                    {!selectedTable ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center py-10">
-                            <p className="text-sm font-black text-slate-700">{tr('editor.noSelection')}</p>
-                            <p className="text-xs text-slate-400 font-medium mt-1">
-                                {tool === 'link' ? tr('editor.hintLink') : tr('editor.hintSelect')}
-                            </p>
-                            <button onClick={handleAdd} className="mt-4 inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer">
-                                <Plus className="w-3.5 h-3.5" /> {tr('editor.addTable')}
+                    {step === 1 && (
+                        <div className="flex flex-col gap-3">
+                            <h2 className="text-base font-black text-slate-900">{tr('editor.createTitle')}</h2>
+                            <p className="text-xs text-slate-500 font-medium -mt-2">{tr('editor.createDesc')}</p>
+
+                            <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-3">
+                                <p className="text-xs font-black text-violet-800 flex items-center gap-1.5 mb-2">
+                                    <Sparkles className="w-4 h-4" /> {tr('editor.cardPhoto')}
+                                </p>
+                                <p className="text-[11px] text-violet-700 font-medium mb-2">{tr('editor.cardPhotoDesc')}</p>
+                                <FloorPlanImageDropzone previewUrl={backgroundUrl} onChanged={refreshSettings} />
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 p-3">
+                                <p className="text-xs font-black text-slate-700 flex items-center gap-1.5 mb-1">
+                                    <LayoutGrid className="w-4 h-4" /> {tr('editor.cardModel')}
+                                </p>
+                                <p className="text-[11px] text-slate-500 font-medium mb-2">{tr('editor.cardModelDesc')}</p>
+                                <div className="flex gap-2">
+                                    {[10, 20, 30].map(n => (
+                                        <button
+                                            key={n}
+                                            onClick={() => applyPreset(n)}
+                                            className={cn(
+                                                "flex-1 min-h-[48px] rounded-xl text-xs font-black transition-all cursor-pointer border",
+                                                confirmClear
+                                                    ? "bg-amber-500 border-amber-500 text-white animate-pulse"
+                                                    : "bg-slate-50 border-slate-200 text-slate-700 hover:border-indigo-300",
+                                            )}
+                                        >
+                                            {confirmClear ? tr('editor.tapConfirm') : tr('editor.sizeFmt').replace('{n}', String(n))}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleAdd}
+                                className="min-h-[48px] inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                            >
+                                <Plus className="w-3.5 h-3.5" /> {tr('editor.cardBlank')}
+                            </button>
+                            <button
+                                onClick={clearAll}
+                                className={cn(
+                                    "min-h-[48px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border",
+                                    confirmClear
+                                        ? "bg-red-600 border-red-600 text-white animate-pulse"
+                                        : "bg-white border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200",
+                                )}
+                            >
+                                <Eraser className="w-3.5 h-3.5" /> {confirmClear ? tr('editor.tapConfirm') : tr('editor.cardClear')}
                             </button>
                         </div>
-                    ) : (
+                    )}
+
+                    {step === 2 && !selectedTable && (
+                        <div className="h-full flex flex-col items-center justify-center text-center py-10">
+                            <p className="text-sm font-black text-slate-700">{tr('editor.tapTable')}</p>
+                            <p className="text-xs text-slate-400 font-medium mt-1">{tr('editor.step2Help')}</p>
+                            <button onClick={handleAdd} className="mt-4 min-h-[48px] inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer">
+                                <Plus className="w-3.5 h-3.5" /> {tr('editor.addTable')}
+                            </button>
+                            {(tables?.length ?? 0) > 0 && (
+                                <button onClick={() => goStep(3)} className="mt-2 min-h-[48px] inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer">
+                                    {tr('editor.nextGroup')} <Check className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {step === 2 && selectedTable && (
                         <div className="flex flex-col gap-3">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-base font-black text-slate-900">{tr('editor.tableTitle').replace('{name}', selectedTable.name)}</h2>
-                                <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 cursor-pointer">
+                                <button onClick={() => setSelected(null)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 cursor-pointer" aria-label={tr('common.cancel')}>
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
@@ -470,56 +550,101 @@ export const FloorPlanEditor: React.FC = () => {
                                     value={selectedTable.name}
                                     maxLength={20}
                                     onChange={e => patchSelected({ name: e.target.value.trim() === '' ? selectedTable.name : e.target.value })}
-                                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 min-h-[48px] text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                                 />
                             </label>
-                            <div className="grid grid-cols-2 gap-3">
-                                <NumField label={tr('editor.seatsLabel')} value={selectedTable.capacity} min={1} max={50} onChange={v => patchSelected({ capacity: Math.round(v) || 1 })} />
-                                <label className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tr('editor.shapeLabel')}</span>
-                                    <select
-                                        value={selectedTable.type}
-                                        onChange={e => patchSelected({ type: e.target.value as LayoutTableType })}
-                                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tr('editor.seatsLabel')}</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => patchSelected({ capacity: Math.max(1, selectedTable.capacity - 1) })}
+                                        className="w-12 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xl font-black transition-all cursor-pointer"
+                                        aria-label="−"
                                     >
-                                        {TABLE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </label>
+                                        −
+                                    </button>
+                                    <span className="flex-1 text-center text-lg font-black text-slate-900 tabular-nums">
+                                        {selectedTable.capacity} {tr('editor.seatsSuffix')}
+                                    </span>
+                                    <button
+                                        onClick={() => patchSelected({ capacity: Math.min(12, selectedTable.capacity + 1) })}
+                                        className="w-12 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xl font-black transition-all cursor-pointer"
+                                        aria-label="+"
+                                    >
+                                        +
+                                    </button>
+                                </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <NumField label="X" value={selectedTable.x ?? 0} min={0} max={1000} onChange={v => patchSelected({ x: Math.max(0, Math.min(1000 - selectedTable.width, v)) })} />
-                                <NumField label="Y" value={selectedTable.y ?? 0} min={0} max={800} onChange={v => patchSelected({ y: Math.max(0, Math.min(800 - selectedTable.height, v)) })} />
-                                <NumField label={tr('editor.widthLabel')} value={selectedTable.width} min={10} max={300} onChange={v => patchSelected({ width: v })} />
-                                <NumField label={tr('editor.heightLabel')} value={selectedTable.height} min={10} max={300} onChange={v => patchSelected({ height: v })} />
-                            </div>
-                            <NumField label={tr('editor.rotationLabel')} value={selectedTable.rotation} min={-360} max={360} onChange={v => patchSelected({ rotation: v })} />
-
-                            <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    {tr('editor.linked').replace('{n}', String(selectedTable.adjacentNames.length))}
-                                </span>
-                                {selectedTable.adjacentNames.length === 0 ? (
-                                    <p className="text-xs text-slate-400 font-medium mt-1">{tr('editor.notLinked')}</p>
-                                ) : (
-                                    <div className="flex flex-wrap gap-1.5 mt-2">
-                                        {selectedTable.adjacentNames.map(n => (
-                                            <span key={n} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg text-xs font-bold">
-                                                {n}
-                                                <button onClick={() => toggleEdge(selectedTable.name, n)} className="hover:text-red-600 cursor-pointer">
-                                                    <X className="w-3 h-3" />
-                                                </button>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tr('editor.shapeLabel')}</span>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {TABLE_TYPES.map(s => (
+                                        <button
+                                            key={s}
+                                            onClick={() => patchSelected({ type: s })}
+                                            title={tr(`editor.shape_${s}` as 'editor.shape_RECTANGULAR')}
+                                            className={cn(
+                                                "h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer",
+                                                selectedTable.type === s
+                                                    ? "border-indigo-600 bg-indigo-50"
+                                                    : "border-slate-200 hover:border-indigo-300",
+                                            )}
+                                        >
+                                            <svg viewBox="0 0 40 30" className="w-8 h-6">
+                                                <path d={tableShapePath({ width: 30, height: 22, shape: s })} transform="translate(5,4)" fill={selectedTable.type === s ? '#4f46e5' : '#cbd5e1'} />
+                                            </svg>
+                                            <span className="text-[8px] font-black uppercase tracking-wide text-slate-500">
+                                                {tr(`editor.shape_${s}` as 'editor.shape_RECTANGULAR')}
                                             </span>
-                                        ))}
-                                    </div>
-                                )}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-
                             <button
                                 onClick={handleDelete}
-                                className="mt-1 inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer"
+                                className="mt-1 min-h-[48px] inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer"
                             >
                                 <Trash2 className="w-4 h-4" /> {tr('editor.deleteTable')}
                             </button>
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="flex flex-col gap-3">
+                            <h2 className="text-base font-black text-slate-900">{tr('editor.groupTitle')}</h2>
+                            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3 flex items-center gap-3">
+                                <svg viewBox="0 0 120 52" className="w-24 h-11 flex-none">
+                                    <rect x="6" y="10" width="34" height="32" rx="6" fill="#fff" stroke="#4f46e5" strokeWidth="2.5" />
+                                    <rect x="80" y="10" width="34" height="32" rx="6" fill="#fff" stroke="#4f46e5" strokeWidth="2.5" />
+                                    <line x1="40" y1="26" x2="80" y2="26" stroke="#4f46e5" strokeWidth="2.5" strokeDasharray="5 4" className="animate-pulse" />
+                                    <text x="18" y="30" textAnchor="middle" fontSize="11" fontWeight="900" fill="#4f46e5">4</text>
+                                    <text x="97" y="30" textAnchor="middle" fontSize="11" fontWeight="900" fill="#4f46e5">6</text>
+                                </svg>
+                                <p className="text-[11px] text-indigo-800 font-medium">{tr('editor.groupDemo')}</p>
+                            </div>
+                            {edges.length === 0 ? (
+                                <p className="text-xs text-slate-400 font-medium">{tr('editor.noGroups')}</p>
+                            ) : (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {edges.map(({ a, b }) => (
+                                        <span key={`${a.name}|${b.name}`} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1.5 rounded-lg text-xs font-bold">
+                                            <Users className="w-3 h-3" /> {a.name} + {b.name}
+                                            <button onClick={() => toggleEdge(a.name, b.name)} className="hover:text-red-600 cursor-pointer p-1" aria-label={tr('editor.unlink')}>
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            <button
+                                onClick={() => handleSave(false)}
+                                disabled={saving || !dirty}
+                                className="min-h-[52px] inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 py-3 rounded-2xl text-sm font-black transition-all cursor-pointer shadow-lg shadow-indigo-600/20"
+                            >
+                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {tr('editor.publish')}
+                            </button>
+                            <p className="text-[11px] text-slate-400 font-medium text-center">{tr('editor.publishHint')}</p>
                         </div>
                     )}
                 </div>

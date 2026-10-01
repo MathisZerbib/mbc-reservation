@@ -1,4 +1,5 @@
 import { parseLayoutTable, type LayoutTableInput } from './floorPlanService';
+import { TABLE_TYPES } from '../utils/floorPlanData';
 
 export interface AiTableDraft extends LayoutTableInput {
     confidence: number;
@@ -8,8 +9,6 @@ export interface AnalyzeResult {
     tables: AiTableDraft[];
     warnings: string[];
 }
-
-const TABLE_TYPES = ['RECTANGULAR', 'SQUARE', 'ROUND', 'OCTAGONAL', 'CAPSULE', 'BAR'] as const;
 
 const SYSTEM_PROMPT = `You are a floor-plan digitizer for a restaurant booking app.
 Analyze the dining-room image and detect every numbered table / seat group.

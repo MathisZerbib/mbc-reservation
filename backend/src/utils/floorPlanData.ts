@@ -1,5 +1,11 @@
 export type TableShape = 'RECTANGULAR' | 'OCTAGONAL' | 'CAPSULE' | 'ROUND' | 'BAR' | 'SQUARE';
 
+/** Single canvas size shared by editor, viewer and backend validation. */
+export const CANVAS_W = 1000;
+export const CANVAS_H = 800;
+
+export const TABLE_TYPES = ['RECTANGULAR', 'OCTAGONAL', 'CAPSULE', 'ROUND', 'SQUARE', 'BAR'] as const;
+
 export interface TableConfig {
     id: string; 
     x: number;
@@ -81,11 +87,4 @@ export const FLOOR_PLAN_DATA: TableConfig[] = [
     { id: '32', x: 120, y: 600, width: 40, height: 40, shape: 'ROUND' },
     { id: '31', x: 60, y: 600, width: 40, height: 40, shape: 'ROUND' },
     { id: '30', x: 0, y: 600, width: 40, height: 40, shape: 'ROUND' },
-
-    // --- BAR ---
-    // { id: '40', x: 450, y: 600, width: 30, height: 30, shape: 'BAR' },
-    // { id: '42', x: 500, y: 600, width: 30, height: 30, shape: 'BAR' },
-    // { id: '44', x: 550, y: 600, width: 30, height: 30, shape: 'BAR' },
-    // { id: '46', x: 600, y: 600, width: 30, height: 30, shape: 'BAR' },
-    // { id: '48', x: 650, y: 600, width: 30, height: 30, shape: 'BAR' },
 ];

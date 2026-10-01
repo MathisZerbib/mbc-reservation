@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { ADJACENCY_MAP as FALLBACK_ADJACENCY_MAP } from '../utils/adjacency';
+import { CANVAS_W, CANVAS_H, TABLE_TYPES } from '../utils/floorPlanData';
 
 export type AdjacencyMap = Record<string, string[]>;
 
@@ -22,11 +23,9 @@ export interface LayoutTableDTO extends Omit<LayoutTableInput, 'id' | 'adjacentN
     adjacentNames: string[];
 }
 
-const TABLE_TYPES = ['RECTANGULAR', 'OCTAGONAL', 'CAPSULE', 'ROUND', 'SQUARE', 'BAR'] as const;
-
-// Canvas bounds (editor canvas is 1000x800; allow margin for flexibility).
-const MAX_X = 2000;
-const MAX_Y = 2000;
+// Canvas bounds (same 1000x800 as the editor; width/height allow full span).
+const MAX_X = CANVAS_W;
+const MAX_Y = CANVAS_H;
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 

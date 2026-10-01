@@ -7,29 +7,13 @@ import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
 import { FloorPlanImageDropzone } from './FloorPlanImageDropzone';
 import { useTranslation } from '../i18n/useTranslation';
 import { LangToggle } from './LangToggle';
-import type { LayoutTable } from '../types/index';
+import { presetGrid } from '../utils/floorPlanData';
 import { cn } from '../lib/utils';
 
 const stepVariants = {
     enter: (direction: number) => ({ x: direction > 0 ? 60 : -60, opacity: 0, scale: 0.98, filter: 'blur(6px)' }),
     center: { x: 0, opacity: 1, scale: 1, filter: 'blur(0px)' },
     exit: (direction: number) => ({ x: direction > 0 ? -60 : 60, opacity: 0, scale: 0.98, filter: 'blur(6px)' }),
-};
-
-/** Grid of 2-top tables used by the quick-add presets (no ids — newcomers). */
-const gridTables = (count: number): Array<Omit<LayoutTable, 'id'>> => {
-    const cols = 8;
-    return Array.from({ length: count }, (_, i) => ({
-        name: String(i + 1),
-        capacity: 2,
-        type: 'RECTANGULAR' as const,
-        x: 50 + (i % cols) * 110,
-        y: 80 + Math.floor(i / cols) * 130,
-        width: 60,
-        height: 80,
-        rotation: 0,
-        adjacentNames: [],
-    }));
 };
 
 export const OnboardingPage: React.FC = () => {
@@ -152,7 +136,7 @@ export const OnboardingPage: React.FC = () => {
         setSaving(true);
         try {
             if (count !== null) {
-                await api.saveLayout(gridTables(count), []);
+                await api.saveLayout(presetGrid(count), []);
                 setTablesChoice(count);
             }
             go(3);

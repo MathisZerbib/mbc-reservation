@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { type TableConfig } from "../utils/floorPlanData";
+import { type TableConfig, tableShapePath } from "../utils/floorPlanData";
 import { useLayoutTables } from "../hooks/useFloorPlan";
 import { useTranslation } from "../i18n/useTranslation";
 import dayjs from "dayjs";
@@ -167,30 +167,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
     return "GREEN";
   };
 
-  const getShapePath = (table: TableConfig) => {
-    const { width, height, shape } = table;
-    switch (shape) {
-      case "OCTAGONAL": {
-        const corner = Math.min(width, height) * 0.3;
-        return `M ${corner} 0 H ${width - corner} L ${width} ${corner} V ${height - corner} L ${width - corner} ${height} H ${corner} L 0 ${height - corner} V ${corner} Z`;
-      }
-      case "ROUND":
-        return `M ${width / 2}, 0 A ${width / 2} ${height / 2} 0 1,1 ${width / 2} ${height} A ${width / 2} ${height / 2} 0 1,1 ${width / 2} 0`;
-      case "CAPSULE": {
-        const r = Math.min(width, height) / 2;
-        if (width > height) {
-          return `M ${r} 0 H ${width - r} A ${r} ${r} 0 0 1 ${width - r} ${height} H ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`;
-        } else {
-          return `M 0 ${r} V ${height - r} A ${r} ${r} 0 0 0 ${width} ${height - r} V ${r} A ${r} ${r} 0 0 0 0 ${r} Z`;
-        }
-      }
-      case "SQUARE":
-        return `M 0 0 H ${width} V ${width} H 0 Z`;
-      case "RECTANGULAR":
-      default:
-        return `M 0 0 H ${width} V ${height} H 0 Z`;
-    }
-  };
+  const getShapePath = (table: TableConfig) => tableShapePath(table);
 
   const getColor = (status: string) => {
     switch (status) {
