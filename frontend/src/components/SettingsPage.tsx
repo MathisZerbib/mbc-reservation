@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2, Timer, CreditCard } from 'lucide-react';
+import { ChevronLeft, Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2, Timer, CreditCard, DatabaseBackup } from 'lucide-react';
 import { api, fileUrl } from '../services/api';
-import { useRestaurantSettings } from '../hooks/useFloorPlan';
+import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
 import { FloorPlanImageDropzone } from './FloorPlanImageDropzone';
 import { useTranslation } from '../i18n/useTranslation';
 import { cn } from '../lib/utils';
@@ -10,6 +10,7 @@ import { cn } from '../lib/utils';
 export const SettingsPage: React.FC = () => {
     const { t } = useTranslation();
     const { settings, loading, refresh } = useRestaurantSettings();
+    const { tenant } = useTenant();
     const [avgTicket, setAvgTicket] = useState('');
     const [avgLunch, setAvgLunch] = useState('');
     const [avgDinner, setAvgDinner] = useState('');
@@ -21,6 +22,7 @@ export const SettingsPage: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [savingGrace, setSavingGrace] = useState(false);
     const [savingRules, setSavingRules] = useState(false);
+    const [seedingDemo, setSeedingDemo] = useState(false);
     const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
     useEffect(() => {
@@ -96,6 +98,20 @@ export const SettingsPage: React.FC = () => {
     const handleImageChanged = async () => {
         await refresh();
         flash('ok', t('settings.imageSaved'));
+    };
+
+    /** Demo-only refill: wipes + regenerates the demo year (backend enforces demo). */
+    const handleSeedDemo = async () => {
+        if (!window.confirm(t('settings.demoSeedConfirm'))) return;
+        setSeedingDemo(true);
+        try {
+            const res = await api.seedDemo();
+            flash('ok', t('settings.demoSeedDone').replace('{n}', String(res.bookings)));
+        } catch (e) {
+            flash('err', e instanceof Error ? e.message : t('settings.saveFailed'));
+        } finally {
+            setSeedingDemo(false);
+        }
     };
 
     const previewUrl = fileUrl(settings?.floorPlanImageUrl ?? null);
@@ -339,6 +355,29 @@ export const SettingsPage: React.FC = () => {
                         <p className="text-xs text-slate-400 font-medium">{t('settings.editorMsg')}</p>
                     </div>
                 </Link>
+
+                {/* Demo-only database refill */}
+                {tenant?.slug === 'demo' && (
+                    <div className="bg-violet-50 rounded-[2rem] p-6 border border-violet-200 shadow-xl shadow-violet-100">
+                        <div className="flex items-center gap-3 mb-1">
+                            <div className="w-10 h-10 rounded-2xl bg-violet-600 text-white flex items-center justify-center">
+                                <DatabaseBackup className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-lg font-black text-slate-900 tracking-tight">{t('settings.demoSeedTitle')}</h2>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium mb-4">
+                            {t('settings.demoSeedMsg')}
+                        </p>
+                        <button
+                            onClick={handleSeedDemo}
+                            disabled={seedingDemo}
+                            className="min-h-[48px] bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                            {seedingDemo ? <Loader2 className="w-4 h-4 animate-spin" /> : <DatabaseBackup className="w-4 h-4" />}
+                            {seedingDemo ? t('settings.demoSeeding') : t('settings.demoSeedBtn')}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

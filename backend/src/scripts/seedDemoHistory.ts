@@ -52,9 +52,16 @@ const shapeToType = (shape: string): Shape =>
 
 interface SeedTable { id: number; name: string; capacity: number }
 
-async function main() {
-    let demo = await prisma.tenant.findUnique({ where: { slug: DEMO_SLUG } });
-    if (!demo) {
+/**
+ * Fills the demo tenant with a credible year of bookings. When `tenantId`
+ * is given (HTTP path) it must belong to the `demo` slug — never touches
+ * real tenants. Returns counts for the API response.
+ */
+export async function seedDemoTenant(demoTenantId?: string) {
+    let demo = demoTenantId
+        ? await prisma.tenant.findUnique({ where: { id: demoTenantId } })
+        : await prisma.tenant.findUnique({ where: { slug: DEMO_SLUG } });
+    if (!demo && !demoTenantId) {
         // Explicit slug: createTenant would slugify "Demo Restaurant" → demo-restaurant.
         demo = await prisma.tenant.create({
             data: {
@@ -66,7 +73,7 @@ async function main() {
         });
         console.log('Created demo tenant.');
     }
-    if (demo.slug !== DEMO_SLUG) throw new Error(`Refusing to seed non-demo tenant (${demo.slug})`);
+    if (!demo || demo.slug !== DEMO_SLUG) throw new Error(`Refusing to seed non-demo tenant (${demo?.slug ?? 'missing'})`);
     const tenantId = demo.id;
     await prisma.tenant.updateMany({ where: { id: tenantId, onboardingComplete: false }, data: { onboardingComplete: true } });
 
@@ -263,13 +270,16 @@ async function main() {
         );
     }
     console.log(`Done: ${drafts.length} bookings, ${joins.length} links on tenant demo.`);
+    return { bookings: drafts.length, tableLinks: joins.length, tables: tables.length };
 }
 
-main()
-    .catch(e => {
-        console.error('Demo seed failed:', e);
-        process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
-    });
+if (require.main === module) {
+    seedDemoTenant()
+        .catch(e => {
+            console.error('Demo seed failed:', e);
+            process.exit(1);
+        })
+        .finally(async () => {
+            await prisma.$disconnect();
+        });
+}

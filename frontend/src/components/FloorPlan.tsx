@@ -241,7 +241,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
               <button
                 onClick={onToggleSplit}
                 title={t('mapview.split')}
-                className="hidden xl:flex min-w-[44px] min-h-[44px] p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer items-center justify-center"
+                className="min-w-[44px] min-h-[44px] p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer items-center justify-center flex"
               >
                 <Columns2 className={cn("w-4 h-4", splitActive ? "text-indigo-600 dark:text-indigo-300" : "text-slate-400")} />
               </button>

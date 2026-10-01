@@ -117,8 +117,8 @@ export const LivePage: React.FC = () => {
                     />
                 </div>
                 <ServiceMetrics bookings={bookings} date={selectedDate} />
-                <div className="flex-1 min-h-[480px] flex flex-col xl:flex-row gap-4 min-h-0">
-                    <div className="flex-1 min-h-[480px] overflow-hidden relative rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/60 dark:border-slate-700/60">
+                <div className="flex-1 min-h-[480px] min-h-0 relative">
+                    <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/60 dark:border-slate-700/60">
                     <FloorPlan
                         hoveredBookingId={hoveredBookingId}
                         selectedDate={selectedDate}
@@ -140,7 +140,8 @@ export const LivePage: React.FC = () => {
                     />
                     </div>
                     {split && (
-                        <div className="hidden xl:flex w-[400px] flex-none min-h-0">
+                        <div className="absolute inset-y-0 right-0 w-[400px] max-w-[calc(100%-2rem)] z-30 p-2">
+                            <div className="h-full rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200/60 dark:border-slate-700/60">
                             <Agenda
                                 setHoveredBookingId={setHoveredBookingId}
                                 date={selectedDate}
@@ -152,6 +153,7 @@ export const LivePage: React.FC = () => {
                                 onDragOverTable={handleDragOverTable}
                                 onAssignRowDrop={handleAssignDrop}
                             />
+                            </div>
                         </div>
                     )}
                 </div>

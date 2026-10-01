@@ -160,6 +160,10 @@ export const api = {
     autoConsec: (date: string) =>
         client.post<unknown>('/tests/auto-consec', { body: { date }, auth: true }),
 
+    /** Demo-only database refill (backend enforces demo session + demo slug). */
+    seedDemo: () =>
+        client.post<{ message: string; bookings: number; tableLinks: number; tables: number }>('/tests/seed-demo', { auth: true }),
+
     // ── Tenant settings ──
     getSettings: () =>
         client.get<RestaurantSettings>('/settings', { auth: true }),
