@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Check, Plus, Clock, Users } from 'lucide-react';
+import { X, Check, Plus, Clock, Users, Trash2 } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { api } from '../services/api';
 import { useBookingsContext } from '../context/useBookingsContext';
@@ -40,6 +40,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const [suggestion, setSuggestion] = useState<{ forId: string; tables: string[] } | null>(null);
     const [busy, setBusy] = useState(false);
     const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+    const [confirmEraseId, setConfirmEraseId] = useState<string | null>(null);
 
     const noShows = useMemo(
         () =>
@@ -145,6 +146,25 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
         try {
             await api.cancelBooking(id);
             setConfirmCancelId(null);
+            await refresh();
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    /** GDPR erase: two-tap, past/closed rows only. */
+    const askErase = (id: string) => {
+        setConfirmEraseId(id);
+        window.setTimeout(() => {
+            setConfirmEraseId(prev => (prev === id ? null : prev));
+        }, 4000);
+    };
+
+    const doErase = async (id: string) => {
+        setBusy(true);
+        try {
+            await api.eraseBooking(id);
+            setConfirmEraseId(null);
             await refresh();
         } finally {
             setBusy(false);
@@ -291,6 +311,27 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                         >
                                             <Check className="w-3.5 h-3.5" /> {t('sheet.finish')}
                                         </button>
+                                    )}
+                                    {!open && (b.status === 'CANCELLED' || b.status === 'COMPLETED') && (
+                                        confirmEraseId === b.id ? (
+                                            <button
+                                                onClick={() => doErase(b.id)}
+                                                disabled={busy}
+                                                title={t('sheet.eraseHint')}
+                                                className="h-9 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-50 animate-pulse"
+                                            >
+                                                {t('sheet.confirmErase')}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => askErase(b.id)}
+                                                aria-label={t('sheet.erase')}
+                                                title={t('sheet.eraseHint')}
+                                                className="h-9 w-9 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-400 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )
                                     )}
                                     {open && (
                                         <>

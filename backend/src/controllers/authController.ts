@@ -201,6 +201,18 @@ export const authController = {
       next(err);
     }
   },
+
+  me: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as AuthRequest).payload?.userId;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const user = await findUserById(userId);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      res.json({ id: user.id, email: user.email, role: user.role, tenantId: user.tenantId });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 export async function login(req: Request, res: Response) {

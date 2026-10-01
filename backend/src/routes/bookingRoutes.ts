@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { bookingController } from '../controllers/bookingController';
 import { Server } from 'socket.io';
-import { isAuthenticated, requireTenant, requireActiveTrial, resolveTenantFromSlug } from '../middleware/isAuthenticated';
+import { isAuthenticated, requireTenant, requireActiveTrial, resolveTenantFromSlug, requireRole } from '../middleware/isAuthenticated';
 import { availabilityLimiter, bookingLimiter } from '../middleware/rateLimit';
 
 export const bookingRoutes = (io: Server) => {
@@ -177,6 +177,22 @@ export const bookingRoutes = (io: Server) => {
     router.post('/bookings/:id/check-in', isAuthenticated, requireTenant, requireActiveTrial, controller.checkIn);
     router.post('/bookings/:id/finish', isAuthenticated, requireTenant, requireActiveTrial, controller.finishMeal);
     router.post('/bookings/:id/cancel', isAuthenticated, requireTenant, requireActiveTrial, controller.cancelBooking);
+
+    /**
+     * @swagger
+     * /bookings/{id}:
+     *   delete:
+     *     summary: GDPR Art.17 — soft-delete a booking and wipe its PII
+     *     tags: [Bookings]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Erasure confirmation
+     *       404:
+     *         description: Booking not found
+     */
+    router.delete('/bookings/:id', isAuthenticated, requireTenant, requireActiveTrial, requireRole('OWNER'), controller.eraseBooking);
 
     return router;
 };

@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { Server } from 'socket.io';
+import { emitToTenant } from '../lib/tenantSocket';
 
 import { getLayout, saveLayout, deleteTable } from '../services/floorPlanService';
 import { AuthRequest } from '../middleware/isAuthenticated';
@@ -41,8 +42,8 @@ export const tableController = (io: Server) => ({
             const layout = await saveLayout(tables, deleteIds ?? [], req.tenant!.id, {
                 confirmDeleteReservations: confirmDeleteReservations === true,
             });
-            io.emit('floor-plan-update', { tables: layout });
-            io.emit('booking-update', { type: 'layout-reset' });
+            emitToTenant(io, req.tenant!.id, 'floor-plan-update', { tables: layout });
+            emitToTenant(io, req.tenant!.id, 'booking-update', { type: 'layout-reset' });
             res.json(layout);
         } catch (error) {
             console.error(error);
@@ -87,7 +88,7 @@ export const tableController = (io: Server) => ({
             const id = Number(req.params.id);
             if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid table id' });
             await deleteTable(id, req.tenant!.id);
-            io.emit('floor-plan-update', { deletedId: id });
+            emitToTenant(io, req.tenant!.id, 'floor-plan-update', { deletedId: id });
             res.json({ ok: true });
         } catch (error) {
             console.error(error);

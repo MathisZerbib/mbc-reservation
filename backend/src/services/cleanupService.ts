@@ -1,30 +1,50 @@
 import { prisma } from '../lib/prisma';
 import { sandboxSlugs } from './tenantService';
+import { emitToTenant } from '../lib/tenantSocket';
 import dayjs from 'dayjs';
 import type { Server } from 'socket.io';
 
 /**
- * Automatically cleans up bookings older than 2 days.
- * Sandbox tenants (demo/mbc/...) are excluded: the demo keeps its
- * seeded history so analytics and the widget stay testable.
- * Can be configured to delete or archive.
- * Here we delete as requested.
+ * GDPR retention: anonymizes PII of bookings older than the tenant's
+ * retention window (default 13 months) instead of deleting them, so
+ * analytics history survives. Sandbox tenants are excluded entirely.
+ * Aggregate facts (size, times, status, tables) are kept for stats.
  */
 export async function cleanupOldBookings() {
-    console.log('🧹 [Cleanup] Starting periodic cleanup of old reservations...');
+    console.log('🧹 [Cleanup] Starting PII retention pass...');
     try {
-        const thresholdDate = dayjs().subtract(2, 'days').toDate();
-
-        const count = await prisma.booking.deleteMany({
-            where: {
-                startTime: {
-                    lt: thresholdDate
-                },
-                tenant: { slug: { notIn: [...sandboxSlugs()] } }
-            }
+        const policies = await prisma.restaurantSettings.findMany({
+            select: { tenantId: true, retentionMonths: true, tenant: { select: { slug: true } } },
         });
-
-        console.log(`✅ [Cleanup] Successfully deleted ${count.count} old reservations.`);
+        const sandboxes = sandboxSlugs();
+        let total = 0;
+        for (const policy of policies) {
+            if (sandboxes.has(policy.tenant.slug.toLowerCase())) continue;
+            const months = Number.isInteger(policy.retentionMonths) && policy.retentionMonths > 0
+                ? policy.retentionMonths
+                : 13;
+            const threshold = dayjs().subtract(months, 'months').toDate();
+            const res = await prisma.booking.updateMany({
+                where: {
+                    tenantId: policy.tenantId,
+                    deletedAt: null,
+                    startTime: { lt: threshold },
+                    NOT: { name: '—' },
+                },
+                data: {
+                    name: '—',
+                    phone: null,
+                    email: null,
+                    tags: [],
+                    allergyNote: null,
+                    birthdayDate: null,
+                    vipNote: null,
+                    guestConfirmed: false,
+                },
+            });
+            total += res.count;
+        }
+        console.log(`✅ [Cleanup] Anonymized PII of ${total} old reservation(s).`);
     } catch (error) {
         console.error('❌ [Cleanup] Failed to cleanup old bookings:', error);
     }
@@ -67,16 +87,18 @@ export async function autoCancelNoShows(io?: Server): Promise<number> {
             const res = await prisma.booking.updateMany({
                 where: {
                     tenantId: policy.tenantId,
+                    deletedAt: null,
                     status: { in: ['PENDING', 'CONFIRMED'] },
                     startTime: { lt: cutoff },
                 },
                 data: { status: 'CANCELLED', cancelledBy: 'AUTO' },
             });
             total += res.count;
+            // Tenant-scoped: only this restaurant's screens refresh.
+            if (io && res.count > 0) emitToTenant(io, policy.tenantId, 'booking-update', { type: 'no-show-sweep' });
         }
         if (total > 0) {
             console.log(`⏰ [NoShow] Auto-cancelled ${total} late booking(s).`);
-            io?.emit('booking-update', { type: 'no-show-sweep' });
         }
         return total;
     } catch (error) {

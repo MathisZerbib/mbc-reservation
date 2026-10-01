@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { Server } from 'socket.io';
 import { tableController } from '../controllers/tableController';
-import { isAuthenticated, requireTenant, requireActiveTrial, resolveTenantFromSlug } from '../middleware/isAuthenticated';
+import { isAuthenticated, requireTenant, requireActiveTrial, resolveTenantFromSlug, requireRole } from '../middleware/isAuthenticated';
 import { handleFloorPlanUpload } from '../middleware/uploadHandler';
 import { aiAnalyzeLimiter } from '../middleware/rateLimit';
 
@@ -40,8 +40,8 @@ export const tableRoutes = (io: Server) => {
      *       200:
      *         description: The saved table layout
      */
-    router.put('/tables/layout', isAuthenticated, requireTenant, requireActiveTrial, controller.saveLayout);
-    router.delete('/tables/:id', isAuthenticated, requireTenant, requireActiveTrial, controller.deleteTable);
+    router.put('/tables/layout', isAuthenticated, requireTenant, requireActiveTrial, requireRole('OWNER'), controller.saveLayout);
+    router.delete('/tables/:id', isAuthenticated, requireTenant, requireActiveTrial, requireRole('OWNER'), controller.deleteTable);
 
     /**
      * @swagger
@@ -60,6 +60,7 @@ export const tableRoutes = (io: Server) => {
         isAuthenticated,
         requireTenant,
         requireActiveTrial,
+        requireRole('OWNER'),
         aiAnalyzeLimiter,
         handleFloorPlanUpload,
         controller.analyzeFloorPlanImage,

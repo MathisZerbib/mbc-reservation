@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect } from 'react';
 import { useBookings } from '../hooks/useBookings';
-import { socket } from '../services/socket';
+import { connectSocket, disconnectSocket } from '../services/socket';
 import { BookingsContext } from './BookingsContextInstance';
 
 interface BookingsProviderProps {
@@ -11,9 +11,9 @@ export const BookingsProvider = ({ children }: BookingsProviderProps) => {
   const bookingsState = useBookings();
 
   useEffect(() => {
-    socket.connect();
+    connectSocket();
     return () => {
-      socket.disconnect();
+      disconnectSocket();
     };
   }, []);
 

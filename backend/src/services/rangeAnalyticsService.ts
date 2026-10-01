@@ -305,7 +305,7 @@ export async function getRangeAnalytics(fromStr: string, toStr: string, tenantId
 
     const [rows, settings] = await Promise.all([
         prisma.booking.findMany({
-            where: { tenantId, startTime: { gte: start, lte: end } },
+            where: { tenantId, deletedAt: null, startTime: { gte: start, lte: end } },
             select: {
                 size: true,
                 startTime: true,
@@ -345,7 +345,7 @@ export async function getRangeAnalytics(fromStr: string, toStr: string, tenantId
     const priorKeys = new Set<string>();
     if (or.length > 0) {
         const prior = await prisma.booking.findMany({
-            where: { tenantId, startTime: { lt: start }, OR: or as never },
+            where: { tenantId, deletedAt: null, startTime: { lt: start }, OR: or as never },
             select: { name: true, phone: true, email: true, startTime: true },
             take: 20000,
         });

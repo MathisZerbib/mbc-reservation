@@ -99,6 +99,29 @@ export function requireDemo(req: AuthRequest, res: Response, next: NextFunction)
   next();
 }
 
+/**
+ * Role gate: OWNER-only by default. Must run after isAuthenticated
+ * (role is read from the user row, so it survives token staleness).
+ * STAFF keeps live-ops access (bookings, placement, check-in); everything
+ * structural (settings, layout, erasure, team) requires OWNER.
+ */
+export function requireRole(role: 'OWNER' | 'STAFF' = 'OWNER') {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.payload?.userId;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      if (role === 'OWNER' && user.role !== 'OWNER') {
+        return res.status(403).json({ error: 'Owner access required' });
+      }
+      next();
+    } catch {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+}
+
 
 
 // export function requireAdmin(req: AdminSessionRequest, res: Response, next: NextFunction) {

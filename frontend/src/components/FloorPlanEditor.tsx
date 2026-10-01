@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Save, Plus, Trash2, Loader2, X, Sparkles, AlertTriangle, Eye, EyeOff, LayoutGrid, Eraser, Users, Check } from 'lucide-react';
 import { api } from '../services/api';
 import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
+import { useUserRole } from '../hooks/useUserRole';
 import { useTranslation } from '../i18n/useTranslation';
 import { CANVAS_W, CANVAS_H, TABLE_TYPES, presetFromConstants, presetGrid, tableShapePath } from '../utils/floorPlanData';
 import type { LayoutTable } from '../types/index';
@@ -19,6 +20,7 @@ export const FloorPlanEditor: React.FC = () => {
     const { t: tr } = useTranslation();
     const { backgroundUrl, refresh: refreshSettings } = useRestaurantSettings();
     const { tenant } = useTenant();
+    const { role, loading: roleLoading } = useUserRole();
     const [tables, setTables] = useState<LayoutTable[] | null>(null);
     const [deleteIds, setDeleteIds] = useState<number[]>([]);
     const [selected, setSelected] = useState<string | null>(null);
@@ -280,6 +282,19 @@ export const FloorPlanEditor: React.FC = () => {
         }
         return out;
     }, [tables, byName]);
+
+    // Staff can't restructure the room — backend enforces this too.
+    if (!roleLoading && role === 'STAFF') {
+        return (
+            <div className="h-screen bg-slate-100 flex flex-col items-center justify-center p-6 text-center">
+                <p className="text-base font-black text-slate-900">{tr('team.deniedTitle')}</p>
+                <p className="text-xs text-slate-400 font-medium mt-1 mb-4">{tr('team.deniedMsg')}</p>
+                <Link to="/app/live" className="bg-slate-900 text-white px-5 py-3 rounded-2xl text-sm font-bold">
+                    {tr('common.back')}
+                </Link>
+            </div>
+        );
+    }
 
     return (
         <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">

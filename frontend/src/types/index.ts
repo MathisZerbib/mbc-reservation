@@ -129,6 +129,7 @@ export interface RestaurantSettings {
     avgTicket: number;
     avgTicketLunch: number | null;
     avgTicketDinner: number | null;
+    retentionMonths: number;
     floorPlanImageUrl: string | null;
     lateGraceMinutes: number;
     autoCancelLate: boolean;

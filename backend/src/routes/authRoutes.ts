@@ -128,4 +128,20 @@ router.post('/refreshToken', authController.refreshToken);
 
 router.post('/revokeRefreshTokens', isAuthenticated, authController.revokeRefreshTokens);
 
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Current user (email + role for UI gating)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/me', isAuthenticated, authController.me);
+
 export default router;

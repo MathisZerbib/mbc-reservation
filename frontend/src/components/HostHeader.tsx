@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Settings as SettingsIcon, ChartColumn, Sun, Moon } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { useTranslation } from '../i18n/useTranslation';
+import { useSocketStatus } from '../services/socket';
 import { HostTabs } from './HostTabs';
 
 interface HostHeaderProps {
@@ -21,12 +22,17 @@ interface HostHeaderProps {
  */
 export const HostHeader: React.FC<HostHeaderProps> = ({ date, arrivalsNow, onQuickRes, dark = false, onToggleDark }) => {
     const { t } = useTranslation();
+    const live = useSocketStatus();
 
     return (
         <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 flex-none">
             <div>
-                <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
+                <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none flex items-center gap-2">
                     Faci<span className="text-indigo-500">-</span>Table
+                    <span
+                        title={live ? t('dashboard.liveOn') : t('dashboard.liveOff')}
+                        className={live ? "w-2 h-2 rounded-full bg-emerald-500" : "w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 animate-pulse"}
+                    />
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 font-bold text-xs lg:text-sm mt-1">
                     {dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM YYYY')}

@@ -5,6 +5,7 @@ import http from 'http';
 import path from 'path';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import jwt from 'jsonwebtoken';
 import { bookingRoutes } from './routes/bookingRoutes';
 import { tableRoutes } from './routes/tableRoutes';
 import { settingsRoutes } from './routes/settingsRoutes';
@@ -13,10 +14,12 @@ import statsRoutes from './routes/statsRoutes';
 import authRoutes from './routes/authRoutes';
 import protectedRoutes from './routes/protectedRoutes';
 import testRoutes from './routes/testRoutes';
+import userRoutes from './routes/userRoutes';
 import { prisma } from './lib/prisma';
 import swaggerUi from 'swagger-ui-express';
 import { startCleanupTask } from './services/cleanupService';
 import { swaggerSpec } from './docs/swagger';
+import { tenantRoom } from './lib/tenantSocket';
 
 const app = express();
 const server = http.createServer(app);
@@ -95,9 +98,31 @@ app.use(express.static('public', {
     },
 }));
 
+// Socket.io: verify the handshake JWT and join the tenant room.
+// No token (public widget) or invalid token → connected but roomless:
+// such sockets receive nothing, never hard-failing realtime.
+io.use(async (socket, next) => {
+    try {
+        const token = socket.handshake.auth?.token as string | undefined;
+        if (token) {
+            const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET as string) as { userId?: string };
+            if (payload?.userId) {
+                const user = await prisma.user.findUnique({
+                    where: { id: payload.userId },
+                    select: { tenantId: true },
+                });
+                if (user?.tenantId) socket.join(tenantRoom(user.tenantId));
+            }
+        }
+    } catch {
+        // Roomless connection — no realtime for this socket.
+    }
+    next();
+});
+
 // Socket.io connection
 io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id);
+    console.log('A user connected:', socket.id, 'rooms:', [...socket.rooms].join(','));
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
     });
@@ -117,6 +142,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', protectedRoutes);
 // Dev/demo helpers (bulk booking). Guarded by demo-session auth in testRoutes.
 app.use('/api/tests', testRoutes); // Tests routes
+app.use('/api', userRoutes);
 app.get('/health', async (_req, res) => {
     try {
         await prisma.$queryRaw`SELECT 1`;

@@ -31,6 +31,7 @@ export interface RestaurantSettingsDTO {
     avgTicket: number;
     avgTicketLunch: number | null;
     avgTicketDinner: number | null;
+    retentionMonths: number;
     floorPlanImageUrl: string | null;
     lateGraceMinutes: number;
     autoCancelLate: boolean;
@@ -97,7 +98,6 @@ export function parseDepositMinSize(input: unknown): number {
     }
     return value;
 }
-
 export function parseTurnoverMinutes(input: unknown): number {
     const value = typeof input === 'string' ? Number(input) : (input as number);
     if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -109,10 +109,23 @@ export function parseTurnoverMinutes(input: unknown): number {
     return value;
 }
 
-const toDTO = (row: { avgTicket: number; avgTicketLunch: number | null; avgTicketDinner: number | null; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; tableTurnoverMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
+/** GDPR retention window in months (1-36). */
+export function parseRetentionMonths(input: unknown): number {
+    const value = typeof input === 'string' ? Number(input) : (input as number);
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error('retentionMonths must be a number');
+    }
+    if (!Number.isInteger(value) || value < 1 || value > 36) {
+        throw new Error('retentionMonths must be an integer between 1 and 36');
+    }
+    return value;
+}
+
+const toDTO = (row: { avgTicket: number; avgTicketLunch: number | null; avgTicketDinner: number | null; retentionMonths: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; tableTurnoverMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
     avgTicket: row.avgTicket,
     avgTicketLunch: row.avgTicketLunch,
     avgTicketDinner: row.avgTicketDinner,
+    retentionMonths: row.retentionMonths,
     floorPlanImageUrl: row.floorPlanImageUrl,
     lateGraceMinutes: row.lateGraceMinutes,
     autoCancelLate: row.autoCancelLate,
@@ -132,8 +145,8 @@ export async function getSettings(tenantId: string): Promise<RestaurantSettingsD
     return toDTO(row);
 }
 
-export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; avgTicketLunch?: unknown; avgTicketDinner?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown; tableTurnoverMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
-    const data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number } = {};
+export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; avgTicketLunch?: unknown; avgTicketDinner?: unknown; retentionMonths?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown; tableTurnoverMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
+    const data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; retentionMonths?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number } = {};
     if (input.avgTicket !== undefined) {
         data.avgTicket = parseAvgTicket(input.avgTicket);
     }
@@ -142,6 +155,9 @@ export async function updateSettings(tenantId: string, input: { avgTicket?: unkn
     }
     if (input.avgTicketDinner !== undefined) {
         data.avgTicketDinner = parseOptionalAvgTicket(input.avgTicketDinner, 'avgTicketDinner');
+    }
+    if (input.retentionMonths !== undefined) {
+        data.retentionMonths = parseRetentionMonths(input.retentionMonths);
     }
     if (input.lateGraceMinutes !== undefined) {
         data.lateGraceMinutes = parseLateGraceMinutes(input.lateGraceMinutes);

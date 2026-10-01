@@ -71,6 +71,7 @@ export async function getAvailableTables(
     const overlappingBookings = await prisma.booking.findMany({
         where: {
             tenantId,
+            deletedAt: null,
             status: { not: 'CANCELLED' },
             AND: [
                 { startTime: { lt: requestedEnd } },
@@ -130,6 +131,7 @@ export async function createReservation(input: CreateReservationInput) {
         const conflictingBookings = await tx.booking.findMany({
             where: {
                 tenantId,
+                deletedAt: null,
                 status: { not: 'CANCELLED' },
                 AND: [
                     { startTime: { lt: endTime } },
@@ -418,7 +420,7 @@ export function evaluateRescheduleFit(
 export async function rescheduleBooking(input: RescheduleInput): Promise<RescheduleResult> {
     const { bookingId, tenantId } = input;
     const existing = (await prisma.booking.findFirst({
-        where: { id: bookingId, tenantId },
+        where: { id: bookingId, tenantId, deletedAt: null },
         include: { tables: true },
     } as any)) as any;
     if (!existing) throw new Error('Booking not found');
@@ -464,6 +466,7 @@ export async function rescheduleBooking(input: RescheduleInput): Promise<Resched
         const overlapping = (await tx.booking.findMany({
             where: {
                 tenantId,
+                deletedAt: null,
                 status: { not: 'CANCELLED' },
                 id: { not: bookingId },
                 AND: [{ startTime: { lt: bufEnd } }, { endTime: { gt: bufStart } }],

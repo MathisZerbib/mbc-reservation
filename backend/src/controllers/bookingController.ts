@@ -8,6 +8,7 @@ import { getDailyAnalytics } from '../services/analyticsService';
 import { getRangeAnalytics } from '../services/rangeAnalyticsService';
 import { verifyTurnstile } from '../utils/turnstile';
 import { Server } from 'socket.io';
+import { emitToTenant } from '../lib/tenantSocket';
 import { emailService } from '../services/emailService';
 import { Booking } from '../types/booking';
 import { AuthRequest } from '../middleware/isAuthenticated';
@@ -191,7 +192,7 @@ export const bookingController = (io: Server) => ({
                 emailService.sendConfirmationEmail(newBooking);
             }
 
-            io.emit('booking-update', { type: 'new', booking: newBooking });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'new', booking: newBooking });
             res.json(newBooking);
 
         } catch (error) {
@@ -206,7 +207,7 @@ export const bookingController = (io: Server) => ({
             if (Array.isArray(id)) id = id[0];
             const tid = tenantId(req);
             const existing = await prisma.booking.findFirst({
-                where: { id: id, tenantId: tid }
+                where: { id: id, tenantId: tid, deletedAt: null }
             } as any);
             if (!existing) return res.status(404).json({ error: 'Booking not found' });
 
@@ -230,7 +231,7 @@ export const bookingController = (io: Server) => ({
                 ? { ...completeBookingRaw, language: completeBookingRaw.language ?? 'fr' }
                 : null;
 
-            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: completeBooking });
             res.json(completeBooking);
         } catch (error) {
             console.error(error);
@@ -244,7 +245,7 @@ export const bookingController = (io: Server) => ({
             if (Array.isArray(id)) id = id[0];
             const tid = tenantId(req);
             const existing = await prisma.booking.findFirst({
-                where: { id: id, tenantId: tid }
+                where: { id: id, tenantId: tid, deletedAt: null }
             } as any) as any;
             if (!existing) return res.status(404).json({ error: 'Booking not found' });
             if (existing.status !== 'COMPLETED' || !existing.seatedAt) {
@@ -262,7 +263,7 @@ export const bookingController = (io: Server) => ({
                 where: { id: id },
                 include: { tables: true } as any
             });
-            io.emit('booking-update', { type: 'update', booking: withTables ?? finished });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: withTables ?? finished });
             res.json(withTables ?? finished);
         } catch (error) {
             console.error(error);
@@ -275,7 +276,7 @@ export const bookingController = (io: Server) => ({
             if (Array.isArray(id)) id = id[0];
             const tid = tenantId(req);
             const existing = await prisma.booking.findFirst({
-                where: { id: id, tenantId: tid }
+                where: { id: id, tenantId: tid, deletedAt: null }
             } as any);
             if (!existing) return res.status(404).json({ error: 'Booking not found' });
 
@@ -289,17 +290,51 @@ export const bookingController = (io: Server) => ({
                 include: { tables: true } as any
             });
 
-            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: completeBooking });
             res.json(completeBooking);
         } catch (error) {
             res.status(500).json({ error: 'Failed to cancel booking' });
         }
     },
 
-    getAllBookings: async (req: AuthRequest, res: Response) => {
+    /**
+     * GDPR Art.17: soft-deletes a booking and wipes its PII immediately.
+     * Aggregate facts stay for stats; the row vanishes from every query.
+     */
+    eraseBooking: async (req: AuthRequest, res: Response) => {
         try {
+            let { id } = req.params;
+            if (Array.isArray(id)) id = id[0];
+            const tid = tenantId(req);
+            const existing = await prisma.booking.findFirst({
+                where: { id: id, tenantId: tid, deletedAt: null }
+            } as any);
+            if (!existing) return res.status(404).json({ error: 'Booking not found' });
+
+            const erased = await prisma.booking.update({
+                where: { id: id },
+                data: {
+                    deletedAt: new Date(),
+                    name: '—',
+                    phone: null,
+                    email: null,
+                    tags: [],
+                    allergyNote: null,
+                    birthdayDate: null,
+                    vipNote: null,
+                    guestConfirmed: false,
+                }
+            } as any);
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: erased });
+            res.json({ erased: true });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to erase booking' });
+        }
+    },
+
+    getAllBookings: async (req: AuthRequest, res: Response) => {        try {
             const bookings = await prisma.booking.findMany({
-                where: { tenantId: tenantId(req) },
+                where: { tenantId: tenantId(req), deletedAt: null },
                 include: { tables: true } as any
             });
             res.json(bookings);
@@ -316,7 +351,7 @@ export const bookingController = (io: Server) => ({
             const tid = tenantId(req);
 
             const existing = await prisma.booking.findFirst({
-                where: { id: id, tenantId: tid }
+                where: { id: id, tenantId: tid, deletedAt: null }
             } as any);
             if (!existing) return res.status(404).json({ error: 'Booking not found' });
 
@@ -339,7 +374,7 @@ export const bookingController = (io: Server) => ({
                 include: { tables: true } as any
             });
 
-            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: completeBooking });
             res.json(completeBooking);
         } catch (error) {
             res.status(500).json({ error: 'Failed to update assignment' });
@@ -370,7 +405,7 @@ export const bookingController = (io: Server) => ({
                 where: { id: id },
                 include: { tables: true } as any,
             });
-            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: completeBooking });
             res.json(completeBooking);
         } catch (error) {
             const msg = error instanceof Error ? error.message : '';
@@ -389,7 +424,7 @@ export const bookingController = (io: Server) => ({
             if (Array.isArray(id)) id = id[0];
             const tid = tenantId(req);
             const existing = await prisma.booking.findFirst({
-                where: { id: id, tenantId: tid }
+                where: { id: id, tenantId: tid, deletedAt: null }
             } as any);
             if (!existing) return res.status(404).json({ error: 'Booking not found' });
             if ((existing as any).status === 'CANCELLED') {
@@ -404,7 +439,7 @@ export const bookingController = (io: Server) => ({
                 where: { id: id },
                 include: { tables: true } as any
             });
-            io.emit('booking-update', { type: 'update', booking: completeBooking });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: completeBooking });
             res.json(completeBooking);
         } catch (error) {
             console.error(error);

@@ -163,6 +163,7 @@ export async function getDailyAnalytics(dateStr: string, tenantId: string): Prom
         prisma.booking.findMany({
             where: {
                 tenantId,
+                deletedAt: null,
                 startTime: { gte: startOfDay, lte: endOfDay },
                 status: { not: 'CANCELLED' },
             },
@@ -176,6 +177,7 @@ export async function getDailyAnalytics(dateStr: string, tenantId: string): Prom
         prisma.booking.count({
             where: {
                 tenantId,
+                deletedAt: null,
                 startTime: { gte: prevStart, lte: prevEnd },
                 status: { not: 'CANCELLED' },
             },

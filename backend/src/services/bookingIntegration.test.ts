@@ -65,7 +65,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
         json = vi.fn();
         status = vi.fn().mockReturnValue({ json });
         res = { json, status };
-        io = { emit: vi.fn() };
+        io = { emit: vi.fn(), to: vi.fn().mockReturnThis() };
     });
 
     describe('createBooking (Quick Reservation)', () => {
@@ -111,6 +111,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
             
             // 3. Check Email & Socket
             expect(emailService.sendConfirmationEmail).toHaveBeenCalled();
+            expect(io.to).toHaveBeenCalledWith(`tenant:${tenantId}`);
             expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'new' }));
         });
 
@@ -163,6 +164,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
             expect(tableNames).toEqual(['10', '9'].sort());
             
             expect(json).toHaveBeenCalled();
+            expect(io.to).toHaveBeenCalledWith(`tenant:${tenantId}`);
             expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'update' }));
         });
     });
@@ -222,6 +224,57 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
         });
     });
 
+    describe('eraseBooking (GDPR Art.17)', () => {
+        it('should soft-delete and wipe PII, hiding the row from scoped lookups', async () => {
+            const existing = await prisma.booking.create({
+                data: {
+                    name: 'To Erase',
+                    phone: '+33612345678',
+                    email: 'erase@example.fr',
+                    size: 2,
+                    startTime: new Date(),
+                    endTime: new Date(),
+                    language: 'en',
+                    status: 'COMPLETED',
+                    tenantId,
+                },
+            });
+
+            req = { tenant: tenant(), params: { id: existing.id } };
+
+            await bookingController(io).eraseBooking(req as AuthRequest, res as Response);
+
+            const dbBooking = await prisma.booking.findUnique({ where: { id: existing.id } });
+            expect(dbBooking?.deletedAt).toBeInstanceOf(Date);
+            expect(dbBooking?.name).toBe('—');
+            expect(dbBooking?.phone).toBeNull();
+            expect(dbBooking?.email).toBeNull();
+
+            expect(io.to).toHaveBeenCalledWith(`tenant:${tenantId}`);
+            expect(json).toHaveBeenCalledWith({ erased: true });
+        });
+
+        it('should return 404 when erasing twice (row is hidden)', async () => {
+            const existing = await prisma.booking.create({
+                data: {
+                    name: 'Twice',
+                    size: 2,
+                    startTime: new Date(),
+                    endTime: new Date(),
+                    language: 'en',
+                    status: 'COMPLETED',
+                    tenantId,
+                },
+            });
+
+            req = { tenant: tenant(), params: { id: existing.id } };
+            await bookingController(io).eraseBooking(req as AuthRequest, res as Response);
+            await bookingController(io).eraseBooking(req as AuthRequest, res as Response);
+
+            expect(status).toHaveBeenCalledWith(404);
+        });
+    });
+
     describe('autoCancelNoShows (no-show sweep)', () => {        it('should tag sweep cancels as AUTO and spare seated bookings', async () => {
             await prisma.restaurantSettings.upsert({
                 where: { tenantId },
@@ -244,6 +297,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
             expect((dbLate as any)?.cancelledBy).toBe('AUTO');
             const dbSeated = await prisma.booking.findUnique({ where: { id: seated.id } });
             expect(dbSeated?.status).toBe('COMPLETED');
+            expect(io.to).toHaveBeenCalledWith(`tenant:${tenantId}`);
             expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'no-show-sweep' }));
         });
     });
@@ -284,6 +338,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
             });
             expect(updated?.startTime.getHours()).toBe(20);
             expect(updated?.tables.map((t: { name: string }) => t.name)).toEqual(['10']);
+            expect(io.to).toHaveBeenCalledWith(`tenant:${tenantId}`);
             expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'update' }));
         });
 
@@ -371,6 +426,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('bookingController Integration 
             await bookingController(io).toggleGuestConfirm(req as AuthRequest, res as Response);
             dbBooking = await prisma.booking.findUnique({ where: { id: existing.id } });
             expect((dbBooking as any)?.guestConfirmed).toBe(false);
+            expect(io.to).toHaveBeenCalledWith(`tenant:${tenantId}`);
             expect(io.emit).toHaveBeenCalledWith('booking-update', expect.objectContaining({ type: 'update' }));
 
             req = { tenant: tenant(), params: { id: 'non-existent-uuid' }, body: {} };

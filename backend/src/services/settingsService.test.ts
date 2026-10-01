@@ -5,6 +5,7 @@ import {
     parseBooleanSetting,
     parseDepositMinSize,
     parseTurnoverMinutes,
+    parseRetentionMonths,
     MIN_AVG_TICKET,
     MAX_AVG_TICKET,
     MIN_LATE_GRACE_MINUTES,
@@ -102,5 +103,21 @@ describe('parseTurnoverMinutes', () => {
         expect(() => parseTurnoverMinutes(undefined)).toThrow();
         expect(() => parseTurnoverMinutes(MIN_TURNOVER_MINUTES - 1)).toThrow();
         expect(() => parseTurnoverMinutes(MAX_TURNOVER_MINUTES + 1)).toThrow();
+    });
+});
+
+describe('parseRetentionMonths', () => {
+    it('accepts integers 1-36', () => {
+        expect(parseRetentionMonths(13)).toBe(13);
+        expect(parseRetentionMonths('6')).toBe(6);
+        expect(parseRetentionMonths(1)).toBe(1);
+        expect(parseRetentionMonths(36)).toBe(36);
+    });
+
+    it('rejects non-integers and out-of-range values', () => {
+        expect(() => parseRetentionMonths(0)).toThrow();
+        expect(() => parseRetentionMonths(37)).toThrow();
+        expect(() => parseRetentionMonths(2.5)).toThrow();
+        expect(() => parseRetentionMonths(undefined)).toThrow();
     });
 });

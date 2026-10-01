@@ -159,7 +159,7 @@ export async function saveLayout(
     // Any layout save hard-deletes upcoming reservations once confirmed.
     const now = new Date();
     const upcomingCount = await prisma.booking.count({
-        where: { tenantId, status: { not: 'CANCELLED' }, endTime: { gt: now } },
+        where: { tenantId, deletedAt: null, status: { not: 'CANCELLED' }, endTime: { gt: now } },
     });
     if (upcomingCount > 0 && !opts.confirmDeleteReservations) {
         throw new Error(`UPCOMING_BOOKINGS:${upcomingCount}: Saving the floor plan will permanently delete all upcoming reservations.`);
@@ -264,6 +264,7 @@ export async function deleteTable(id: number, tenantId: string): Promise<void> {
     const blockers = await prisma.booking.findMany({
         where: {
             tenantId,
+            deletedAt: null,
             status: { not: 'CANCELLED' },
             endTime: { gt: now },
             tables: { some: { id } },

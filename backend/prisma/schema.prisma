@@ -88,6 +88,8 @@ model RestaurantSettings {
   /** Require a card hold for parties at or above the size threshold. */
   depositEnabled    Boolean  @default(false)
   depositMinSize    Int      @default(6)
+  /** Months of booking history kept before PII anonymization (GDPR). */
+  retentionMonths   Int      @default(13)
   updatedAt         DateTime @updatedAt
 }
 
@@ -129,6 +131,8 @@ model Booking {
   source BookingSource @default(RESERVATION)
   /** Meal finished at (host "repas terminé" action). Null = still seated / unknown. */
   leftAt DateTime?
+  /** Soft-delete (GDPR erasure): excluded from every query, PII wiped. */
+  deletedAt DateTime?
   /** Guest confirmed (host toggle). Drives the confirmation icon. */
   guestConfirmed Boolean @default(false)
   /** Seated at (set on check-in). Drives overtime detection. */

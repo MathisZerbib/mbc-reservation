@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { isAuthenticated, requireTenant, AuthRequest } from '../middleware/isAuthenticated';
+import { isAuthenticated, requireTenant, requireRole, AuthRequest } from '../middleware/isAuthenticated';
 import { availabilityLimiter } from '../middleware/rateLimit';
 import { prisma } from '../lib/prisma';
 import { isTrialActive, parseSlug } from '../services/tenantService';
@@ -93,6 +93,33 @@ router.patch('/tenants/me', isAuthenticated, requireTenant, async (req: AuthRequ
         trialActive: isTrialActive(tenant.trialEndsAt),
         onboardingComplete: tenant.onboardingComplete,
     });
+});
+
+/**
+ * @swagger
+ * /tenants/me/export:
+ *   get:
+ *     summary: GDPR Art.20 — full tenant data export (JSON)
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Tenant, settings, tables and bookings
+ */
+router.get('/tenants/me/export', isAuthenticated, requireTenant, requireRole('OWNER'), async (req: AuthRequest, res: Response) => {
+    try {
+        const tid = req.tenant!.id;
+        const [tenant, settings, tables, bookings] = await Promise.all([
+            prisma.tenant.findUnique({ where: { id: tid } }),
+            prisma.restaurantSettings.findUnique({ where: { tenantId: tid } }),
+            prisma.table.findMany({ where: { tenantId: tid } }),
+            prisma.booking.findMany({ where: { tenantId: tid }, include: { tables: true } as any }),
+        ]);
+        res.json({ exportedAt: new Date().toISOString(), tenant, settings, tables, bookings });
+    } catch {
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 /**

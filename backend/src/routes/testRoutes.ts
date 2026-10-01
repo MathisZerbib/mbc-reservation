@@ -2,12 +2,12 @@ import { Router } from 'express';
 import { fullBookController } from '../controllers/fullbookController';
 import { fullBookWithConsecutive } from '../services/fullBookService';
 import { seedDemoTenant } from '../scripts/seedDemoHistory';
-import { isAuthenticated, requireDemo, requireTenant, AuthRequest } from '../middleware/isAuthenticated';
+import { isAuthenticated, requireDemo, requireTenant, requireRole, AuthRequest } from '../middleware/isAuthenticated';
 
 const router = Router();
 
 // Dev/demo helpers (bulk booking). Demo sessions only — never anonymous.
-router.use(isAuthenticated, requireDemo, requireTenant);
+router.use(isAuthenticated, requireDemo, requireTenant, requireRole('OWNER'));
 
 router.post('/fullbook', fullBookController);
 

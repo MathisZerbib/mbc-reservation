@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2, Timer, CreditCard, DatabaseBackup } from 'lucide-react';
+import { ChevronLeft, Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2, Timer, CreditCard, DatabaseBackup, ShieldCheck } from 'lucide-react';
 import { api, fileUrl } from '../services/api';
 import { useRestaurantSettings, useTenant } from '../hooks/useFloorPlan';
+import { useUserRole } from '../hooks/useUserRole';
+import { TeamCard } from './TeamCard';
 import { FloorPlanImageDropzone } from './FloorPlanImageDropzone';
 import { useTranslation } from '../i18n/useTranslation';
 import { cn } from '../lib/utils';
@@ -11,6 +13,7 @@ export const SettingsPage: React.FC = () => {
     const { t } = useTranslation();
     const { settings, loading, refresh } = useRestaurantSettings();
     const { tenant } = useTenant();
+    const { role, loading: roleLoading } = useUserRole();
     const [avgTicket, setAvgTicket] = useState('');
     const [avgLunch, setAvgLunch] = useState('');
     const [avgDinner, setAvgDinner] = useState('');
@@ -23,6 +26,8 @@ export const SettingsPage: React.FC = () => {
     const [savingGrace, setSavingGrace] = useState(false);
     const [savingRules, setSavingRules] = useState(false);
     const [seedingDemo, setSeedingDemo] = useState(false);
+    const [retention, setRetention] = useState('13');
+    const [savingRetention, setSavingRetention] = useState(false);
     const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
     useEffect(() => {
@@ -35,6 +40,7 @@ export const SettingsPage: React.FC = () => {
             setTurnover(String(settings.tableTurnoverMinutes ?? 105));
             setDepositOn(settings.depositEnabled ?? false);
             setDepositMin(String(settings.depositMinSize ?? 6));
+            setRetention(String(settings.retentionMonths ?? 13));
         }
     }, [settings]);
 
@@ -95,6 +101,24 @@ export const SettingsPage: React.FC = () => {
         }
     };
 
+    const handleSaveRetention = async () => {
+        const months = Number(retention);
+        if (!Number.isInteger(months) || months < 1 || months > 36) {
+            flash('err', t('settings.retentionError'));
+            return;
+        }
+        setSavingRetention(true);
+        try {
+            await api.updateSettings({ retentionMonths: months });
+            await refresh();
+            flash('ok', t('settings.retentionSaved'));
+        } catch (e) {
+            flash('err', e instanceof Error ? e.message : t('settings.saveFailed'));
+        } finally {
+            setSavingRetention(false);
+        }
+    };
+
     const handleImageChanged = async () => {
         await refresh();
         flash('ok', t('settings.imageSaved'));
@@ -115,6 +139,26 @@ export const SettingsPage: React.FC = () => {
     };
 
     const previewUrl = fileUrl(settings?.floorPlanImageUrl ?? null);
+
+    // Staff sees live ops only — every control on this page is owner-level.
+    if (!roleLoading && role === 'STAFF') {
+        return (
+            <div className="min-h-screen bg-slate-100 p-4 lg:p-8">
+                <div className="max-w-3xl mx-auto flex flex-col gap-4">
+                    <div className="flex items-center gap-3">
+                        <Link to="/app/dashboard" className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-900 transition-colors">
+                            <ChevronLeft className="w-5 h-5" />
+                        </Link>
+                        <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">{t('settings.title')}</h1>
+                    </div>
+                    <div className="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-xl text-center">
+                        <p className="text-sm font-black text-slate-700">{t('team.deniedTitle')}</p>
+                        <p className="text-xs text-slate-400 font-medium mt-1">{t('team.deniedMsg')}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-100 p-4 lg:p-8">
@@ -328,8 +372,46 @@ export const SettingsPage: React.FC = () => {
                     )}
                 </div>
 
-                {/* Seating chart image */}
+                {/* Data retention (GDPR) */}
                 <div className="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-xl shadow-slate-200/50">
+                    <div className="flex items-center gap-3 mb-1">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center">
+                            <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <h2 className="text-lg font-black text-slate-900 tracking-tight">{t('settings.retentionTitle')}</h2>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mb-4">
+                        {t('settings.retentionMsg')}
+                    </p>
+                    {loading ? (
+                        <div className="h-11 w-40 bg-slate-100 rounded-xl animate-pulse" />
+                    ) : (
+                        <div className="flex gap-2 items-center">
+                            <input
+                                type="number"
+                                min={1}
+                                max={36}
+                                step={1}
+                                value={retention}
+                                onChange={e => setRetention(e.target.value)}
+                                className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500/50 focus:border-slate-500"
+                            />
+                            <button
+                                onClick={handleSaveRetention}
+                                disabled={savingRetention}
+                                className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                                {savingRetention ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {savingRetention ? t('common.saving') : t('common.save')}
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Team (owner) */}
+                <TeamCard flash={flash} />
+
+                {/* Seating chart image */}                <div className="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-xl shadow-slate-200/50">
                     <div className="flex items-center gap-3 mb-1">
                         <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                             <ImageIcon className="w-5 h-5" />

@@ -111,6 +111,19 @@ export const api = {
     getTenant: () =>
         client.get<TenantContext>('/tenants/me', { auth: true }),
 
+    /** Current user (role drives owner-only UI). Null when signed out. */
+    getMe: () =>
+        client.get<{ id: string; email: string; role: 'OWNER' | 'STAFF'; tenantId: string }>('/auth/me', { auth: true }),
+
+    getUsers: () =>
+        client.get<{ id: string; email: string; role: string; emailVerified: string | null; createdAt: string }[]>('/users', { auth: true }),
+
+    createUser: (data: { email: string; password: string; role: 'OWNER' | 'STAFF' }) =>
+        client.post<{ id: string; email: string; role: string }>('/users', { body: data, auth: true }),
+
+    deleteUser: (id: string) =>
+        client.delete<{ removed: boolean }>(`/users/${id}`, { auth: true }),
+
     /** Public marketing counter shown in the hero. Sandboxes are excluded. */
     getOnboardedRestaurants: () =>
         client.get<{ count: number }>('/stats/restaurants'),
@@ -156,6 +169,10 @@ export const api = {
     cancelBooking: (id: string) =>
         client.post<Booking>(`/bookings/${id}/cancel`, { auth: true }),
 
+    /** GDPR Art.17: soft-delete + PII wipe (host, past bookings). */
+    eraseBooking: (id: string) =>
+        client.delete<{ erased: boolean }>(`/bookings/${id}`, { auth: true }),
+
     // Demo-only endpoint (backend enforces the demo session).
     autoConsec: (date: string) =>
         client.post<unknown>('/tests/auto-consec', { body: { date }, auth: true }),
@@ -168,7 +185,7 @@ export const api = {
     getSettings: () =>
         client.get<RestaurantSettings>('/settings', { auth: true }),
 
-    updateSettings: (data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number }) =>
+    updateSettings: (data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; retentionMonths?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number }) =>
         client.patch<RestaurantSettings>('/settings', { body: data, auth: true }),
 
     /** Host toggle for the guest-confirmed flag. */

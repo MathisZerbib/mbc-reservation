@@ -2,6 +2,7 @@ import { Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { Server } from 'socket.io';
+import { emitToTenant } from '../lib/tenantSocket';
 
 import { getSettings, updateSettings, setFloorPlanImageUrl } from '../services/settingsService';
 import { AuthRequest } from '../middleware/isAuthenticated';
@@ -36,17 +37,18 @@ export const settingsController = (io: Server) => ({
                 avgTicket: (req.body as any)?.avgTicket,
                 avgTicketLunch: (req.body as any)?.avgTicketLunch,
                 avgTicketDinner: (req.body as any)?.avgTicketDinner,
+                retentionMonths: (req.body as any)?.retentionMonths,
                 lateGraceMinutes: (req.body as any)?.lateGraceMinutes,
                 autoCancelLate: (req.body as any)?.autoCancelLate,
                 depositEnabled: (req.body as any)?.depositEnabled,
                 depositMinSize: (req.body as any)?.depositMinSize,
                 tableTurnoverMinutes: (req.body as any)?.tableTurnoverMinutes,
             });
-            io.emit('settings-update', { settings: updated });
+            emitToTenant(io, req.tenant!.id, 'settings-update', { settings: updated });
             res.json(updated);
         } catch (error) {
             console.error(error);
-            if (error instanceof Error && /avgTicket|Lunch|Dinner|lateGraceMinutes|autoCancelLate|depositEnabled|depositMinSize|tableTurnoverMinutes/.test(error.message)) {
+            if (error instanceof Error && /avgTicket|Lunch|Dinner|retentionMonths|lateGraceMinutes|autoCancelLate|depositEnabled|depositMinSize|tableTurnoverMinutes/.test(error.message)) {
                 return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: 'Internal server error' });
@@ -70,7 +72,7 @@ export const settingsController = (io: Server) => ({
             }
             const updated = await setFloorPlanImageUrl(req.tenant!.id, url);
             removePreviousUpload(previous.floorPlanImageUrl);
-            io.emit('settings-update', { settings: updated });
+            emitToTenant(io, req.tenant!.id, 'settings-update', { settings: updated });
             res.json(updated);
         } catch (error) {
             console.error(error);
@@ -89,7 +91,7 @@ export const settingsController = (io: Server) => ({
             const previous = await getSettings(req.tenant!.id);
             const updated = await setFloorPlanImageUrl(req.tenant!.id, null);
             removePreviousUpload(previous.floorPlanImageUrl);
-            io.emit('settings-update', { settings: updated });
+            emitToTenant(io, req.tenant!.id, 'settings-update', { settings: updated });
             res.json(updated);
         } catch (error) {
             console.error(error);
