@@ -117,6 +117,7 @@ export async function getAvailableTables(
 export async function createReservation(input: CreateReservationInput) {
     const { name, phone, email, language, size, startTime, lowTable, tenantId } = input;
     const tags = sanitizeTags(input.tags);
+    const source = input.source === 'WALKIN' ? 'WALKIN' : 'RESERVATION';
     // Details only stick when their tag is set; everything stays blankable.
     const allergyNote = tags.includes('ALLERGY') ? sanitizeNote(input.allergyNote) : null;
     const vipNote = tags.includes('VIP') ? sanitizeNote(input.vipNote) : null;
@@ -172,6 +173,7 @@ export async function createReservation(input: CreateReservationInput) {
                 allergyNote,
                 birthdayDate,
                 vipNote,
+                source,
                 tenantId,
                 tables: {
                     connect: combination ? combination.map((t: any) => ({ id: t.id })) : []

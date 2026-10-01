@@ -165,6 +165,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 allergyNote: formData.tags.includes('ALLERGY') ? formData.allergyNote : null,
                 birthdayDate: formData.tags.includes('BIRTHDAY') && formData.birthdayDate ? formData.birthdayDate : null,
                 vipNote: formData.tags.includes('VIP') ? formData.vipNote : null,
+                source: 'WALKIN',
             }, tenant.slug);
             
             await refresh(); // Force refresh of context data before proceeding

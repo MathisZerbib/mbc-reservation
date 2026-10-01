@@ -29,6 +29,8 @@ export interface Booking {
     vipNote?: string | null;
     guestConfirmed?: boolean;
     seatedAt?: string | null;
+    leftAt?: string | null;
+    source?: 'RESERVATION' | 'WALKIN';
     tables: Table[];
 }
 
@@ -37,6 +39,7 @@ export interface CreateBookingPayload {
     phone?: string;
     email?: string;
     size: number;
+    source?: 'RESERVATION' | 'WALKIN';
     language?: string;
     lowTable?: boolean;
     tags?: string[];
@@ -84,8 +87,48 @@ export interface DailyAvailability {
     available: boolean;
 }
 
+export interface RangeDay {
+    date: string;
+    bookings: number;
+    guests: number;
+    turnover: number;
+    noShows: number;
+    cancellations: number;
+    walkins: number;
+}
+
+export interface RangeAnalytics {
+    from: string;
+    to: string;
+    days: RangeDay[];
+    totals: {
+        bookings: number;
+        guests: number;
+        turnover: number;
+        noShows: number;
+        cancellations: number;
+        noShowRate: number;
+        cancelRate: number;
+        walkins: number;
+        walkinShare: number;
+        estimatedWalkins: boolean;
+    };
+    turnover: { avgMinutes: number; realShare: number };
+    sizeBands: { label: '2' | '4' | '6+'; bookings: number; guests: number }[];
+    heatmap: { dow: number; hour: string; bookings: number; guests: number }[];
+    crm: {
+        newClients: number;
+        returningClients: number;
+        top: { name: string; visits: number; noShows: number; lastVisit: string }[];
+    };
+    avgTicketLunch: number | null;
+    avgTicketDinner: number | null;
+}
+
 export interface RestaurantSettings {
     avgTicket: number;
+    avgTicketLunch: number | null;
+    avgTicketDinner: number | null;
     floorPlanImageUrl: string | null;
     lateGraceMinutes: number;
     autoCancelLate: boolean;

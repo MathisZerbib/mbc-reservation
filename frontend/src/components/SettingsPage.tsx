@@ -11,6 +11,8 @@ export const SettingsPage: React.FC = () => {
     const { t } = useTranslation();
     const { settings, loading, refresh } = useRestaurantSettings();
     const [avgTicket, setAvgTicket] = useState('');
+    const [avgLunch, setAvgLunch] = useState('');
+    const [avgDinner, setAvgDinner] = useState('');
     const [lateGrace, setLateGrace] = useState('');
     const [turnover, setTurnover] = useState('105');
     const [autoCancel, setAutoCancel] = useState(true);
@@ -24,6 +26,8 @@ export const SettingsPage: React.FC = () => {
     useEffect(() => {
         if (settings) {
             setAvgTicket(String(settings.avgTicket));
+            setAvgLunch(settings.avgTicketLunch != null ? String(settings.avgTicketLunch) : '');
+            setAvgDinner(settings.avgTicketDinner != null ? String(settings.avgTicketDinner) : '');
             setLateGrace(String(settings.lateGraceMinutes ?? 15));
             setAutoCancel(settings.autoCancelLate ?? true);
             setTurnover(String(settings.tableTurnoverMinutes ?? 105));
@@ -40,7 +44,11 @@ export const SettingsPage: React.FC = () => {
     const handleSaveTicket = async () => {
         setSaving(true);
         try {
-            await api.updateSettings({ avgTicket: Number(avgTicket) });
+            await api.updateSettings({
+                avgTicket: Number(avgTicket),
+                avgTicketLunch: avgLunch === '' ? null : Number(avgLunch),
+                avgTicketDinner: avgDinner === '' ? null : Number(avgDinner),
+            });
             await refresh();
             flash('ok', t('settings.ticketSaved'));
         } catch (e) {
@@ -130,24 +138,55 @@ export const SettingsPage: React.FC = () => {
                     {loading ? (
                         <div className="h-11 w-40 bg-slate-100 rounded-xl animate-pulse" />
                     ) : (
-                        <div className="flex gap-2">
-                            <input
-                                type="number"
-                                min={1}
-                                max={1000}
-                                step={0.5}
-                                value={avgTicket}
-                                onChange={e => setAvgTicket(e.target.value)}
-                                className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
-                            />
-                            <button
-                                onClick={handleSaveTicket}
-                                disabled={saving}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
-                            >
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                {saving ? t('common.saving') : t('common.save')}
-                            </button>
+                        <div className="flex flex-col gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={1000}
+                                    step={0.5}
+                                    value={avgTicket}
+                                    onChange={e => setAvgTicket(e.target.value)}
+                                    className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                                />
+                                <button
+                                    onClick={handleSaveTicket}
+                                    disabled={saving}
+                                    className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                                >
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    {saving ? t('common.saving') : t('common.save')}
+                                </button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('settings.ticketLunch')}</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={1000}
+                                        step={0.5}
+                                        value={avgLunch}
+                                        onChange={e => setAvgLunch(e.target.value)}
+                                        placeholder="—"
+                                        className="w-20 bg-transparent text-sm font-black text-slate-900 focus:outline-none"
+                                    />
+                                </label>
+                                <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('settings.ticketDinner')}</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={1000}
+                                        step={0.5}
+                                        value={avgDinner}
+                                        onChange={e => setAvgDinner(e.target.value)}
+                                        placeholder="—"
+                                        className="w-20 bg-transparent text-sm font-black text-slate-900 focus:outline-none"
+                                    />
+                                </label>
+                            </div>
+                            <p className="text-[11px] text-slate-400 font-medium">{t('settings.ticketSplitMsg')}</p>
                         </div>
                     )}
                 </div>

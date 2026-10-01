@@ -34,6 +34,8 @@ export const settingsController = (io: Server) => ({
         try {
             const updated = await updateSettings(req.tenant!.id, {
                 avgTicket: (req.body as any)?.avgTicket,
+                avgTicketLunch: (req.body as any)?.avgTicketLunch,
+                avgTicketDinner: (req.body as any)?.avgTicketDinner,
                 lateGraceMinutes: (req.body as any)?.lateGraceMinutes,
                 autoCancelLate: (req.body as any)?.autoCancelLate,
                 depositEnabled: (req.body as any)?.depositEnabled,
@@ -44,7 +46,7 @@ export const settingsController = (io: Server) => ({
             res.json(updated);
         } catch (error) {
             console.error(error);
-            if (error instanceof Error && /avgTicket|lateGraceMinutes|autoCancelLate|depositEnabled|depositMinSize|tableTurnoverMinutes/.test(error.message)) {
+            if (error instanceof Error && /avgTicket|Lunch|Dinner|lateGraceMinutes|autoCancelLate|depositEnabled|depositMinSize|tableTurnoverMinutes/.test(error.message)) {
                 return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: 'Internal server error' });

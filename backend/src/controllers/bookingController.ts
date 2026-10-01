@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { getAvailableTables, findTableCombination, addMinutes, RESERVATION_DURATION, getSuggestions, createReservation, rescheduleBooking, MIN_BOOKING_ADVANCE_HOURS } from '../services/bookingService';
 import { getAdjacencyMap } from '../services/floorPlanService';
 import { getDailyAnalytics } from '../services/analyticsService';
+import { getRangeAnalytics } from '../services/rangeAnalyticsService';
 import { verifyTurnstile } from '../utils/turnstile';
 import { Server } from 'socket.io';
 import { emailService } from '../services/emailService';
@@ -117,7 +118,7 @@ export const bookingController = (io: Server) => ({
 
     createBooking: async (req: AuthRequest, res: Response) => {
         try {
-            let { name, phone, email, size, startTime, language, lowTable, notify, turnstileToken, tags, allergyNote, birthdayDate, vipNote } = req.body;
+            let { name, phone, email, size, startTime, language, lowTable, notify, turnstileToken, tags, allergyNote, birthdayDate, vipNote, source } = req.body;
 
             // Bot protection for anonymous bookings; signed-in staff bypass it.
             if (!getIsAdmin(req)) {
@@ -180,6 +181,8 @@ export const bookingController = (io: Server) => ({
                 allergyNote,
                 birthdayDate,
                 vipNote,
+                // Only staff can file a booking as walk-in; public form stays RESERVATION.
+                source: getIsAdmin(req) && source === 'WALKIN' ? 'WALKIN' : 'RESERVATION',
                 tenantId: tenantId(req)
             });
 
@@ -235,8 +238,39 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    cancelBooking: async (req: AuthRequest, res: Response) => {
+    finishMeal: async (req: AuthRequest, res: Response) => {
         try {
+            let { id } = req.params;
+            if (Array.isArray(id)) id = id[0];
+            const tid = tenantId(req);
+            const existing = await prisma.booking.findFirst({
+                where: { id: id, tenantId: tid }
+            } as any) as any;
+            if (!existing) return res.status(404).json({ error: 'Booking not found' });
+            if (existing.status !== 'COMPLETED' || !existing.seatedAt) {
+                return res.status(400).json({ error: 'Only seated bookings can be finished' });
+            }
+
+            const finished = existing.leftAt
+                ? existing
+                : await prisma.booking.update({
+                    where: { id: id },
+                    data: { leftAt: new Date() }
+                } as any);
+
+            const withTables = await prisma.booking.findUnique({
+                where: { id: id },
+                include: { tables: true } as any
+            });
+            io.emit('booking-update', { type: 'update', booking: withTables ?? finished });
+            res.json(withTables ?? finished);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Failed to finish meal' });
+        }
+    },
+
+    cancelBooking: async (req: AuthRequest, res: Response) => {        try {
             let { id } = req.params;
             if (Array.isArray(id)) id = id[0];
             const tid = tenantId(req);
@@ -389,6 +423,22 @@ export const bookingController = (io: Server) => ({
             console.error(error);
             if ((error as Error).message?.startsWith('Invalid date')) {
                 return res.status(400).json({ error: 'Invalid date, expected YYYY-MM-DD' });
+            }
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+
+    getRangeAnalytics: async (req: AuthRequest, res: Response) => {
+        try {
+            const { from, to } = req.query;
+            if (!from || !to || typeof from !== 'string' || typeof to !== 'string') {
+                return res.status(400).json({ error: 'Missing from/to (YYYY-MM-DD)' });
+            }
+            res.json(await getRangeAnalytics(from, to, tenantId(req)));
+        } catch (error) {
+            console.error(error);
+            if ((error as Error).message?.startsWith('Invalid range') || (error as Error).message?.startsWith('Range too wide')) {
+                return res.status(400).json({ error: (error as Error).message });
             }
             res.status(500).json({ error: 'Internal server error' });
         }

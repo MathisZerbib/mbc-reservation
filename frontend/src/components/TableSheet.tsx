@@ -122,6 +122,16 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
         }
     };
 
+    const finishMeal = async (id: string) => {
+        setBusy(true);
+        try {
+            await api.finishMeal(id);
+            await refresh();
+        } finally {
+            setBusy(false);
+        }
+    };
+
     /** Inline 2-tap cancel: first tap arms, second confirms (auto-disarms). */
     const askCancel = (id: string) => {
         setConfirmCancelId(id);
@@ -273,6 +283,15 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                     >
                                         {t('sheet.view')}
                                     </button>
+                                    {b.status === 'COMPLETED' && b.seatedAt && !b.leftAt && (
+                                        <button
+                                            onClick={() => finishMeal(b.id)}
+                                            disabled={busy}
+                                            className="h-9 px-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                                        >
+                                            <Check className="w-3.5 h-3.5" /> {t('sheet.finish')}
+                                        </button>
+                                    )}
                                     {open && (
                                         <>
                                             <button

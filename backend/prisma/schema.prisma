@@ -75,6 +75,9 @@ model RestaurantSettings {
   tenantId          String   @unique
   tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   avgTicket         Float    @default(55)
+  /** Optional per-service tickets; null = fall back to avgTicket. */
+  avgTicketLunch    Float?
+  avgTicketDinner   Float?
   floorPlanImageUrl String?
   /** Minutes after startTime before an open booking counts as late. */
   lateGraceMinutes  Int      @default(15)
@@ -122,6 +125,10 @@ model Booking {
   birthdayDate DateTime?
   /** Free-text VIP note (when VIP tag set). Blank = none. */
   vipNote String?
+  /** Origin: staff-entered on the spot (walk-in / phone at counter) vs reservation. */
+  source BookingSource @default(RESERVATION)
+  /** Meal finished at (host "repas terminé" action). Null = still seated / unknown. */
+  leftAt DateTime?
   /** Guest confirmed (host toggle). Drives the confirmation icon. */
   guestConfirmed Boolean @default(false)
   /** Seated at (set on check-in). Drives overtime detection. */
@@ -145,4 +152,9 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+}
+
+enum BookingSource {
+  RESERVATION
+  WALKIN
 }

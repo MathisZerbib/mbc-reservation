@@ -31,6 +31,31 @@ export const bookingRoutes = (io: Server) => {
 
     /**
      * @swagger
+     * /analytics/range:
+     *   get:
+     *     summary: Range analytics (KPIs, heatmap, sizes, turnover, CRM)
+     *     tags: [Bookings]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: from
+     *         required: true
+     *         schema: { type: string }
+     *       - in: query
+     *         name: to
+     *         required: true
+     *         schema: { type: string }
+     *     responses:
+     *       200:
+     *         description: Range statistics (max 366 days)
+     *       400:
+     *         description: Invalid range
+     */
+    router.get('/analytics/range', isAuthenticated, requireTenant, controller.getRangeAnalytics);
+
+    /**
+     * @swagger
      * /daily-availability:
      *   get:
      *     summary: Get daily availability
@@ -150,6 +175,7 @@ export const bookingRoutes = (io: Server) => {
      */
     router.patch('/bookings/:id', isAuthenticated, requireTenant, requireActiveTrial, controller.rescheduleBooking);
     router.post('/bookings/:id/check-in', isAuthenticated, requireTenant, requireActiveTrial, controller.checkIn);
+    router.post('/bookings/:id/finish', isAuthenticated, requireTenant, requireActiveTrial, controller.finishMeal);
     router.post('/bookings/:id/cancel', isAuthenticated, requireTenant, requireActiveTrial, controller.cancelBooking);
 
     return router;

@@ -27,7 +27,7 @@ export const ServiceMetrics: React.FC<ServiceMetricsProps> = ({ bookings, date }
         const day = bookings.filter(
             b => dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD') === date && b.status !== 'CANCELLED',
         );
-        const seated = day.filter(b => b.status === 'COMPLETED' && dayjs(b.endTime).isAfter(now));
+        const seated = day.filter(b => b.status === 'COMPLETED' && !b.leftAt && dayjs(b.endTime).isAfter(now));
         const seatedCovers = seated.reduce((s, b) => s + b.size, 0);
         const totalCovers = day.reduce((s, b) => s + b.size, 0);
         const tablesNow = new Set(seated.flatMap(b => (b.tables ?? []).map(x => x.name)));

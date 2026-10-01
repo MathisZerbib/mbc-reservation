@@ -1,4 +1,4 @@
-import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, DailyAvailability, RestaurantSettings, LayoutTable, TenantContext } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, RangeAnalytics, DailyAvailability, RestaurantSettings, LayoutTable, TenantContext } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
@@ -127,6 +127,9 @@ export const api = {
     getAnalytics: (date: string) =>
         client.get<Analytics>('/analytics', { params: { date }, auth: true }),
 
+    getRangeAnalytics: (from: string, to: string) =>
+        client.get<RangeAnalytics>('/analytics/range', { params: { from, to }, auth: true }),
+
     checkAvailability: (date: string, time: string, size: number, slug: string) =>
         client.get<AvailabilityResponse>('/availability', { params: { date, time, size, slug } }),
 
@@ -146,6 +149,10 @@ export const api = {
     checkIn: (id: string) =>
         client.post<Booking>(`/bookings/${id}/check-in`, { auth: true }),
 
+    /** Host ends the meal: sets leftAt, frees the table for turnover stats. */
+    finishMeal: (id: string) =>
+        client.post<Booking>(`/bookings/${id}/finish`, { auth: true }),
+
     cancelBooking: (id: string) =>
         client.post<Booking>(`/bookings/${id}/cancel`, { auth: true }),
 
@@ -157,7 +164,7 @@ export const api = {
     getSettings: () =>
         client.get<RestaurantSettings>('/settings', { auth: true }),
 
-    updateSettings: (data: { avgTicket?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number }) =>
+    updateSettings: (data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number }) =>
         client.patch<RestaurantSettings>('/settings', { body: data, auth: true }),
 
     /** Host toggle for the guest-confirmed flag. */

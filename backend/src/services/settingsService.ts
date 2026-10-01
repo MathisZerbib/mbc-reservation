@@ -1,4 +1,13 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
 import { prisma } from '../lib/prisma';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+export const RESTAURANT_TZ = 'Europe/Paris';
 
 export const MIN_AVG_TICKET = 1;
 export const MAX_AVG_TICKET = 1000;
@@ -20,6 +29,8 @@ export const DEFAULT_LATE_GRACE_MINUTES = 15;
 
 export interface RestaurantSettingsDTO {
     avgTicket: number;
+    avgTicketLunch: number | null;
+    avgTicketDinner: number | null;
     floorPlanImageUrl: string | null;
     lateGraceMinutes: number;
     autoCancelLate: boolean;
@@ -44,6 +55,18 @@ export function parseAvgTicket(input: unknown): number {
     return Math.round(value * 100) / 100;
 }
 
+/**
+ * Optional per-service ticket. Null/undefined clears back to the
+ * global avgTicket fallback; otherwise same range rules as avgTicket.
+ */
+export function parseOptionalAvgTicket(input: unknown, name: string): number | null {
+    if (input === null || input === undefined || input === '') return null;
+    try {
+        return parseAvgTicket(input);
+    } catch {
+        throw new Error(`${name} must be between ${MIN_AVG_TICKET} and ${MAX_AVG_TICKET}`);
+    }
+}
 /**
  * Pure validation for the late-tolerance input. Returns whole minutes
  * or throws with a human-readable message (controller maps to 400).
@@ -86,8 +109,10 @@ export function parseTurnoverMinutes(input: unknown): number {
     return value;
 }
 
-const toDTO = (row: { avgTicket: number; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; tableTurnoverMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
+const toDTO = (row: { avgTicket: number; avgTicketLunch: number | null; avgTicketDinner: number | null; floorPlanImageUrl: string | null; lateGraceMinutes: number; autoCancelLate: boolean; depositEnabled: boolean; depositMinSize: number; tableTurnoverMinutes: number; updatedAt: Date }): RestaurantSettingsDTO => ({
     avgTicket: row.avgTicket,
+    avgTicketLunch: row.avgTicketLunch,
+    avgTicketDinner: row.avgTicketDinner,
     floorPlanImageUrl: row.floorPlanImageUrl,
     lateGraceMinutes: row.lateGraceMinutes,
     autoCancelLate: row.autoCancelLate,
@@ -107,10 +132,16 @@ export async function getSettings(tenantId: string): Promise<RestaurantSettingsD
     return toDTO(row);
 }
 
-export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown; tableTurnoverMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
-    const data: { avgTicket?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number } = {};
+export async function updateSettings(tenantId: string, input: { avgTicket?: unknown; avgTicketLunch?: unknown; avgTicketDinner?: unknown; lateGraceMinutes?: unknown; autoCancelLate?: unknown; depositEnabled?: unknown; depositMinSize?: unknown; tableTurnoverMinutes?: unknown }): Promise<RestaurantSettingsDTO> {
+    const data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; tableTurnoverMinutes?: number } = {};
     if (input.avgTicket !== undefined) {
         data.avgTicket = parseAvgTicket(input.avgTicket);
+    }
+    if (input.avgTicketLunch !== undefined) {
+        data.avgTicketLunch = parseOptionalAvgTicket(input.avgTicketLunch, 'avgTicketLunch');
+    }
+    if (input.avgTicketDinner !== undefined) {
+        data.avgTicketDinner = parseOptionalAvgTicket(input.avgTicketDinner, 'avgTicketDinner');
     }
     if (input.lateGraceMinutes !== undefined) {
         data.lateGraceMinutes = parseLateGraceMinutes(input.lateGraceMinutes);
@@ -142,6 +173,16 @@ export async function setFloorPlanImageUrl(tenantId: string, url: string | null)
         create: { tenantId, floorPlanImageUrl: url },
     });
     return toDTO(row);
+}
+
+/**
+ * Ticket applied to a service: lunch/dinner override when set,
+ * global avgTicket otherwise. Lunch = start before 15:00 restaurant time.
+ */
+export function ticketForService(startTime: Date, avgTicket: number, lunch: number | null, dinner: number | null): number {
+    const hour = dayjs(startTime).tz(RESTAURANT_TZ).hour();
+    if (hour < 15) return lunch ?? avgTicket;
+    return dinner ?? avgTicket;
 }
 
 /**

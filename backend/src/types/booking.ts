@@ -22,6 +22,8 @@ export interface Booking {
     tags?: string[];
     guestConfirmed?: boolean;
     seatedAt?: Date | string | null;
+    leftAt?: Date | string | null;
+    source?: 'RESERVATION' | 'WALKIN';
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -42,4 +44,5 @@ export interface CreateReservationInput {
     allergyNote?: string | null;
     birthdayDate?: Date | string | null;
     vipNote?: string | null;
+    source?: 'RESERVATION' | 'WALKIN';
 }
