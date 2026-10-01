@@ -1,9 +1,12 @@
 import { prisma } from '../lib/prisma';
+import { sandboxSlugs } from './tenantService';
 import dayjs from 'dayjs';
 import type { Server } from 'socket.io';
 
 /**
  * Automatically cleans up bookings older than 2 days.
+ * Sandbox tenants (demo/mbc/...) are excluded: the demo keeps its
+ * seeded history so analytics and the widget stay testable.
  * Can be configured to delete or archive.
  * Here we delete as requested.
  */
@@ -16,7 +19,8 @@ export async function cleanupOldBookings() {
             where: {
                 startTime: {
                     lt: thresholdDate
-                }
+                },
+                tenant: { slug: { notIn: [...sandboxSlugs()] } }
             }
         });
 
@@ -51,8 +55,10 @@ export function startCleanupTask(io?: Server) {
  */
 export async function autoCancelNoShows(io?: Server): Promise<number> {
     try {
+        // Demo/sandbox tenants are frozen snapshots: the sweep would rot
+        // their future bookings into no-shows day after day.
         const policies = await prisma.restaurantSettings.findMany({
-            where: { autoCancelLate: true },
+            where: { autoCancelLate: true, tenant: { slug: { notIn: [...sandboxSlugs()] } } },
             select: { tenantId: true, lateGraceMinutes: true },
         });
         let total = 0;
