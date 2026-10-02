@@ -61,6 +61,30 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   const { t } = useTranslation();
   const { tables: layoutTables } = useLayoutTables();
   const { dark } = useDarkMode();
+
+  /**
+   * Canvas framing: fit the viewBox to the tables' bounding box (plus
+   * padding) so the drawn floor stays centered in the card whatever the
+   * room shape. Falls back to the legacy 1000x800 when empty.
+   */
+  const canvas = React.useMemo(() => {
+    if (layoutTables.length === 0) return { x: 0, y: 0, w: 1000, h: 800 };
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const tb of layoutTables) {
+      const x = tb.x ?? 0, y = tb.y ?? 0;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + (tb.width ?? 60));
+      maxY = Math.max(maxY, y + (tb.height ?? 60));
+    }
+    const pad = 80;
+    return {
+      x: Math.max(0, minX - pad),
+      y: Math.max(0, minY - pad),
+      w: Math.max(200, maxX - minX + pad * 2),
+      h: Math.max(200, maxY - minY + pad * 2),
+    };
+  }, [layoutTables]);
   const [viewMode, setViewMode] = useState<'LIVE' | 'OVERVIEW'>(initialViewMode);
   const [tempTables, setTempTables] = useState<string[]>([]);
   const [placing, setPlacing] = useState(false);
@@ -270,7 +294,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
         }}
       >
         <svg
-          viewBox="0 0 1000 800"
+          viewBox={`${canvas.x} ${canvas.y} ${canvas.w} ${canvas.h}`}
           preserveAspectRatio="xMidYMid meet"
           className="w-full h-full bg-slate-50/30 dark:bg-transparent cursor-grab active:cursor-grabbing"
         >
@@ -282,9 +306,9 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
               <stop offset="0%" stopColor="#f8fafc" />
               <stop offset="100%" stopColor="#f1f5f9" />
             </linearGradient>
-            <clipPath id="mapCanvasClip">
-              <rect x="0" y="0" width="1000" height="800" />
-            </clipPath>
+          <clipPath id="mapCanvasClip">
+            <rect x={canvas.x} y={canvas.y} width={canvas.w} height={canvas.h} />
+          </clipPath>
           </defs>
           <rect width="100%" height="100%" fill="url(#floorGrad)" className="dark:hidden" />
           <rect width="100%" height="100%" fill="url(#grid)" className="dark:hidden" />

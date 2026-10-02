@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Users, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTranslation } from '../i18n/useTranslation';
@@ -20,19 +20,40 @@ export const TeamCard: React.FC<{ flash: (kind: 'ok' | 'err', text: string) => v
     const [password, setPassword] = useState('');
     const [adding, setAdding] = useState(false);
 
-    const load = useCallback(async () => {
+    // Latest callbacks without becoming effect dependencies: the roster
+    // fetches exactly once on mount, never per parent re-render.
+    const flashRef = useRef(flash);
+    flashRef.current = flash;
+    const tRef = useRef(t);
+    tRef.current = t;
+
+    const load = async () => {
         try {
             setUsers(await api.getUsers());
         } catch (e) {
-            flash('err', e instanceof Error ? e.message : t('settings.saveFailed'));
+            flashRef.current('err', e instanceof Error ? e.message : tRef.current('settings.saveFailed'));
         } finally {
             setLoading(false);
         }
-    }, [flash, t]);
+    };
 
     useEffect(() => {
-        void load();
-    }, [load]);
+        let live = true;
+        (async () => {
+            try {
+                const roster = await api.getUsers();
+                if (live) setUsers(roster);
+            } catch (e) {
+                if (live) flashRef.current('err', e instanceof Error ? e.message : tRef.current('settings.saveFailed'));
+            } finally {
+                if (live) setLoading(false);
+            }
+        })();
+        return () => {
+            live = false;
+        };
+        // Mount-only: refs carry the latest flash/t without re-triggering.
+    }, []);
 
     const add = async () => {
         if (!email.trim() || password.length < 12) {

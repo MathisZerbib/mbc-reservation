@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { depositRequired, parseDepositAmount, isStripeEnabled } from './depositService';
+import { depositRequired, parseDepositAmount, isStripeEnabled, connectErrorResponse } from './depositService';
 
 describe('depositRequired', () => {
     it('requires a hold when enabled and size meets the threshold', () => {
@@ -35,5 +35,20 @@ describe('isStripeEnabled', () => {
         expect(isStripeEnabled()).toBe(true);
         if (original === undefined) delete process.env.STRIPE_SECRET_KEY;
         else process.env.STRIPE_SECRET_KEY = original;
+    });
+});
+
+describe('connectErrorResponse', () => {
+    it('maps platform-activation failures to an actionable 400', () => {
+        const res = connectErrorResponse(
+            new Error('Your account must be activated in order to create accounts.'),
+        );
+        expect(res.status).toBe(400);
+        expect(res.error).toMatch(/not activated/i);
+    });
+
+    it('keeps unknown failures as generic 500s', () => {
+        const res = connectErrorResponse(new Error('socket hang up'));
+        expect(res).toEqual({ status: 500, error: 'Failed to start Stripe onboarding' });
     });
 });

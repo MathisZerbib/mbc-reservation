@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { isAuthenticated, requireTenant, requireActiveTrial, requireRole, AuthRequest } from '../middleware/isAuthenticated';
 import { prisma } from '../lib/prisma';
 import { getSettings } from '../services/settingsService';
-import { isStripeEnabled, createOnboardingLink, refreshOnboardingStatus } from '../services/depositService';
+import { isStripeEnabled, createOnboardingLink, refreshOnboardingStatus, connectErrorResponse } from '../services/depositService';
 
 const router = Router();
 
@@ -53,7 +53,8 @@ router.post('/stripe/connect', isAuthenticated, requireTenant, requireActiveTria
         res.json(link);
     } catch (e) {
         console.error('Stripe connect failed:', (e as Error).message);
-        res.status(500).json({ error: 'Failed to start Stripe onboarding' });
+        const mapped = connectErrorResponse(e);
+        res.status(mapped.status).json({ error: mapped.error });
     }
 });
 

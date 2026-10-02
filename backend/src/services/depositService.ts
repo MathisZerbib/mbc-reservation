@@ -55,6 +55,23 @@ export interface ConnectSettings {
 }
 
 /**
+ * Maps Stripe onboarding failures to actionable API responses. In
+ * particular, creating Connect accounts requires an ACTIVATED platform
+ * account — otherwise Stripe answers 500-grade errors that mean "go finish
+ * business onboarding", not "retry".
+ */
+export function connectErrorResponse(e: unknown): { status: number; error: string } {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/must be activated/i.test(msg)) {
+        return {
+            status: 400,
+            error: 'Stripe platform account is not activated. Complete business onboarding at dashboard.stripe.com/account/onboarding, then retry.',
+        };
+    }
+    return { status: 500, error: 'Failed to start Stripe onboarding' };
+}
+
+/**
  * Creates (or reuses) the restaurant's Express account and returns a fresh
  * onboarding link. The restaurant completes KYC on Stripe, then returns to
  * `returnUrl`; Stripe re-calls `refreshUrl` if the link expires.

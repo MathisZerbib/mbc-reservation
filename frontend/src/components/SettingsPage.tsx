@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2, Timer, CreditCard, DatabaseBackup, ShieldCheck, Clock } from 'lucide-react';
 import { api, fileUrl } from '../services/api';
@@ -56,10 +56,10 @@ export const SettingsPage: React.FC = () => {
         }
     }, [settings]);
 
-    const flash = (kind: 'ok' | 'err', text: string) => {
+    const flash = useCallback((kind: 'ok' | 'err', text: string) => {
         setMessage({ kind, text });
         window.setTimeout(() => setMessage(null), 4000);
-    };
+    }, []);
 
     const handleSaveTicket = async () => {
         setSaving(true);
@@ -208,7 +208,7 @@ export const SettingsPage: React.FC = () => {
     if (!roleLoading && role === 'STAFF') {
         return (
             <div className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 lg:p-8">
-                <div className="max-w-3xl mx-auto flex flex-col gap-4">
+                <div className="max-w-[1600px] mx-auto flex flex-col gap-4">
                     <div className="flex items-center gap-3">
                         <Link to="/app/dashboard" className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                             <ChevronLeft className="w-5 h-5" />
@@ -226,7 +226,7 @@ export const SettingsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 lg:p-8">
-            <div className="max-w-3xl mx-auto flex flex-col gap-4">
+            <div className="max-w-[1600px] mx-auto flex flex-col gap-4">
                 <HostHeader date={today} dark={dark} onToggleDark={toggle} />
                 <p className="text-slate-500 dark:text-slate-400 font-bold text-xs lg:text-sm -mt-2">{t('settings.subtitle')}</p>
 

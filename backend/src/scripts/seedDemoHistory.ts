@@ -55,7 +55,9 @@ interface SeedTable { id: number; name: string; capacity: number }
 /**
  * Fills the demo tenant with a credible year of bookings. When `tenantId`
  * is given (HTTP path) it must belong to the `demo` slug — never touches
- * real tenants. Returns counts for the API response.
+ * real tenants (the route's requireDemo plus this guard make wiping a
+ * production tenant unreachable, even if a demo email ever collides with
+ * a real account — demoLogin refuses those). Returns counts for the API.
  */
 export async function seedDemoTenant(demoTenantId?: string) {
     let demo = demoTenantId

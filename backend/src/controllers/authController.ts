@@ -158,14 +158,19 @@ export const authController = {
       // Password login for this account is effectively disabled (random secret,
       // never exposed). The demo account lives on its own sandbox tenant.
       const email = process.env.DEMO_EMAIL || 'demo@example.com';
+      // Dedicated sandbox tenant FIRST: the demo email may already be taken
+      // on a real restaurant (then demo sessions would run on production
+      // data). Never hijack that account — refuse with a clear message.
+      let demoTenant = await findTenantBySlug('demo');
+      if (!demoTenant) demoTenant = await createTenant('Demo Restaurant', 365, 'demo');
       let user = await findUserByEmail(email);
+      if (user && user.tenantId !== demoTenant.id) {
+        return res.status(403).json({
+          error: 'This demo address is already registered on another restaurant. Use a different DEMO_EMAIL.',
+        });
+      }
       if (!user) {
         const { randomBytes } = await import('crypto');
-        let demoTenant = await findTenantBySlug('demo');
-        // Explicit slug: createTenant would slugify "Demo Restaurant" into
-        // "demo-restaurant", orphaning every `slug === 'demo'` gate (seed
-        // refill, demo checks). Single source of truth for the sandbox slug.
-        if (!demoTenant) demoTenant = await createTenant('Demo Restaurant', 365, 'demo');
         user = await createUserByEmailAndPassword({
           email,
           password: randomBytes(32).toString('base64url'),

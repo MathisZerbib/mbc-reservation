@@ -1,10 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, ShieldCheck, CircleAlert, HandCoins, Undo2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { ReconciliationHold } from '../types/index';
 
 const eur = (cents: number | null) =>
     cents == null ? '—' : `${(cents / 100).toFixed(2)} €`;
+
+/** Module-stable default so the mount effect never re-fires per render. */
+const defaultFlash = (kind: 'ok' | 'err', text: string) =>
+    (kind === 'err' ? console.error(text) : console.info(text));
 
 const fmtTime = (iso: string) =>
     new Date(iso).toLocaleString(undefined, {
@@ -25,19 +29,26 @@ const fmtTime = (iso: string) =>
 export const ReconciliationView: React.FC<{
     flash?: (kind: 'ok' | 'err', text: string) => void;
     onResolved?: () => void;
-}> = ({ flash = (kind, text) => (kind === 'err' ? console.error(text) : console.info(text)), onResolved }) => {
+}> = ({ flash = defaultFlash, onResolved }) => {
     const [holds, setHolds] = useState<ReconciliationHold[] | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
     const [confirmCharge, setConfirmCharge] = useState<string | null>(null);
+
+    // Refs carry the latest callbacks without re-triggering the mount effect.
+    const flashRef = useRef(flash);
+    flashRef.current = flash;
+    const resolvedRef = useRef(onResolved);
+    resolvedRef.current = onResolved;
 
     const load = useCallback(async () => {
         try {
             setHolds(await api.getReconciliationHolds());
         } catch {
             setHolds([]);
-            flash('err', 'Could not load unresolved holds.');
+            flashRef.current('err', 'Could not load unresolved holds.');
         }
-    }, [flash]);
+        // Mount + manual refresh only; refs stay out of the dep list.
+    }, []);
 
     useEffect(() => {
         // Fetch-on-mount: intentional data load, not derived state.
@@ -49,12 +60,12 @@ export const ReconciliationView: React.FC<{
         try {
             if (action === 'release') await api.checkIn(id);
             else await api.markNoShowAndCharge(id);
-            flash('ok', action === 'release' ? 'Hold released — guest not charged.' : 'No-show fee captured.');
+            flashRef.current('ok', action === 'release' ? 'Hold released — guest not charged.' : 'No-show fee captured.');
             setConfirmCharge(null);
             await load();
-            onResolved?.();
+            resolvedRef.current?.();
         } catch {
-            flash('err', action === 'release' ? 'Release failed — try again.' : 'Capture failed — hold left untouched.');
+            flashRef.current('err', action === 'release' ? 'Release failed — try again.' : 'Capture failed — hold left untouched.');
         } finally {
             setBusy(null);
         }
