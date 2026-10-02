@@ -1,4 +1,4 @@
-import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, RangeAnalytics, DailyAvailability, RestaurantSettings, LayoutTable, TenantContext } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, RangeAnalytics, DailyAvailability, RestaurantSettings, LayoutTable, TenantContext, ReconciliationHold } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
@@ -187,6 +187,18 @@ export const api = {
 
     stripeStatus: () =>
         client.get<{ configured: boolean; accountId: string | null; onboarded: boolean }>('/stripe/status', { auth: true }),
+
+    /**
+     * Fail-safe holds — explicit staff triggers only (no auto-capture anywhere).
+     * markNoShowAndCharge is the SOLE capture path (HELD → CAPTURED);
+     * checkIn/cancel release the hold (HELD → RELEASED).
+     */
+    markNoShowAndCharge: (id: string) =>
+        client.post<Booking>(`/bookings/${id}/no-show`, { auth: true }),
+
+    /** End-of-shift reconciliation: unresolved HELD holds from the last 24h. */
+    getReconciliationHolds: () =>
+        client.get<ReconciliationHold[]>('/bookings/reconciliation', { auth: true }),
 
     // ── Tenant settings ──
     getSettings: () =>

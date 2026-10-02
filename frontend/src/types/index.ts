@@ -1,5 +1,19 @@
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 
+/** Fail-safe hold lifecycle (Stripe Connect, manual capture — never auto-captured). */
+export type DepositStatus = 'NONE' | 'PENDING' | 'HELD' | 'CAPTURED' | 'RELEASED' | 'EXPIRED' | 'FAILED';
+
+/** One row of the end-of-shift reconciliation view (GET /bookings/reconciliation). */
+export interface ReconciliationHold {
+    id: string;
+    name: string;
+    size: number;
+    startTime: string;
+    depositAmountCents: number | null;
+    stripePaymentIntentId: string | null;
+    hoursUnresolved: number;
+}
+
 export const BOOKING_TAGS = ['VIP', 'ALLERGY', 'BIRTHDAY', 'STROLLER'] as const;
 export type BookingTag = (typeof BOOKING_TAGS)[number];
 

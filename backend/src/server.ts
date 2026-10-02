@@ -16,6 +16,7 @@ import protectedRoutes from './routes/protectedRoutes';
 import testRoutes from './routes/testRoutes';
 import userRoutes from './routes/userRoutes';
 import stripeRoutes from './routes/stripeRoutes';
+import stripeConnectWebhook from './routes/stripeConnectWebhook';
 import { prisma } from './lib/prisma';
 import swaggerUi from 'swagger-ui-express';
 import { startCleanupTask } from './services/cleanupService';
@@ -85,8 +86,11 @@ const io = new Server(server, {
 app.set('trust proxy', 1);
 
 app.use(cors(corsOptions));
-// Stripe webhook needs the raw body for signature verification —
+// Stripe webhooks need the raw body for signature verification —
 // register before express.json() consumes it.
+// - /api/stripe/webhook: legacy platform webhook (Checkout on platform acct).
+// - /api/webhooks/stripe-connect: SINGLE Connect webhook for ALL restaurants,
+//   verified with STRIPE_CONNECT_WEBHOOK_SECRET (see stripeConnectService).
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
         await handleStripeWebhook(req.body as Buffer, req.headers['stripe-signature'] as string);
@@ -96,6 +100,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
         res.status(400).json({ error: 'Webhook error' });
     }
 });
+app.use('/api/webhooks/stripe-connect', express.raw({ type: 'application/json' }), stripeConnectWebhook);
 app.use(express.json());
 // CSP disabled: swagger-ui serves inline assets; other helmet protections on.
 // crossOriginResourcePolicy is cross-origin so Vercel frontends can <img>

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Check, Plus, Clock, Users, Trash2 } from 'lucide-react';
+import { X, Check, Plus, Clock, Users, Trash2, HandCoins } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { api } from '../services/api';
 import { useBookingsContext } from '../context/useBookingsContext';
@@ -41,6 +41,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const [busy, setBusy] = useState(false);
     const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
     const [confirmEraseId, setConfirmEraseId] = useState<string | null>(null);
+    const [confirmChargeId, setConfirmChargeId] = useState<string | null>(null);
 
     const noShows = useMemo(
         () =>
@@ -146,6 +147,29 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
         try {
             await api.cancelBooking(id);
             setConfirmCancelId(null);
+            await refresh();
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    /**
+     * Fail-safe no-show charge (HELD → CAPTURED): two-tap, visible only on
+     * bookings with an active hold. The ONLY capture trigger in the system —
+     * second tap moves money, so it auto-disarms and states the amount.
+     */
+    const askCharge = (id: string) => {
+        setConfirmChargeId(id);
+        window.setTimeout(() => {
+            setConfirmChargeId(prev => (prev === id ? null : prev));
+        }, 6000);
+    };
+
+    const doCharge = async (id: string) => {
+        setBusy(true);
+        try {
+            await api.markNoShowAndCharge(id);
+            setConfirmChargeId(null);
             await refresh();
         } finally {
             setBusy(false);
@@ -383,6 +407,24 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
                                                     <X className="w-4 h-4" />
                                                 </button>
                                             )}
+                                            {b.depositStatus === 'HELD' && (confirmChargeId === b.id ? (
+                                                <button
+                                                    onClick={() => doCharge(b.id)}
+                                                    disabled={busy}
+                                                    className="h-9 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-50 animate-pulse"
+                                                >
+                                                    {t('sheet.confirmCharge').replace('{a}', ((b.depositAmountCents ?? 0) / 100).toFixed(2))}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => askCharge(b.id)}
+                                                    aria-label={t('sheet.chargeNoShow')}
+                                                    title={t('sheet.chargeNoShow')}
+                                                    className="h-9 px-3 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                                                >
+                                                    <HandCoins className="w-3.5 h-3.5" /> {t('sheet.chargeNoShow')}
+                                                </button>
+                                            ))}
                                         </>
                                     )}
                                 </div>

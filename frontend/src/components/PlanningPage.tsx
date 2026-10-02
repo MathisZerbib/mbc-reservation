@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { Agenda } from './Agenda';
+import { ReconciliationView } from './ReconciliationView';
 import { HostSearchBar } from './HostSearchBar';
 import { HostHeader } from './HostHeader';
 import { AdminQuickReservation } from './AdminQuickReservation';
@@ -70,6 +71,8 @@ export const PlanningPage: React.FC = () => {
                         onPlaceTables={id => navigate(`/app/live?date=${selectedDate}&place=${id}`)}
                     />
                 </div>
+                {/* Morning-after: unresolved HELD holds to release or charge. */}
+                <ReconciliationView />
             </div>
 
             <AdminQuickReservation

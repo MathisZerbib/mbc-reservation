@@ -139,9 +139,21 @@ model Booking {
   leftAt DateTime?
   /** Soft-delete (GDPR erasure): excluded from every query, PII wiped. */
   deletedAt DateTime?
-  /** Deposit hold: NONE | PENDING | HELD | CAPTURED | RELEASED | FAILED. */
-  depositStatus String @default("NONE")
+  /**
+   * Fail-safe authorization-hold state machine (Stripe Connect, manual capture).
+   * NONE → PENDING (hold opened) → HELD (funds authorized, 7-day Stripe clock
+   * running) → RELEASED (guest arrived / timely cancel, hold cancelled) |
+   * CAPTURED (explicit staff "Mark No-Show & Charge" only) |
+   * EXPIRED (Stripe native 7-day expiry — NO code path writes this except the
+   * Connect webhook on payment_intent.canceled with reason=expired) |
+   * FAILED (checkout expired / card declined).
+   * Terminal states (RELEASED, CAPTURED, EXPIRED, FAILED) never transition.
+   * There is deliberately NO auto-capture path.
+   */
+  depositStatus DepositStatus @default(NONE)
   depositAmountCents Int?
+  /** Native expiry of the uncaptured authorization (Stripe ~7 days). Informational only. */
+  depositExpiresAt DateTime?
   stripePaymentIntentId String?
   stripeCheckoutSessionId String?
   /** Guest confirmed (host toggle). Drives the confirmation icon. */
@@ -151,6 +163,39 @@ model Booking {
   tenantId  String
   tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tables    Table[]       @relation("BookingTables")
+
+  @@index([tenantId, depositStatus, startTime])
+  @@index([stripePaymentIntentId])
+}
+
+/**
+ * Connect webhook idempotency ledger (single platform webhook).
+ * Stripe may redeliver the same event id many times; the handler inserts
+ * here first and returns 200 immediately on conflict (unique eventId).
+ */
+model StripeWebhookEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  /** Connect account from event.account (null = platform event). */
+  stripeAccountId String?
+  type        String
+  bookingId   String?
+  /** What the handler did: APPLIED | DUPLICATE | DROPPED_MISMATCH | IGNORED. */
+  outcome     String
+  createdAt   DateTime @default(now())
+
+  @@index([stripeAccountId])
+}
+
+/** Authorization-hold lifecycle. EXPIRED is written ONLY by the Connect webhook. */
+enum DepositStatus {
+  NONE
+  PENDING
+  HELD
+  CAPTURED
+  RELEASED
+  EXPIRED
+  FAILED
 }
 
 enum TableType {

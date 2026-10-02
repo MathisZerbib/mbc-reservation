@@ -8,7 +8,8 @@ import { getDailyAnalytics } from '../services/analyticsService';
 import { getRangeAnalytics } from '../services/rangeAnalyticsService';
 import { verifyTurnstile } from '../utils/turnstile';
 import { getSettings } from '../services/settingsService';
-import { isStripeEnabled, depositRequired, createDepositHold, releaseDeposit } from '../services/depositService';
+import { isStripeEnabled, depositRequired, createDepositHold } from '../services/depositService';
+import { captureNoShow, releaseHold, getUnresolvedHolds } from '../services/stripeConnectService';
 import { Server } from 'socket.io';
 import { emitToTenant } from '../lib/tenantSocket';
 import { emailService } from '../services/emailService';
@@ -249,10 +250,10 @@ export const bookingController = (io: Server) => ({
                 data: { status: 'COMPLETED', seatedAt: new Date() }
             } as any);
 
-            // Guest showed up → release the hold (best-effort).
+            // Guest showed up → release the hold (HELD → RELEASED, best-effort).
             try {
                 const settings = await getSettings(tid);
-                await releaseDeposit(existing as any, {
+                await releaseHold(existing as any, {
                     stripeAccountId: settings.stripeAccountId,
                     stripeOnboarded: settings.stripeOnboarded,
                 });
@@ -315,8 +316,7 @@ export const bookingController = (io: Server) => ({
         }
     },
 
-    cancelBooking: async (req: AuthRequest, res: Response) => {        try {
-            let { id } = req.params;
+    cancelBooking: async (req: AuthRequest, res: Response) => {        try {            let { id } = req.params;
             if (Array.isArray(id)) id = id[0];
             const tid = tenantId(req);
             const existing = await prisma.booking.findFirst({
@@ -329,10 +329,10 @@ export const bookingController = (io: Server) => ({
                 data: { status: 'CANCELLED', cancelledBy: 'HOST' }
             } as any);
 
-            // Timely cancel → release any deposit hold (best-effort).
+            // Timely cancel → release any deposit hold (HELD → RELEASED, best-effort).
             try {
                 const settings = await getSettings(tid);
-                await releaseDeposit(existing as any, {
+                await releaseHold(existing as any, {
                     stripeAccountId: settings.stripeAccountId,
                     stripeOnboarded: settings.stripeOnboarded,
                 });
@@ -349,6 +349,69 @@ export const bookingController = (io: Server) => ({
             res.json(completeBooking);
         } catch (error) {
             res.status(500).json({ error: 'Failed to cancel booking' });
+        }
+    },
+
+    /**
+     * POST /bookings/:id/no-show — explicit "Mark No-Show & Charge".
+     * THE ONLY capture trigger in the system (fail-safe: no cron, no timeout
+     * ever captures). Requires a HELD hold; anything else → 409.
+     */
+    markNoShowAndCharge: async (req: AuthRequest, res: Response) => {
+        try {
+            let { id } = req.params;
+            if (Array.isArray(id)) id = id[0];
+            const tid = tenantId(req);
+            const existing = await prisma.booking.findFirst({
+                where: { id: id, tenantId: tid, deletedAt: null }
+            } as any) as any;
+            if (!existing) return res.status(404).json({ error: 'Booking not found' });
+            if (existing.depositStatus !== 'HELD' || !existing.stripePaymentIntentId) {
+                return res.status(409).json({
+                    error: 'No capturable hold on this booking',
+                    depositStatus: existing.depositStatus ?? 'NONE',
+                });
+            }
+            try {
+                const settings = await getSettings(tid);
+                const outcome = await captureNoShow(existing, {
+                    stripeAccountId: settings.stripeAccountId,
+                    stripeOnboarded: settings.stripeOnboarded,
+                });
+                if (outcome === 'NOOP') {
+                    return res.status(409).json({ error: 'Hold is no longer capturable' });
+                }
+            } catch (e) {
+                console.error('No-show capture failed:', (e as Error).message);
+                return res.status(502).json({ error: 'Stripe capture failed — hold left untouched' });
+            }
+            await prisma.booking.update({
+                where: { id: id },
+                data: { status: 'CANCELLED', cancelledBy: 'AUTO' }
+            } as any);
+            const completeBooking = await prisma.booking.findUnique({
+                where: { id: id },
+                include: { tables: true } as any
+            });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: completeBooking });
+            res.json(completeBooking);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to charge no-show' });
+        }
+    },
+
+    /**
+     * GET /bookings/reconciliation — "End of Shift Reconciliation".
+     * All bookings from the last 24h still HELD (unresolved): the manager
+     * releases (guest came) or captures (true no-show) before Stripe's
+     * ~7-day window expires them automatically.
+     */
+    getReconciliationHolds: async (req: AuthRequest, res: Response) => {
+        try {
+            res.json(await getUnresolvedHolds(tenantId(req)));
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Failed to load reconciliation holds' });
         }
     },
 

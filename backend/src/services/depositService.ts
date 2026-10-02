@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma';
 
-export const DEPOSIT_STATUSES = ['NONE', 'PENDING', 'HELD', 'CAPTURED', 'RELEASED', 'FAILED'] as const;
+export const DEPOSIT_STATUSES = ['NONE', 'PENDING', 'HELD', 'CAPTURED', 'RELEASED', 'EXPIRED', 'FAILED'] as const;
 export type DepositStatus = (typeof DEPOSIT_STATUSES)[number];
 
 export const MIN_DEPOSIT_EUR = 1;

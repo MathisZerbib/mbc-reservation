@@ -161,6 +161,36 @@ export const bookingRoutes = (io: Server) => {
     router.post('/bookings/:id/guest-confirm', isAuthenticated, requireTenant, requireActiveTrial, controller.toggleGuestConfirm);
     /**
      * @swagger
+     * /bookings/reconciliation:
+     *   get:
+     *     summary: End-of-shift reconciliation — unresolved HELD holds (last 24h)
+     *     tags: [Bookings]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Unresolved holds to release or capture before Stripe expiry
+     */
+    router.get('/bookings/reconciliation', isAuthenticated, requireTenant, controller.getReconciliationHolds);
+    /**
+     * @swagger
+     * /bookings/{id}/no-show:
+     *   post:
+     *     summary: Mark No-Show & Charge — the ONLY capture trigger (HELD → CAPTURED)
+     *     tags: [Bookings]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: No-show fee captured
+     *       404:
+     *         description: Booking not found
+     *       409:
+     *         description: No capturable hold (not HELD)
+     */
+    router.post('/bookings/:id/no-show', isAuthenticated, requireTenant, requireActiveTrial, controller.markNoShowAndCharge);
+    /**
+     * @swagger
      * /bookings/{id}:
      *   patch:
      *     summary: Reschedule a booking (time/size), keeping tables when compatible
