@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { FloorPlan } from './FloorPlan';
+import { ArrivalStrip } from './ArrivalStrip';
 import { Agenda } from './Agenda';
 import { ServiceMetrics } from './ServiceMetrics';
 import { HostSearchBar } from './HostSearchBar';
@@ -140,7 +141,7 @@ export const LivePage: React.FC = () => {
                     />
                     </div>
                     {split && (
-                        <div className="absolute inset-y-0 right-0 w-[400px] max-w-[calc(100%-2rem)] z-30 p-2">
+                        <div className="absolute inset-y-0 right-0 w-[400px] max-w-[calc(100%-2rem)] z-30 p-2 hidden xl:block">
                             <div className="h-full rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200/60 dark:border-slate-700/60">
                             <Agenda
                                 setHoveredBookingId={setHoveredBookingId}
@@ -156,6 +157,14 @@ export const LivePage: React.FC = () => {
                             </div>
                         </div>
                     )}
+                </div>
+                {/* Phone/tablet: map on top, horizontal arrival cards below. */}
+                <div className="flex-none xl:hidden -mt-2">
+                    <ArrivalStrip
+                        date={selectedDate}
+                        hostQuery={hostQuery}
+                        onHighlight={setHoveredBookingId}
+                    />
                 </div>
             </div>
 

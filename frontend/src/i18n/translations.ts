@@ -415,6 +415,10 @@ export const TRANSLATIONS = {
             title: 'Analytics',
             back: 'Back to live view',
         },
+        strip: {
+            title: 'Arrivals',
+            empty: 'No upcoming arrivals today',
+        },
         agenda: {
             schedule: 'Schedule',
             searchPh: 'Search name or table...',
@@ -1047,6 +1051,10 @@ export const TRANSLATIONS = {
         analyticsPage: {
             title: 'Analyses',
             back: 'Retour à la vue live',
+        },
+        strip: {
+            title: 'Arrivées',
+            empty: 'Aucune arrivée prévue aujourd’hui',
         },
         agenda: {
             schedule: 'Planning',
