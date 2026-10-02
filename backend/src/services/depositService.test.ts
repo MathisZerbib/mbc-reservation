@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { depositRequired, parseDepositAmount, isStripeEnabled, connectErrorResponse } from './depositService';
+import { depositRequired, parseDepositAmount, isStripeEnabled, connectErrorResponse, stripeMode } from './depositService';
 
 describe('depositRequired', () => {
     it('requires a hold when enabled and size meets the threshold', () => {
@@ -54,8 +54,7 @@ describe('connectErrorResponse', () => {
 });
 
 describe('stripeMode', () => {
-    it('derives test/live/unconfigured from the key prefix', async () => {
-        const { stripeMode } = await import('./depositService');
+    it('derives test/live/unconfigured from the key prefix', () => {
         const original = process.env.STRIPE_SECRET_KEY;
         process.env.STRIPE_SECRET_KEY = 'rk_test_abc';
         expect(stripeMode()).toBe('test');
