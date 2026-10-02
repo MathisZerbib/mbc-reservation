@@ -162,7 +162,10 @@ export const authController = {
       if (!user) {
         const { randomBytes } = await import('crypto');
         let demoTenant = await findTenantBySlug('demo');
-        if (!demoTenant) demoTenant = await createTenant('Demo Restaurant', 365);
+        // Explicit slug: createTenant would slugify "Demo Restaurant" into
+        // "demo-restaurant", orphaning every `slug === 'demo'` gate (seed
+        // refill, demo checks). Single source of truth for the sandbox slug.
+        if (!demoTenant) demoTenant = await createTenant('Demo Restaurant', 365, 'demo');
         user = await createUserByEmailAndPassword({
           email,
           password: randomBytes(32).toString('base64url'),

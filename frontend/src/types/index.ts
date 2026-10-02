@@ -3,6 +3,25 @@ export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 /** Fail-safe hold lifecycle (Stripe Connect, manual capture — never auto-captured). */
 export type DepositStatus = 'NONE' | 'PENDING' | 'HELD' | 'CAPTURED' | 'RELEASED' | 'EXPIRED' | 'FAILED';
 
+/** One service window within a day (HH:mm). */
+export interface OpenRange {
+    open: string;
+    close: string;
+}
+
+/**
+ * Weekly opening schedule. Keys are weekday numbers 0 (Sun) - 6 (Sat);
+ * a missing day means closed. Null = legacy 16:00-22:00 daily.
+ */
+export type OpenHours = Partial<Record<string, OpenRange[]>> | null;
+
+/** Public opening-hours grid for one date (GET /hours). */
+export interface OpenDaySlots {
+    date: string;
+    open: boolean;
+    slots: string[];
+}
+
 /** One row of the end-of-shift reconciliation view (GET /bookings/reconciliation). */
 export interface ReconciliationHold {
     id: string;
@@ -154,6 +173,7 @@ export interface RestaurantSettings {
     depositAmount: number;
     stripeAccountId: string | null;
     stripeOnboarded: boolean;
+    openHours: OpenHours;
     tableTurnoverMinutes: number;
     updatedAt: string;
 }

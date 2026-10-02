@@ -248,6 +248,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
             )}
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
+              title={isFullscreen ? t('mapview.collapse') : t('mapview.expand')}
               className="min-w-[44px] min-h-[44px] p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer flex items-center justify-center"
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}

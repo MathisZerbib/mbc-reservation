@@ -7,8 +7,10 @@ import { useSocketStatus } from '../services/socket';
 import { HostTabs } from './HostTabs';
 
 interface HostHeaderProps {
-    date: string;
-    arrivalsNow: number;
+    /** Selected day (YYYY-MM-DD). Defaults to today (settings has no day). */
+    date?: string;
+    /** Live counter on the Planning tab. Defaults to 0 (hidden badge). */
+    arrivalsNow?: number;
     /** When provided, shows the quick-résa button (live page). */
     onQuickRes?: () => void;
     /** Dark mode on/off (moon/sun toggle). */
@@ -20,7 +22,7 @@ interface HostHeaderProps {
  * Shared header for the host workspaces: title + day, workspace tabs,
  * and the global actions. One inset scale everywhere.
  */
-export const HostHeader: React.FC<HostHeaderProps> = ({ date, arrivalsNow, onQuickRes, dark = false, onToggleDark }) => {
+export const HostHeader: React.FC<HostHeaderProps> = ({ date = dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'), arrivalsNow = 0, onQuickRes, dark = false, onToggleDark }) => {
     const { t } = useTranslation();
     const live = useSocketStatus();
 

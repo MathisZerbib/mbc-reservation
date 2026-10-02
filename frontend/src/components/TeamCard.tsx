@@ -65,14 +65,14 @@ export const TeamCard: React.FC<{ flash: (kind: 'ok' | 'err', text: string) => v
     };
 
     return (
-        <div className="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-xl shadow-slate-200/50">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-700/60 shadow-xl shadow-slate-200/50 dark:shadow-none">
             <div className="flex items-center gap-3 mb-1">
                 <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <Users className="w-5 h-5" />
                 </div>
-                <h2 className="text-lg font-black text-slate-900 tracking-tight">{t('team.title')}</h2>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{t('team.title')}</h2>
             </div>
-            <p className="text-xs text-slate-500 font-medium mb-4">{t('team.msg')}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-4">{t('team.msg')}</p>
             {loading ? (
                 <div className="h-11 w-full bg-slate-100 rounded-xl animate-pulse" />
             ) : (

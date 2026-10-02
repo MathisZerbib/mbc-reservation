@@ -117,7 +117,7 @@ export const LivePage: React.FC = () => {
                     />
                 </div>
                 <ServiceMetrics bookings={bookings} date={selectedDate} />
-                <div className="flex-1 min-h-[480px] min-h-0 relative">
+                <div className="flex-1 min-h-[480px] relative">
                     <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/60 dark:border-slate-700/60">
                     <FloorPlan
                         hoveredBookingId={hoveredBookingId}

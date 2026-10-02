@@ -86,6 +86,31 @@ export const bookingRoutes = (io: Server) => {
 
     /**
      * @swagger
+     * /hours:
+     *   get:
+     *     summary: Public opening-hours grid for a date (booking widget)
+     *     tags: [Bookings]
+     *     parameters:
+     *       - in: query
+     *         name: date
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Date in YYYY-MM-DD format
+     *       - in: query
+     *         name: slug
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Restaurant slug
+     *     responses:
+     *       200:
+     *         description: Open flag + bookable slots (hours only)
+     */
+    router.get('/hours', availabilityLimiter, resolveTenantFromSlug, controller.getOpenHours);
+
+    /**
+     * @swagger
      * /availability:
      *   get:
      *     summary: Check table availability

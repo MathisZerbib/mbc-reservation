@@ -7,7 +7,7 @@ import { getAdjacencyMap } from '../services/floorPlanService';
 import { getDailyAnalytics } from '../services/analyticsService';
 import { getRangeAnalytics } from '../services/rangeAnalyticsService';
 import { verifyTurnstile } from '../utils/turnstile';
-import { getSettings } from '../services/settingsService';
+import { getSettings, resolveOpenSlots } from '../services/settingsService';
 import { isStripeEnabled, depositRequired, createDepositHold } from '../services/depositService';
 import { captureNoShow, releaseHold, getUnresolvedHolds } from '../services/stripeConnectService';
 import { Server } from 'socket.io';
@@ -54,6 +54,15 @@ export const bookingController = (io: Server) => ({
             const requestedStart = dayjs.tz(`${date}T${time}`, RESTAURANT_TZ);
             if (isNaN(requestedStart.toDate().getTime())) return res.status(400).json({ error: 'Invalid date/time' });
 
+            // Outside opening hours → unavailable (staff bypass for walk-ins).
+            if (!getIsAdmin(req)) {
+                const open = resolveOpenSlots(date as string, (await getSettings(tid)).openHours ?? null);
+                if (!open.includes(time as string)) {
+                    const suggestions = await getSuggestions(date as string, guestSize, time as string, tid);
+                    return res.json({ available: false, tables: [], suggestions, closed: open.length === 0 });
+                }
+            }
+
             // 2h buffer check (admin bypass)
             if (!getIsAdmin(req) && requestedStart.isBefore(dayjs().add(MIN_BOOKING_ADVANCE_HOURS, 'hours'))) {
                 const suggestions = await getSuggestions(date as string, guestSize, time as string, tid);
@@ -85,13 +94,33 @@ export const bookingController = (io: Server) => ({
         }
     },
 
+    /**
+     * Public opening-hours for a date (powers the booking widget grid).
+     * Returns ONLY hours — never tickets, deposits, or other settings.
+     */
+    getOpenHours: async (req: AuthRequest, res: Response) => {
+        try {
+            const { date } = req.query;
+            if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                return res.status(400).json({ error: 'Missing date (YYYY-MM-DD)' });
+            }
+            const slots = resolveOpenSlots(date, (await getSettings(tenantId(req))).openHours ?? null);
+            res.json({ date, open: slots.length > 0, slots });
+        } catch {
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+
     getDailyAvailability: async (req: AuthRequest, res: Response) => {
         try {
             const { date, size } = req.query;
             if (!date || !size) return res.status(400).json({ error: 'Missing parameters' });
 
             const guestSize = parseInt(size as string);
-            const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
+            // Grid comes from the restaurant's opening schedule (closed → []).
+            // Staff keep the full legacy grid so walk-ins can sit anywhere.
+            const openHours = getIsAdmin(req) ? null : (await getSettings(tenantId(req))).openHours ?? null;
+            const TIME_SLOTS = resolveOpenSlots(date as string, openHours);
 
             const isAdmin = getIsAdmin(req);
             const tid = tenantId(req);
@@ -170,6 +199,19 @@ export const bookingController = (io: Server) => ({
             // 2h buffer check (admin bypass)
             if (!getIsAdmin(req) && requestedStart.isBefore(dayjs().add(MIN_BOOKING_ADVANCE_HOURS, 'hours'))) {
                 return res.status(400).json({ error: `Les réservations doivent être faites au moins ${MIN_BOOKING_ADVANCE_HOURS}h à l'avance.` });
+            }
+
+            // Opening-hours guard (staff bypass for walk-ins / phone).
+            if (!getIsAdmin(req)) {
+                const dayStr = requestedStart.tz(RESTAURANT_TZ).format('YYYY-MM-DD');
+                const slot = requestedStart.tz(RESTAURANT_TZ).format('HH:mm');
+                const open = resolveOpenSlots(dayStr, (await getSettings(tenantId(req))).openHours ?? null);
+                if (!open.includes(slot)) {
+                    return res.status(400).json({
+                        error: open.length === 0 ? 'Closed that day. Please pick another date.' : 'Outside opening hours.',
+                        closed: open.length === 0,
+                    });
+                }
             }
 
             // 4. Atomic Execution

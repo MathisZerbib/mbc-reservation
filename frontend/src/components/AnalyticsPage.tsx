@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { Analytics } from './Analytics';
 import { RangeAnalytics } from './RangeAnalytics';
+import { HostHeader } from './HostHeader';
+import { useDarkMode } from '../hooks/useDarkMode';
 import { useTranslation } from '../i18n/useTranslation';
 import { cn } from '../lib/utils';
 
@@ -16,6 +17,7 @@ type Period = 'day' | 'week' | 'month' | 'year';
  */
 export const AnalyticsPage: React.FC = () => {
     const { t } = useTranslation();
+    const { dark, toggle } = useDarkMode();
     const [searchParams] = useSearchParams();
     const date = searchParams.get('date') || dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD');
     const [period, setPeriod] = useState<Period>('day');
@@ -35,26 +37,10 @@ export const AnalyticsPage: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 p-3 lg:p-6 overflow-y-auto">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 lg:p-6 overflow-y-auto">
             <div className="max-w-[1200px] mx-auto flex flex-col gap-4 pb-8">
-                <header className="flex items-center gap-3">
-                    <Link
-                        to={`/app/live?date=${date}`}
-                        className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-all"
-                        title={t('analyticsPage.back')}
-                    >
-                        <ChevronLeft className="w-5 h-5" />
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                            {t('analyticsPage.title')}
-                        </h1>
-                        <p className="text-slate-500 font-bold text-xs lg:text-sm mt-1">
-                            {dayjs.tz(date, RESTAURANT_TZ).format('dddd, D MMM YYYY')}
-                        </p>
-                    </div>
-                </header>
-                <div className="flex gap-1.5 bg-white border border-slate-200 rounded-2xl p-1.5 w-fit">
+                <HostHeader date={date} dark={dark} onToggleDark={toggle} />
+                <div className="flex gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-1.5 w-fit">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
@@ -62,8 +48,8 @@ export const AnalyticsPage: React.FC = () => {
                             className={cn(
                                 "h-9 px-4 rounded-xl text-xs font-black transition-all cursor-pointer",
                                 period === tab.id
-                                    ? "bg-slate-900 text-white shadow"
-                                    : "text-slate-500 hover:text-slate-900",
+                                    ? "bg-slate-900 dark:bg-white dark:text-slate-900 text-white shadow"
+                                    : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white",
                             )}
                         >
                             {tab.label}

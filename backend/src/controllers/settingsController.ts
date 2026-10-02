@@ -43,13 +43,14 @@ export const settingsController = (io: Server) => ({
                 depositEnabled: (req.body as any)?.depositEnabled,
                 depositMinSize: (req.body as any)?.depositMinSize,
                 depositAmount: (req.body as any)?.depositAmount,
+                openHours: (req.body as any)?.openHours,
                 tableTurnoverMinutes: (req.body as any)?.tableTurnoverMinutes,
             });
             emitToTenant(io, req.tenant!.id, 'settings-update', { settings: updated });
             res.json(updated);
         } catch (error) {
             console.error(error);
-            if (error instanceof Error && /avgTicket|Lunch|Dinner|retentionMonths|lateGraceMinutes|autoCancelLate|depositEnabled|depositMinSize|depositAmount|tableTurnoverMinutes/.test(error.message)) {
+            if (error instanceof Error && /avgTicket|Lunch|Dinner|retentionMonths|lateGraceMinutes|autoCancelLate|depositEnabled|depositMinSize|depositAmount|openHours|tableTurnoverMinutes/.test(error.message)) {
                 return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: 'Internal server error' });

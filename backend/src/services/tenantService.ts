@@ -98,8 +98,8 @@ export function isTrialActive(trialEndsAt: Date, now: Date = new Date()): boolea
  * defaults to what the restaurant is entitled to; pass it explicitly for
  * sandboxes (the demo tenant) that should not consume a lifetime slot.
  */
-export async function createTenant(name: string, trialDays?: number) {
-    const slug = await uniqueSlug(name);
+export async function createTenant(name: string, trialDays?: number, explicitSlug?: string) {
+    const slug = explicitSlug ?? (await uniqueSlug(name));
     const days = trialDays ?? (await resolveTrialDays());
     return prisma.tenant.create({
         data: {

@@ -1,4 +1,4 @@
-import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, RangeAnalytics, DailyAvailability, RestaurantSettings, LayoutTable, TenantContext, ReconciliationHold } from '../types/index';
+import type { Booking, AvailabilityResponse, CreateBookingPayload, Analytics, RangeAnalytics, DailyAvailability, RestaurantSettings, LayoutTable, TenantContext, ReconciliationHold, OpenDaySlots, OpenHours } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
@@ -149,6 +149,10 @@ export const api = {
     getDailyAvailability: (date: string, size: number, slug: string) =>
         client.get<DailyAvailability[]>('/daily-availability', { params: { date, size, slug } }),
 
+    /** Public opening-hours grid for a date (booking widget). Hours only. */
+    getOpenHours: (date: string, slug: string) =>
+        client.get<OpenDaySlots>('/hours', { params: { date, slug } }),
+
     createBooking: (data: Partial<CreateBookingPayload>, slug: string) =>
         client.post<Booking>('/bookings', { body: { ...data, slug } }),
 
@@ -204,7 +208,7 @@ export const api = {
     getSettings: () =>
         client.get<RestaurantSettings>('/settings', { auth: true }),
 
-    updateSettings: (data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; retentionMonths?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; depositAmount?: number; tableTurnoverMinutes?: number }) =>
+    updateSettings: (data: { avgTicket?: number; avgTicketLunch?: number | null; avgTicketDinner?: number | null; retentionMonths?: number; lateGraceMinutes?: number; autoCancelLate?: boolean; depositEnabled?: boolean; depositMinSize?: number; depositAmount?: number; openHours?: Exclude<OpenHours, null> | null; tableTurnoverMinutes?: number }) =>
         client.patch<RestaurantSettings>('/settings', { body: data, auth: true }),
 
     /** Host toggle for the guest-confirmed flag. */

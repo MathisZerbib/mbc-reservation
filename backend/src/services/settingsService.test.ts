@@ -6,6 +6,10 @@ import {
     parseDepositMinSize,
     parseTurnoverMinutes,
     parseRetentionMonths,
+    parseOpenHours,
+    resolveOpenSlots,
+    LEGACY_OPEN,
+    LEGACY_CLOSE,
     MIN_AVG_TICKET,
     MAX_AVG_TICKET,
     MIN_LATE_GRACE_MINUTES,
@@ -119,5 +123,57 @@ describe('parseRetentionMonths', () => {
         expect(() => parseRetentionMonths(37)).toThrow();
         expect(() => parseRetentionMonths(2.5)).toThrow();
         expect(() => parseRetentionMonths(undefined)).toThrow();
+    });
+});
+
+describe('parseOpenHours', () => {
+    it('clears to legacy default on null/undefined', () => {
+        expect(parseOpenHours(null)).toBeNull();
+        expect(parseOpenHours(undefined)).toBeNull();
+    });
+
+    it('accepts per-day lunch+dinner ranges', () => {
+        expect(parseOpenHours({
+            '1': [{ open: '12:00', close: '14:00' }, { open: '19:00', close: '23:00' }],
+            '0': [],
+        })).toEqual({
+            '1': [{ open: '12:00', close: '14:00' }, { open: '19:00', close: '23:00' }],
+        });
+    });
+
+    it('rejects bad keys, bad times, inverted ranges, and 3+ ranges', () => {
+        expect(() => parseOpenHours({ '7': [] })).toThrow();
+        expect(() => parseOpenHours({ mon: [] })).toThrow();
+        expect(() => parseOpenHours({ '1': [{ open: '25:00', close: '26:00' }] })).toThrow();
+        expect(() => parseOpenHours({ '1': [{ open: '14:00', close: '12:00' }] })).toThrow();
+        expect(() => parseOpenHours({
+            '1': [
+                { open: '09:00', close: '11:00' },
+                { open: '12:00', close: '14:00' },
+                { open: '19:00', close: '23:00' },
+            ],
+        })).toThrow();
+        expect(() => parseOpenHours('12:00-23:00')).toThrow();
+    });
+});
+
+describe('resolveOpenSlots', () => {
+    it('falls back to the legacy 16:00-22:00 grid when unset', () => {
+        const slots = resolveOpenSlots('2026-10-05', null); // a Monday
+        expect(slots[0]).toBe(LEGACY_OPEN);
+        expect(slots[slots.length - 1]).toBe(LEGACY_CLOSE);
+        expect(slots).toHaveLength(13);
+    });
+
+    it('returns [] on closed days and grids lunch+dinner otherwise', () => {
+        const hours = { '1': [{ open: '12:00', close: '13:00' }, { open: '19:00', close: '20:00' }] };
+        expect(resolveOpenSlots('2026-10-05', hours)).toEqual(
+            ['12:00', '12:30', '13:00', '19:00', '19:30', '20:00'],
+        );
+        expect(resolveOpenSlots('2026-10-06', hours)).toEqual([]); // Tuesday closed
+    });
+
+    it('returns [] for invalid dates', () => {
+        expect(resolveOpenSlots('not-a-date', null)).toEqual([]);
     });
 });

@@ -173,7 +173,7 @@ const TrendCard = ({ days, prev, showPrev }: { days: RangeDay[]; prev: RangeDay[
     ];
 
     return (
-        <div className="bg-white rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60">
             <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-auto">
                     {t('range.curve')}
@@ -190,7 +190,7 @@ const TrendCard = ({ days, prev, showPrev }: { days: RangeDay[]; prev: RangeDay[
                             }}
                             className={cn(
                                 "h-7 px-3 rounded-lg text-[11px] font-black transition-all cursor-pointer",
-                                metric === m.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600",
+                                metric === m.id ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200",
                             )}
                         >
                             {m.label}
@@ -411,7 +411,7 @@ export const RangeAnalytics: React.FC<RangeProps> = ({ from, to }) => {
     const Card = ({ label, value, sub, icon: Icon, color }: {
         label: string; value: string; sub?: React.ReactNode; icon: LucideIcon; color: string;
     }) => (
-        <div className="bg-white rounded-[2rem] p-5 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100 flex items-center gap-4 transition-all hover:scale-[1.02] hover:shadow-xl group">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-5 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60 flex items-center gap-4 transition-all hover:scale-[1.02] hover:shadow-xl group">
             <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0", color)}>
                 <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
             </div>
@@ -423,7 +423,7 @@ export const RangeAnalytics: React.FC<RangeProps> = ({ from, to }) => {
                     </div>
                 ) : (
                     <>
-                        <div className="text-xl font-black text-slate-900 tracking-tight tabular-nums">{value}</div>
+                        <div className="text-xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums">{value}</div>
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</div>
                         {sub}
                     </>
@@ -510,7 +510,7 @@ export const RangeAnalytics: React.FC<RangeProps> = ({ from, to }) => {
             </div>
 
             {loading || !data ? (
-                <div className="bg-white rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100">
+                <div className="bg-white dark:bg-slate-900 rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60">
                     <div className="h-48 bg-slate-50 rounded-2xl animate-pulse" />
                 </div>
             ) : (
@@ -518,7 +518,7 @@ export const RangeAnalytics: React.FC<RangeProps> = ({ from, to }) => {
             )}
 
             {hours.length > 0 && (
-                <div className="bg-white rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100 overflow-x-auto">
+                <div className="bg-white dark:bg-slate-900 rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60 overflow-x-auto">
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('range.heatmap')}</div>
                     <div className="min-w-[520px]">
                         <div className="grid gap-1" style={{ gridTemplateColumns: `2.2rem repeat(${hours.length}, 1fr)` }}>
@@ -554,7 +554,7 @@ export const RangeAnalytics: React.FC<RangeProps> = ({ from, to }) => {
             )}
 
             <div className="grid md:grid-cols-2 gap-3">
-                <div className="bg-white rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100">
+                <div className="bg-white dark:bg-slate-900 rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60">
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('range.sizes')}</div>
                     <div className="flex flex-col gap-2.5">
                         {(data?.sizeBands ?? []).map(b => (
@@ -573,7 +573,7 @@ export const RangeAnalytics: React.FC<RangeProps> = ({ from, to }) => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100">
+                <div className="bg-white dark:bg-slate-900 rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60">
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('range.crm')}</div>
                     {loading || !data ? (
                         <div className="h-20 bg-slate-50 rounded-2xl animate-pulse" />
@@ -599,13 +599,13 @@ export const RangeAnalytics: React.FC<RangeProps> = ({ from, to }) => {
             </div>
 
             {(data?.crm.top.length ?? 0) > 0 && (
-                <div className="bg-white rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100 overflow-x-auto">
+                <div className="bg-white dark:bg-slate-900 rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60 overflow-x-auto">
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('range.top')}</div>
                     <table className="w-full text-sm min-w-[420px]">
                         <tbody>
                             {data!.crm.top.map(c => (
                                 <tr key={c.name} className="border-t border-slate-50 first:border-0">
-                                    <td className="py-2 pr-2 font-black text-slate-900 truncate max-w-[160px]">{c.name}</td>
+                                    <td className="py-2 pr-2 font-black text-slate-900 dark:text-white truncate max-w-[160px]">{c.name}</td>
                                     <td className="py-2 px-2 text-right font-bold text-slate-500 tabular-nums whitespace-nowrap">
                                         {t('range.visitsFmt').replace('{n}', String(c.visits))}
                                     </td>

@@ -96,6 +96,13 @@ model RestaurantSettings {
   stripeAccountId   String?
   /** True once the restaurant finished Stripe onboarding (charges enabled). */
   stripeOnboarded   Boolean  @default(false)
+  /**
+   * Weekly opening schedule driving the public booking widget.
+   * JSON: { "0": [{open:"12:00",close:"14:00"},{open:"19:00",close:"23:00"}], ... }
+   * Keys are dayjs .day() (0=Sunday..6=Saturday); missing/empty day = closed.
+   * Null = legacy default (16:00-22:00 every day). Max 2 ranges per day.
+   */
+  openHours         Json?
   updatedAt         DateTime @updatedAt
 }
 

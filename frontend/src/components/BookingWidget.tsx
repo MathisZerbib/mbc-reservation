@@ -41,9 +41,9 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
   const { lang, setLang, t } = useLanguage();
   dayjs.locale(lang);
 
-  const getFirstAvailableTime = (date: string) => {
+  const getFirstAvailableTime = (date: string, slots: string[] = TIME_SLOTS) => {
     const minAdvanceTime = dayjs().add(2, 'hour');
-    return TIME_SLOTS.find(slot => dayjs(`${date} ${slot}`).isAfter(minAdvanceTime)) || null;
+    return slots.find(slot => dayjs(`${date} ${slot}`).isAfter(minAdvanceTime)) || null;
   };
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
@@ -103,6 +103,10 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
   const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
   const [fetchingAvailability, setFetchingAvailability] = useState(false);
+  /** Opening-hours grid for the selected date (null = not loaded yet → legacy grid). */
+  const [openSlots, setOpenSlots] = useState<string[] | null>(null);
+  const gridSlots = openSlots ?? TIME_SLOTS;
+  const dayClosed = openSlots !== null && openSlots.length === 0;
 
   useEffect(() => {
     let isMounted = true;
@@ -110,13 +114,18 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
       if (!formData.date || !formData.size) return;
       setFetchingAvailability(true);
       try {
-        const data = await api.getDailyAvailability(formData.date, formData.size, slug);
+        const [data, hours] = await Promise.all([
+          api.getDailyAvailability(formData.date, formData.size, slug),
+          api.getOpenHours(formData.date, slug).catch(() => null),
+        ]);
         if (!isMounted) return;
         const map: Record<string, boolean> = {};
         data.forEach(item => {
           map[item.time] = item.available;
         });
         setAvailableTimes(map);
+        // Hours endpoint missing (old backend) → keep the legacy grid.
+        setOpenSlots(hours ? hours.slots : null);
       } catch (e) {
         console.error('Failed to fetch daily availability', e);
       } finally {
@@ -375,7 +384,7 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                           setDate={d => {
                             const nextDate = dayjs(d).format('YYYY-MM-DD');
                             const nextTime = dayjs(`${nextDate} ${formData.startTime}`).isBefore(dayjs())
-                              ? getFirstAvailableTime(nextDate)
+                              ? getFirstAvailableTime(nextDate, gridSlots)
                               : formData.startTime;
                             setFormData({ ...formData, date: nextDate, startTime: nextTime || '' });
                           }}
@@ -391,14 +400,19 @@ export const BookingWidget: React.FC<{ slug: string }> = ({ slug }) => {
                         {fetchingAvailability && <div className="h-1 w-12 bg-indigo-500/20 rounded-full overflow-hidden relative"><div className="absolute inset-0 bg-indigo-500 animate-slide" /></div>}
                       </div>
 
-                      {!getFirstAvailableTime(formData.date) && dayjs(formData.date).isSame(dayjs(), 'day') ? (
+                      {dayClosed ? (
+                        <div className="p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl text-center">
+                          <p className="text-sm font-bold text-slate-600">{t.closed_day}</p>
+                          <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-widest">{t.date}</p>
+                        </div>
+                      ) : !getFirstAvailableTime(formData.date, gridSlots) && dayjs(formData.date).isSame(dayjs(), 'day') ? (
                         <div className="p-8 bg-red-50/30 border-2 border-dashed border-red-100 rounded-3xl text-center">
                           <p className="text-sm font-bold text-red-600">{t.no_slots}</p>
                           <p className="text-[10px] text-red-400 mt-1 uppercase font-black tracking-widest">{t.no_service}</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-3 gap-2">
-                          {TIME_SLOTS.map(t => {
+                          {gridSlots.map(t => {
                             const isTooSoon = dayjs(`${formData.date} ${t}`).isBefore(dayjs().add(2, 'hour'));
                             const isAvailable = availableTimes[t] !== false;
                             const isDisabled = isTooSoon || (!fetchingAvailability && !isAvailable);

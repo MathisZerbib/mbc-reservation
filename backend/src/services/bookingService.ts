@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { ADJACENCY_MAP } from '../utils/adjacency';
 import { getAdjacencyMap, type AdjacencyMap } from './floorPlanService';
+import { getSettings, resolveOpenSlots } from './settingsService';
 import { CreateReservationInput, BOOKING_TAGS } from '../types/booking';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -332,7 +333,8 @@ export function findTableCombination(size: number, availableTables: any[], adjac
 // ──────────────────────────────────────────
 
 export async function getSuggestions(date: string, size: number, requestedTime: string, tenantId: string) {
-    const TIME_SLOTS = ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
+    const settings = await getSettings(tenantId);
+    const TIME_SLOTS = resolveOpenSlots(date, settings.openHours ?? null);
     const suggestions: string[] = [];
     const adjacency = await getAdjacencyMap(tenantId);
 

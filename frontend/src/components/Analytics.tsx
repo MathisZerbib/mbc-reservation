@@ -64,7 +64,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
     icon: LucideIcon;
     color: string;
   }) => (
-    <div className="bg-white rounded-[2rem] p-5 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100 flex items-center gap-4 transition-all hover:scale-[1.02] hover:shadow-xl group">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-5 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60 flex items-center gap-4 transition-all hover:scale-[1.02] hover:shadow-xl group">
         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0", color)}>
             <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
         </div>
@@ -76,7 +76,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
                 </div>
             ) : (
                 <>
-                    <div className="text-xl font-black text-slate-900 tracking-tight">{value}</div>
+                    <div className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{value}</div>
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</div>
                     {sub}
                 </>
@@ -140,7 +140,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
       </div>
 
       {!loading && data && data.hourlyBreakdown.length > 0 && (
-        <div className="bg-white rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] px-5 py-4 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-700/60">
           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
             {t('analytics.perHour')} <span className="normal-case font-bold text-slate-300">{t('analytics.perHourSub')}</span>
           </div>
@@ -149,7 +149,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
               <div key={h.hour} className="flex items-center gap-3">
                 <span className={cn(
                   "text-[11px] font-black w-11 shrink-0 tabular-nums",
-                  h.hour === data.peakHour ? "text-amber-600" : "text-slate-500"
+                  h.hour === data.peakHour ? "text-amber-600" : "text-slate-500 dark:text-slate-400"
                 )}>
                   {h.hour}
                 </span>
@@ -159,7 +159,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ date }) => {
                     style={{ width: `${maxHourGuests === 0 ? 0 : (h.guests / maxHourGuests) * 100}%` }}
                   />
                 </div>
-                <span className="text-[11px] font-bold text-slate-500 w-24 shrink-0 text-right tabular-nums">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-24 shrink-0 text-right tabular-nums">
                   {t('analytics.resFmt').replace('{b}', String(h.bookings)).replace('{p}', String(h.guestsPct))}
                 </span>
               </div>
