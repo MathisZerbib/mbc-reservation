@@ -20,3 +20,15 @@ export function getTokenPayload(): TokenPayload | null {
 export function isDemoSession(): boolean {
   return getTokenPayload()?.isDemo === true;
 }
+
+/**
+ * Sign out locally: drops the access token (server-side refresh entries
+ * expire on their own). Callers clear cached user state, then route to login.
+ */
+export function clearSession(): void {
+  try {
+    localStorage.removeItem('token');
+  } catch {
+    // Private mode — nothing persisted anyway.
+  }
+}

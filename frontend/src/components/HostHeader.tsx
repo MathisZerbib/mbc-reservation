@@ -1,9 +1,11 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, ChartColumn, Sun, Moon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Settings as SettingsIcon, ChartColumn, Sun, Moon, LogOut } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { useTranslation } from '../i18n/useTranslation';
 import { useSocketStatus } from '../services/socket';
+import { clearSession } from '../utils/auth';
+import { clearUserRole } from '../hooks/useUserRole';
 import { HostTabs } from './HostTabs';
 
 interface HostHeaderProps {
@@ -25,6 +27,13 @@ interface HostHeaderProps {
 export const HostHeader: React.FC<HostHeaderProps> = ({ date = dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'), arrivalsNow = 0, onQuickRes, dark = false, onToggleDark }) => {
     const { t } = useTranslation();
     const live = useSocketStatus();
+    const navigate = useNavigate();
+
+    const logout = () => {
+        clearSession();
+        clearUserRole();
+        navigate('/login', { replace: true });
+    };
 
     return (
         <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 flex-none">
@@ -76,6 +85,14 @@ export const HostHeader: React.FC<HostHeaderProps> = ({ date = dayjs.tz(undefine
                     >
                         <SettingsIcon className="w-5 h-5" />
                     </Link>
+                    <button
+                        onClick={logout}
+                        title={t('dashboard.logoutTitle')}
+                        aria-label={t('dashboard.logoutTitle')}
+                        className="min-w-[48px] min-h-[48px] p-3 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl shadow-sm text-slate-500 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                    >
+                        <LogOut className="w-5 h-5" />
+                    </button>
                 </div>
             </div>
         </header>
