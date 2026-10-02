@@ -23,8 +23,9 @@ interface HostHeaderProps {
 /**
  * Shared header for the host workspaces: title + day, workspace tabs,
  * and the global actions. One inset scale everywhere.
+ * Memoized + rendered once by AppShell (props update, never remounts).
  */
-export const HostHeader: React.FC<HostHeaderProps> = ({ date = dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'), arrivalsNow = 0, onQuickRes, dark = false, onToggleDark }) => {
+export const HostHeader: React.FC<HostHeaderProps> = React.memo(({ date = dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'), arrivalsNow = 0, onQuickRes, dark = false, onToggleDark }) => {
     const { t } = useTranslation();
     const live = useSocketStatus();
     const navigate = useNavigate();
@@ -97,4 +98,6 @@ export const HostHeader: React.FC<HostHeaderProps> = ({ date = dayjs.tz(undefine
             </div>
         </header>
     );
-};
+});
+
+HostHeader.displayName = 'HostHeader';

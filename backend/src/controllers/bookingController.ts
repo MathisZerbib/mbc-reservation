@@ -471,7 +471,7 @@ export const bookingController = (io: Server) => ({
             } as any);
             if (!existing) return res.status(404).json({ error: 'Booking not found' });
 
-            const erased = await prisma.booking.update({
+            await prisma.booking.update({
                 where: { id: id },
                 data: {
                     deletedAt: new Date(),
@@ -485,21 +485,78 @@ export const bookingController = (io: Server) => ({
                     guestConfirmed: false,
                 }
             } as any);
-            emitToTenant(io, tenantId(req), 'booking-update', { type: 'update', booking: erased });
+            emitToTenant(io, tenantId(req), 'booking-update', { type: 'delete', bookingId: id });
             res.json({ erased: true });
         } catch (error) {
             res.status(500).json({ error: 'Failed to erase booking' });
         }
     },
 
-    getAllBookings: async (req: AuthRequest, res: Response) => {        try {
+    /**
+     * GET /bookings[?date=YYYY-MM-DD] — tenant-scoped list.
+     * With `date`, only that restaurant-day is returned (host planning/live
+     * load a single service at a time instead of the whole history).
+     */
+    getAllBookings: async (req: AuthRequest, res: Response) => {
+        try {
+            const { date } = req.query;
+            const where: Record<string, unknown> = { tenantId: tenantId(req), deletedAt: null };
+
+            if (date !== undefined) {
+                if (typeof date !== 'string') {
+                    return res.status(400).json({ error: 'Invalid date, expected YYYY-MM-DD' });
+                }
+                const parsed = dayjs.tz(date, 'YYYY-MM-DD', RESTAURANT_TZ);
+                if (!parsed.isValid()) {
+                    return res.status(400).json({ error: 'Invalid date, expected YYYY-MM-DD' });
+                }
+                where.startTime = { gte: parsed.startOf('day').toDate(), lte: parsed.endOf('day').toDate() };
+            }
+
             const bookings = await prisma.booking.findMany({
-                where: { tenantId: tenantId(req), deletedAt: null },
+                where: where as any,
                 include: { tables: true } as any
             });
             res.json(bookings);
         } catch (error) {
             res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+
+    /**
+     * GET /bookings/affluence?month=YYYY-MM — per-day booking counts.
+     * Powers the agenda calendar's affluence dots without shipping rows.
+     */
+    getAffluence: async (req: AuthRequest, res: Response) => {
+        try {
+            const { month } = req.query;
+            if (!month || typeof month !== 'string') {
+                return res.status(400).json({ error: 'Missing month (YYYY-MM)' });
+            }
+            const parsed = dayjs.tz(month, 'YYYY-MM', RESTAURANT_TZ);
+            if (!parsed.isValid()) {
+                return res.status(400).json({ error: 'Invalid month, expected YYYY-MM' });
+            }
+
+            const rows = await prisma.booking.findMany({
+                where: {
+                    tenantId: tenantId(req),
+                    deletedAt: null,
+                    status: { not: 'CANCELLED' },
+                    startTime: { gte: parsed.startOf('month').toDate(), lte: parsed.endOf('month').toDate() },
+                } as any,
+                select: { startTime: true },
+            });
+
+            const counts: Record<string, number> = {};
+            for (const row of rows) {
+                const key = dayjs(row.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD');
+                counts[key] = (counts[key] ?? 0) + 1;
+            }
+            res.json(counts);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Failed to load affluence' });
         }
     },
 

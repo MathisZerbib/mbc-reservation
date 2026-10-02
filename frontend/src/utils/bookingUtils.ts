@@ -3,6 +3,32 @@ import { RESTAURANT_TZ } from './dayjs';
 import type { Booking } from '../types';
 export type AffluenceLevel = 'low' | 'medium' | 'high' | 'critical';
 
+const levelFor = (count: number): AffluenceLevel => {
+    if (count <= 5) return 'low';
+    if (count <= 15) return 'medium';
+    if (count <= 25) return 'high';
+    return 'critical';
+};
+
+/** Day counts (YYYY-MM-DD → bookings) → react-day-picker modifiers. */
+export const affluenceModifiers = (counts: Record<string, number>) => {
+    const modifiers: Record<AffluenceLevel, Date[]> = {
+        low: [],
+        medium: [],
+        high: [],
+        critical: [],
+    };
+
+    Object.entries(counts).forEach(([dateStr, count]) => {
+        // Normalize to midnight local time to match react-day-picker behavior
+        const date = dayjs(dateStr).startOf('day').toDate();
+        modifiers[levelFor(count)].push(date);
+    });
+
+    return modifiers;
+};
+
+/** Affluence modifiers derived from booking rows (client-side helper). */
 export const calculateAffluence = (bookings: Booking[]) => {
     const counts: Record<string, number> = {};
 
@@ -12,28 +38,7 @@ export const calculateAffluence = (bookings: Booking[]) => {
         counts[date] = (counts[date] || 0) + 1;
     });
 
-    const modifiers: Record<AffluenceLevel, Date[]> = {
-        low: [],
-        medium: [],
-        high: [],
-        critical: []
-    };
-
-    Object.entries(counts).forEach(([dateStr, count]) => {
-        // Normalize to midnight local time to match react-day-picker behavior
-        const date = dayjs(dateStr).startOf('day').toDate();
-        if (count <= 5) {
-            modifiers.low.push(date);
-        } else if (count <= 15) {
-            modifiers.medium.push(date);
-        } else if (count <= 25) {
-            modifiers.high.push(date);
-        } else {
-            modifiers.critical.push(date);
-        }
-    });
-
-    return modifiers;
+    return affluenceModifiers(counts);
 };
 
 export const affluenceClassNames = {

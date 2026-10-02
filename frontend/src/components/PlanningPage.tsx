@@ -1,14 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { Agenda } from './Agenda';
 import { ReconciliationView } from './ReconciliationView';
 import { HostSearchBar } from './HostSearchBar';
-import { HostHeader } from './HostHeader';
 import { AdminQuickReservation } from './AdminQuickReservation';
-import { TrialBanner } from './TrialBanner';
-import { useBookingsContext } from '../context/useBookingsContext';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { useBookingsForDate } from '../hooks/useBookings';
+import { useUiStore } from '../stores/uiStore';
 import { useHostShortcuts } from '../hooks/useHostShortcuts';
 import { matchesHostQuery, countArrivalsNow } from '../utils/bookingUtils';
 
@@ -25,8 +23,9 @@ export const PlanningPage: React.FC = () => {
     const [hostQuery, setHostQuery] = useState('');
     const [, setHoveredBookingId] = useState<string | null>(null);
     const [isQuickResOpen, setIsQuickResOpen] = useState(false);
-    const { bookings } = useBookingsContext();
-    const { dark, toggle } = useDarkMode();
+    const bookings = useBookingsForDate(selectedDate);
+    const setHeaderConfig = useUiStore((s) => s.setHeader);
+    const openQuickRes = useCallback(() => setIsQuickResOpen(true), []);
 
     useHostShortcuts({
         onQuickRes: () => setIsQuickResOpen(true),
@@ -47,11 +46,12 @@ export const PlanningPage: React.FC = () => {
         }
     }, [selectedDate, setSearchParams]);
 
+    useEffect(() => {
+        setHeaderConfig({ date: selectedDate, arrivalsNow, onQuickRes: openQuickRes });
+    }, [selectedDate, arrivalsNow, openQuickRes, setHeaderConfig]);
+
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 lg:p-4 overflow-y-auto">
-            <div className="max-w-[1600px] mx-auto w-full flex flex-col gap-4 pb-10">
-                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} dark={dark} onToggleDark={toggle} />
-                <TrialBanner />
+        <div className="flex flex-col gap-4">
                 <div className="flex-none">
                     <HostSearchBar
                         value={hostQuery}
@@ -73,7 +73,6 @@ export const PlanningPage: React.FC = () => {
                 </div>
                 {/* Morning-after: unresolved HELD holds to release or charge. */}
                 <ReconciliationView />
-            </div>
 
             <AdminQuickReservation
                 isOpen={isQuickResOpen}

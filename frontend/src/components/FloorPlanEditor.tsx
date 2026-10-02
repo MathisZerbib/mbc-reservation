@@ -8,6 +8,8 @@ import { useTranslation } from '../i18n/useTranslation';
 import { CANVAS_W, CANVAS_H, TABLE_TYPES, presetFromConstants, presetGrid, tableShapePath } from '../utils/floorPlanData';
 import type { LayoutTable } from '../types/index';
 import { FloorPlanImageDropzone, AI_DRAFT_KEY } from './FloorPlanImageDropzone';
+import { useUiStore } from '../stores/uiStore';
+import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { cn } from '../lib/utils';
 
 const TEMP_ID = () => -Math.floor(Math.random() * 1_000_000_000);
@@ -38,6 +40,14 @@ export const FloorPlanEditor: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const svgRef = useRef<SVGSVGElement>(null);
     const dragRef = useRef<{ name: string; dx: number; dy: number } | null>(null);
+    const setHeaderConfig = useUiStore((s) => s.setHeader);
+    useEffect(() => {
+        setHeaderConfig({
+            date: dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD'),
+            arrivalsNow: 0,
+            onQuickRes: undefined,
+        });
+    }, [setHeaderConfig]);
 
     useEffect(() => {
         if (!tenant) return;
@@ -284,9 +294,10 @@ export const FloorPlanEditor: React.FC = () => {
     }, [tables, byName]);
 
     // Staff can't restructure the room — backend enforces this too.
+    // Shared AppShell header stays on top; only the body differs.
     if (!roleLoading && role === 'STAFF') {
         return (
-            <div className="h-screen bg-slate-100 flex flex-col items-center justify-center p-6 text-center">
+            <div className="flex flex-col items-center justify-center p-6 text-center">
                 <p className="text-base font-black text-slate-900">{tr('team.deniedTitle')}</p>
                 <p className="text-xs text-slate-400 font-medium mt-1 mb-4">{tr('team.deniedMsg')}</p>
                 <Link to="/app/live" className="bg-slate-900 text-white px-5 py-3 rounded-2xl text-sm font-bold">
@@ -297,8 +308,8 @@ export const FloorPlanEditor: React.FC = () => {
     }
 
     return (
-        <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">
-            {/* Header */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden -m-1">
+            {/* Editor toolbar (secondary — the shared HostHeader is rendered once by AppShell above) */}
             <div className="flex-none px-4 lg:px-6 py-3 flex items-center gap-2 lg:gap-3 bg-white border-b border-slate-200">
                 <Link to="/app/settings" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                     <ChevronLeft className="w-5 h-5 text-slate-500" />

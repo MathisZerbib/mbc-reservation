@@ -1,14 +1,15 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import dayjs from 'dayjs';
+import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { ArrivalStrip } from './ArrivalStrip';
-import { useBookingsContext } from '../context/useBookingsContext';
+import { useBookingsForDate, useBookingsActions } from '../hooks/useBookings';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
-import { api } from '../services/api';
 import { LanguageProvider } from '../i18n/LanguageContext';
 
-vi.mock('../context/useBookingsContext', () => ({
-    useBookingsContext: vi.fn(),
+vi.mock('../hooks/useBookings', () => ({
+    useBookingsForDate: vi.fn(),
+    useBookingsActions: vi.fn(),
+    useMonthAffluence: vi.fn(() => ({})),
 }));
 
 vi.mock('../hooks/useFloorPlan', async importOriginal => {
@@ -16,24 +17,20 @@ vi.mock('../hooks/useFloorPlan', async importOriginal => {
     return { ...mod, useRestaurantSettings: vi.fn() };
 });
 
-vi.mock('../services/api', () => ({
-    api: {
-        checkIn: vi.fn(),
-        cancelBooking: vi.fn(),
-    },
-}));
-
-const ctx = useBookingsContext as unknown as { mockReturnValue: (v: unknown) => void };
+const useForDate = useBookingsForDate as unknown as { mockReturnValue: (v: unknown) => void };
+const useActions = useBookingsActions as unknown as { mockReturnValue: (v: unknown) => void };
 const useSettings = useRestaurantSettings as unknown as { mockReturnValue: (v: unknown) => void };
-const checkIn = api.checkIn as unknown as ReturnType<typeof vi.fn>;
-const cancelBooking = api.cancelBooking as unknown as ReturnType<typeof vi.fn>;
+const checkIn = vi.fn();
+const cancelBooking = vi.fn();
+
+const at = (hour: number) => dayjs().startOf('day').add(hour, 'hour').toISOString();
 
 const booking = (overrides: object) => ({
     id: `b-${Math.random()}`,
     name: 'Guest',
     size: 2,
-    startTime: dayjs().add(3, 'hour').toISOString(),
-    endTime: dayjs().add(5, 'hour').toISOString(),
+    startTime: at(21),
+    endTime: at(23),
     status: 'CONFIRMED',
     tables: [],
     language: 'fr',
@@ -42,10 +39,14 @@ const booking = (overrides: object) => ({
 });
 
 const renderStrip = (bookings: object[], onHighlight = vi.fn()) => {
-    ctx.mockReturnValue({ bookings, refresh: vi.fn() });
+    useForDate.mockReturnValue(bookings);
+    useActions.mockReturnValue({ checkIn, cancelBooking });
+    // Same restaurant-tz day as the bookings (avoids midnight-crossing flakes).
+    const first = bookings[0] as { startTime?: string } | undefined;
+    const date = dayjs(first?.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD');
     render(
         <LanguageProvider>
-            <ArrivalStrip date={dayjs().format('YYYY-MM-DD')} onHighlight={onHighlight} />
+            <ArrivalStrip date={date} onHighlight={onHighlight} />
         </LanguageProvider>,
     );
     return onHighlight;
@@ -58,8 +59,8 @@ describe('ArrivalStrip', () => {
     });
 
     it('sorts late arrivals before upcoming ones', () => {
-        const upcoming = booking({ id: 'up', name: 'Zoe-Up', startTime: dayjs().add(3, 'hour').toISOString() });
-        const late = booking({ id: 'late', name: 'Ann-Late', startTime: dayjs().subtract(60, 'minute').toISOString() });
+        const upcoming = booking({ id: 'up', name: 'Zoe-Up', startTime: at(13) });
+        const late = booking({ id: 'late', name: 'Ann-Late', startTime: at(12) });
         renderStrip([upcoming, late]);
         const items = screen.getAllByRole('listitem');
         expect(items[0].textContent).toMatch(/Ann-Late/);

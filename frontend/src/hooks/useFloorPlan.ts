@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { api, fileUrl } from '../services/api';
-import { socket } from '../services/socket';
+import { useCallback, useEffect } from 'react';
+import { fileUrl } from '../services/api';
+import { useRestaurantStore } from '../stores/restaurantStore';
 import { FLOOR_PLAN_DATA, type TableConfig } from '../utils/floorPlanData';
-import type { LayoutTable, RestaurantSettings, TenantContext } from '../types/index';
+import type { LayoutTable } from '../types/index';
 
 /** DB layout row → renderer config (table names are the stable ids). */
 export const toTableConfig = (t: LayoutTable): TableConfig => ({
@@ -16,55 +16,27 @@ export const toTableConfig = (t: LayoutTable): TableConfig => ({
     seats: t.capacity,
 });
 
-/** Authenticated tenant context (slug, trial status) with live refresh. */
-export function useTenant() {
-    const [tenant, setTenant] = useState<TenantContext | null>(null);
-
-    const refresh = useCallback(async () => {
-        try {
-            setTenant(await api.getTenant());
-        } catch (e) {
-            console.error('Failed to fetch tenant', e);
-        }
-    }, []);
-
+/** Loads tenant + settings + layout once, deduped across every consumer. */
+function useEnsureRestaurant() {
     useEffect(() => {
-        // Fetch-on-mount: intentional data load, not derived state.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        refresh();
-        socket.on('settings-update', refresh);
-        return () => {
-            socket.off('settings-update', refresh);
-        };
-    }, [refresh]);
+        void useRestaurantStore.getState().ensure();
+    }, []);
+}
 
+/** Authenticated tenant context (slug, trial status), shared + live. */
+export function useTenant() {
+    useEnsureRestaurant();
+    const tenant = useRestaurantStore((s) => s.tenant);
+    const refresh = useCallback(() => useRestaurantStore.getState().loadTenant(true), []);
     return { tenant, refresh };
 }
 
-/** Tenant settings with live refresh on `settings-update`. */
+/** Tenant settings, shared across pages + live (`settings-update`). */
 export function useRestaurantSettings() {
-    const [settings, setSettings] = useState<RestaurantSettings | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    const refresh = useCallback(async () => {
-        try {
-            setSettings(await api.getSettings());
-        } catch (e) {
-            console.error('Failed to fetch settings', e);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        // Fetch-on-mount: intentional data load, not derived state.
-        refresh();
-        socket.on('settings-update', refresh);
-        return () => {
-            socket.off('settings-update', refresh);
-        };
-    }, [refresh]);
-
+    useEnsureRestaurant();
+    const settings = useRestaurantStore((s) => s.settings);
+    const loading = useRestaurantStore((s) => s.loadingSettings);
+    const refresh = useCallback(() => useRestaurantStore.getState().loadSettings(true), []);
     return { settings, loading, refresh, backgroundUrl: fileUrl(settings?.floorPlanImageUrl ?? null) };
 }
 
@@ -77,47 +49,21 @@ interface LayoutState {
 }
 
 /**
- * Floor-plan tables from the DB with live refresh on `floor-plan-update`.
+ * Floor-plan tables from the DB, shared + live (`floor-plan-update`).
  * Falls back to the shipped constants when the backend is unreachable or
  * no layout has been saved yet, so the map never renders blank.
  */
 export function useLayoutTables(): LayoutState {
-    const { tenant } = useTenant();
-    const [raw, setRaw] = useState<LayoutTable[] | null>(null);
-    const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    const refresh = useCallback(async () => {
-        if (!tenant) return;
-        try {
-            const [layout, settings] = await Promise.all([
-                api.getLayout(tenant.slug),
-                api.getSettings().catch(() => null),
-            ]);
-            if (layout.length > 0) setRaw(layout);
-            setBackgroundUrl(fileUrl(settings?.floorPlanImageUrl ?? null));
-        } catch (e) {
-            console.error('Failed to fetch layout', e);
-        } finally {
-            setLoading(false);
-        }
-    }, [tenant]);
-
-    useEffect(() => {
-        // Fetch-on-mount: intentional data load, not derived state.
-        refresh();
-        socket.on('floor-plan-update', refresh);
-        socket.on('settings-update', refresh);
-        return () => {
-            socket.off('floor-plan-update', refresh);
-            socket.off('settings-update', refresh);
-        };
-    }, [refresh]);
+    useEnsureRestaurant();
+    const raw = useRestaurantStore((s) => s.layout);
+    const settings = useRestaurantStore((s) => s.settings);
+    const loading = useRestaurantStore((s) => s.loadingLayout);
+    const refresh = useCallback(() => useRestaurantStore.getState().loadLayout(true), []);
 
     return {
         tables: raw ? raw.map(toTableConfig) : FLOOR_PLAN_DATA,
         raw: raw ?? [],
-        backgroundUrl,
+        backgroundUrl: fileUrl(settings?.floorPlanImageUrl ?? null),
         loading,
         refresh,
     };

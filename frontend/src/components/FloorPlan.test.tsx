@@ -1,14 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { FloorPlan } from '../components/FloorPlan';
-import { useBookingsContext } from '../context/useBookingsContext';
+import { useBookingsForDate } from '../hooks/useBookings';
 import { LanguageProvider } from '../i18n/LanguageContext';
 
-vi.mock('../context/useBookingsContext', () => ({
-    useBookingsContext: vi.fn(),
+vi.mock('../hooks/useBookings', () => ({
+    useBookingsForDate: vi.fn(),
+    useBookingsActions: vi.fn(() => ({})),
+    useMonthAffluence: vi.fn(() => ({})),
 }));
 
-(useBookingsContext as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({ bookings: [] });
+(useBookingsForDate as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue([]);
 
 describe('FloorPlan', () => {
     it('renders tables correctly', () => {

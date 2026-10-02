@@ -134,8 +134,16 @@ export const api = {
     checkSlug: (slug: string) =>
         client.get<{ slug: string; available: boolean }>('/tenants/slug-available', { params: { slug } }),
 
-    fetchBookings: () =>
-        client.get<Booking[]>('/bookings', { auth: true }),
+    /**
+     * Tenant bookings. Pass a `date` (YYYY-MM-DD, restaurant timezone) to load
+     * a single service; omit it for the full history (demo seeding, exports).
+     */
+    fetchBookings: (date?: string) =>
+        client.get<Booking[]>('/bookings', { params: date ? { date } : undefined, auth: true }),
+
+    /** Per-day booking counts for a month (`YYYY-MM`) — agenda calendar dots. */
+    getAffluence: (month: string) =>
+        client.get<Record<string, number>>('/bookings/affluence', { params: { month }, auth: true }),
 
     getAnalytics: (date: string) =>
         client.get<Analytics>('/analytics', { params: { date }, auth: true }),

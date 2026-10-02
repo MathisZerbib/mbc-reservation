@@ -13,7 +13,8 @@ import { VerifyEmailPage } from './components/VerifyEmailPage';
 import { OnboardingPage } from './components/OnboardingPage';
 import { NotFound } from './components/NotFound';
 import { ProtectedRoutes } from './components/ProtectedRoutes';
-import { BookingsProvider } from './context/BookingsContext';
+import { BookingsSync } from './stores/BookingsSync';
+import { AppShell } from './components/AppShell';
 import { Outlet } from 'react-router-dom';
 
 function App() {
@@ -31,16 +32,18 @@ function App() {
           <Route path="/:slug" element={<BookingPage />} />
           {/* Authenticated product */}
           <Route element={<ProtectedRoutes />}>
-            <Route element={<BookingsProvider><Outlet /></BookingsProvider>}>
+            <Route element={<BookingsSync><Outlet /></BookingsSync>}>
                 <Route path="/onboarding" element={<OnboardingPage />} />
-                <Route path="/app" element={<Navigate to="/app/live" replace />} />
-                {/* Legacy entry point kept working */}
-                <Route path="/app/dashboard" element={<Navigate to="/app/live" replace />} />
-                <Route path="/app/live" element={<LivePage />} />
-                <Route path="/app/planning" element={<PlanningPage />} />
-                <Route path="/app/analytics" element={<AnalyticsPage />} />
-                <Route path="/app/settings" element={<SettingsPage />} />
-                <Route path="/app/floor-plan" element={<FloorPlanEditor />} />
+                <Route element={<AppShell />}>
+                  <Route path="/app" element={<Navigate to="/app/live" replace />} />
+                  {/* Legacy entry point kept working */}
+                  <Route path="/app/dashboard" element={<Navigate to="/app/live" replace />} />
+                  <Route path="/app/live" element={<LivePage />} />
+                  <Route path="/app/planning" element={<PlanningPage />} />
+                  <Route path="/app/analytics" element={<AnalyticsPage />} />
+                  <Route path="/app/settings" element={<SettingsPage />} />
+                  <Route path="/app/floor-plan" element={<FloorPlanEditor />} />
+                </Route>
             </Route>
           </Route>
           <Route path="*" element={<NotFound />} />

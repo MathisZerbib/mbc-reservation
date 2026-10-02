@@ -2,8 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Check, Plus, Clock, Users, Trash2, HandCoins } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
-import { api } from '../services/api';
-import { useBookingsContext } from '../context/useBookingsContext';
+import { useBookingsForDate, useBookingsActions } from '../hooks/useBookings';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
 import { bookingUrgency, lateMinutes, TAG_EMOJI, tagDetail, ageYears } from '../utils/bookingUtils';
@@ -30,7 +29,8 @@ interface TableSheetProps {
  */
 export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, onClose, onFocusBooking, onQuickCreate }) => {
     const { t } = useTranslation();
-    const { bookings, refresh } = useBookingsContext();
+    const bookings = useBookingsForDate(date);
+    const actions = useBookingsActions();
     const { settings } = useRestaurantSettings();
     const grace = settings?.lateGraceMinutes ?? 15;
     const [now] = useState(() => dayjs());
@@ -117,8 +117,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const checkIn = async (id: string) => {
         setBusy(true);
         try {
-            await api.checkIn(id);
-            await refresh();
+            await actions.checkIn(id);
         } finally {
             setBusy(false);
         }
@@ -127,8 +126,7 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const finishMeal = async (id: string) => {
         setBusy(true);
         try {
-            await api.finishMeal(id);
-            await refresh();
+            await actions.finishMeal(id);
         } finally {
             setBusy(false);
         }
@@ -145,9 +143,8 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const doCancel = async (id: string) => {
         setBusy(true);
         try {
-            await api.cancelBooking(id);
+            await actions.cancelBooking(id);
             setConfirmCancelId(null);
-            await refresh();
         } finally {
             setBusy(false);
         }
@@ -168,9 +165,8 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const doCharge = async (id: string) => {
         setBusy(true);
         try {
-            await api.markNoShowAndCharge(id);
+            await actions.markNoShowAndCharge(id);
             setConfirmChargeId(null);
-            await refresh();
         } finally {
             setBusy(false);
         }
@@ -187,9 +183,8 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const doErase = async (id: string) => {
         setBusy(true);
         try {
-            await api.eraseBooking(id);
+            await actions.eraseBooking(id);
             setConfirmEraseId(null);
-            await refresh();
         } finally {
             setBusy(false);
         }
@@ -200,13 +195,12 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
         const day = moveDate ?? dayjs(b.startTime).tz(RESTAURANT_TZ).format('YYYY-MM-DD');
         setBusy(true);
         try {
-            await api.rescheduleBooking(b.id, {
+            await actions.rescheduleBooking(b.id, {
                 startTime: dayjs.tz(`${day} ${slot}`, RESTAURANT_TZ).toISOString(),
                 tableNames,
             });
             setMovingId(null);
             setSuggestion(null);
-            await refresh();
         } catch (e) {
             const err = e as Error & { status?: number; suggestion?: string[] };
             if (err.status === 409) {
@@ -220,9 +214,8 @@ export const TableSheet: React.FC<TableSheetProps> = ({ tableId, seats, date, on
     const seatHere = async (b: Booking) => {
         setBusy(true);
         try {
-            await api.updateAssignment(b.id, [tableId]);
-            await api.checkIn(b.id);
-            await refresh();
+            await actions.updateAssignment(b.id, [tableId]);
+            await actions.checkIn(b.id);
         } finally {
             setBusy(false);
         }

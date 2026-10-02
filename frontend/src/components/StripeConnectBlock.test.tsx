@@ -40,4 +40,18 @@ describe('StripeConnectBlock', () => {
         fireEvent.click(btn);
         await waitFor(() => expect(stripeConnect).toHaveBeenCalled());
     });
+
+    it('shows an actionable session message on 401 (incognito) with retry', async () => {
+        const err = Object.assign(new Error('Unauthorized'), { status: 401 });
+        stripeStatus.mockRejectedValue(err);
+        renderBlock();
+        await waitFor(() => expect(screen.getByText(/Unauthorized/)).toBeInTheDocument());
+        expect(await screen.findByRole('button', { name: /retry|réessayer/i })).toBeInTheDocument();
+    });
+
+    it('explains unconfigured backend instead of hiding', async () => {
+        stripeStatus.mockResolvedValue({ configured: false, mode: 'unconfigured', accountId: null, onboarded: false });
+        renderBlock();
+        await waitFor(() => expect(screen.getByText(/not configured|pas configuré/i)).toBeInTheDocument());
+    });
 });

@@ -166,13 +166,21 @@ export const bookingRoutes = (io: Server) => {
      * @swagger
      * /bookings:
      *   get:
-     *     summary: Get all bookings
+     *     summary: Get bookings (optionally scoped to a single day)
      *     tags: [Bookings]
      *     security:
      *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: date
+     *         required: false
+     *         schema:
+     *           type: string
+     *           example: '2026-10-02'
+     *         description: Restaurant-day (YYYY-MM-DD, Europe/Paris). Omit for the full history.
      *     responses:
      *       200:
-     *         description: List of all bookings
+     *         description: List of bookings
      *         content:
      *           application/json:
      *             schema:
@@ -181,6 +189,27 @@ export const bookingRoutes = (io: Server) => {
      *                 $ref: '#/components/schemas/Booking'
      */
     router.get('/bookings', isAuthenticated, requireTenant, controller.getAllBookings);
+
+    /**
+     * @swagger
+     * /bookings/affluence:
+     *   get:
+     *     summary: Per-day booking counts for a month (agenda calendar dots)
+     *     tags: [Bookings]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: month
+     *         required: true
+     *         schema:
+     *           type: string
+     *           example: '2026-10'
+     *     responses:
+     *       200:
+     *         description: Map of YYYY-MM-DD → booking count
+     */
+    router.get('/bookings/affluence', isAuthenticated, requireTenant, controller.getAffluence);
 
     router.patch('/bookings/:id/tables', isAuthenticated, requireTenant, requireActiveTrial, controller.updateAssignment);
     router.post('/bookings/:id/guest-confirm', isAuthenticated, requireTenant, requireActiveTrial, controller.toggleGuestConfirm);

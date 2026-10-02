@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
-import { api } from '../services/api';
-import { useBookingsContext } from '../context/useBookingsContext';
+import { useBookingsForDate, useBookingsActions } from '../hooks/useBookings';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
 import { bookingUrgency, lateMinutes, matchesHostQuery, formatTableLabels } from '../utils/bookingUtils';
@@ -24,7 +23,8 @@ interface ArrivalStripProps {
  */
 export const ArrivalStrip: React.FC<ArrivalStripProps> = ({ date, hostQuery = '', onHighlight }) => {
     const { t } = useTranslation();
-    const { bookings, refresh } = useBookingsContext();
+    const bookings = useBookingsForDate(date);
+    const actions = useBookingsActions();
     const { settings } = useRestaurantSettings();
     const grace = settings?.lateGraceMinutes ?? 15;
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -57,9 +57,8 @@ export const ArrivalStrip: React.FC<ArrivalStripProps> = ({ date, hostQuery = ''
     const checkIn = async (id: string) => {
         setBusy(true);
         try {
-            await api.checkIn(id);
+            await actions.checkIn(id);
             setExpandedId(null);
-            await refresh();
         } finally {
             setBusy(false);
         }
@@ -75,10 +74,9 @@ export const ArrivalStrip: React.FC<ArrivalStripProps> = ({ date, hostQuery = ''
     const doCancel = async (id: string) => {
         setBusy(true);
         try {
-            await api.cancelBooking(id);
+            await actions.cancelBooking(id);
             setConfirmCancelId(null);
             setExpandedId(null);
-            await refresh();
         } finally {
             setBusy(false);
         }

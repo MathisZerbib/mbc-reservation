@@ -1,19 +1,17 @@
 import { useState } from 'react';
-import { api } from '../services/api';
-import { useBookingsContext } from '../context/useBookingsContext';
+import { useBookingsActions } from '../hooks/useBookings';
 import { useTranslation } from '../i18n/useTranslation';
 
 export function AutoConsecButton({ date }: { date: string }) {
   const { t } = useTranslation();
-  const { refresh } = useBookingsContext();
+  const { autoConsec } = useBookingsActions();
   const [loading, setLoading] = useState(false);
 
   const handleAutoConsec = async () => {
     if (!window.confirm(t('autoconsec.confirmMsg').replace('{date}', date))) return;
     setLoading(true);
     try {
-      await api.autoConsec(date);
-      refresh();
+      await autoConsec(date);
       alert(t('autoconsec.success'));
     } catch (error) {
       console.error('Auto-consec failure:', error);

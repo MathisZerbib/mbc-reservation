@@ -1,43 +1,33 @@
-import { useEffect, useState } from 'react';
-import { api } from '../services/api';
+import { useEffect } from 'react';
+import { useUserStore, type UserRole } from '../stores/userStore';
 
-export type UserRole = 'OWNER' | 'STAFF';
+export type { UserRole };
 
-/** Current signed-in role (null while loading or signed out). Cached per session. */
-let cached: { role: UserRole; email: string } | null | undefined;
+const hasToken = (): boolean => {
+    try {
+        return typeof window !== 'undefined' && !!window.localStorage.getItem('token');
+    } catch {
+        return false;
+    }
+};
 
 /** Clear the cached role (call on logout). */
 export function clearUserRole(): void {
-    cached = undefined;
+    useUserStore.getState().clear();
 }
 
+/**
+ * Current signed-in role (null while loading or signed out). Backed by the
+ * shared user store, so N components share a single `GET /auth/me`.
+ */
 export function useUserRole(): { role: UserRole | null; email: string | null; loading: boolean } {
-    const [token] = useState(() => localStorage.getItem('token'));
-    const [state, setState] = useState<{ role: UserRole | null; email: string | null }>(
-        cached ?? { role: null, email: null },
-    );
-    // Loading only when a token exists but the role isn't resolved yet.
-    const [loading, setLoading] = useState(cached === undefined && !!token);
-
     useEffect(() => {
-        if (cached !== undefined || !token) return;
-        let alive = true;
-        api.getMe()
-            .then(me => {
-                cached = { role: me.role, email: me.email };
-                if (alive) {
-                    setState(cached);
-                    setLoading(false);
-                }
-            })
-            .catch(() => {
-                cached = null;
-                if (alive) setLoading(false);
-            });
-        return () => {
-            alive = false;
-        };
-    }, [token]);
+        void useUserStore.getState().fetchMe();
+    }, []);
 
-    return { ...state, loading };
+    const role = useUserStore((s) => s.role);
+    const email = useUserStore((s) => s.email);
+    const loading = useUserStore((s) => s.loading || (!s.loaded && hasToken()));
+
+    return { role, email, loading };
 }

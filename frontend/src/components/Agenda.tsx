@@ -1,13 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { CheckCircle2, XCircle, AlertTriangle, Search, Users, ListFilter, Clock3, BadgeCheck } from 'lucide-react';
 import clsx from 'clsx';
 import { cn } from '../lib/utils';
-import { api } from '../services/api';
 import { DatePicker } from './ui/date-picker';
 import {
-  calculateAffluence,
+  affluenceModifiers,
   affluenceClassNames,
   formatTableLabels,
   matchesHostQuery,
@@ -21,7 +20,7 @@ import {
 } from '../utils/bookingUtils';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
 import type { Booking } from '../types';
-import { useBookingsContext } from '../context/useBookingsContext';
+import { useBookingsForDate, useBookingsActions, useMonthAffluence } from '../hooks/useBookings';
 import { useTranslation } from '../i18n/useTranslation';
 
 interface AgendaProps {
@@ -63,7 +62,10 @@ const SIZE_BANDS: { id: SizeBand; label: string }[] = [
 
 export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDate, className, externalQuery = '', selectedBookingId = null, onPlaceTables, draggableRows = false, onDragOverTable, onAssignRowDrop }) => {
   const { t } = useTranslation();
-  const { bookings, refresh } = useBookingsContext();
+  const bookings = useBookingsForDate(date);
+  const actions = useBookingsActions();
+  const affluence = useMonthAffluence(dayjs(date).format('YYYY-MM'));
+  const affluenceMarks = useMemo(() => affluenceModifiers(affluence), [affluence]);
   const [showModal, setShowModal] = useState<{ id: string, name: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sizeBand, setSizeBand] = useState<SizeBand>('all');
@@ -89,8 +91,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
   const handleCheckIn = async (id: string) => {
     try {
       setLoading(true);
-      await api.checkIn(id);
-      refresh();
+      await actions.checkIn(id);
     } catch (e) {
       console.error(e);
       alert(t('agenda.checkinFailed'));
@@ -101,11 +102,12 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
 
   const handleCancel = async () => {
     if (!showModal) return;
+    const id = showModal.id;
+    // Close instantly — the store patches the row optimistically.
+    setShowModal(null);
     try {
       setLoading(true);
-      await api.cancelBooking(showModal.id);
-      refresh();
-      setShowModal(null);
+      await actions.cancelBooking(id);
     } catch (e) {
       console.error(e);
       alert(t('agenda.cancelFailed'));
@@ -125,9 +127,8 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
   const doCancel = async (id: string) => {
     try {
       setLoading(true);
-      await api.cancelBooking(id);
+      await actions.cancelBooking(id);
       setConfirmCancelId(null);
-      refresh();
     } catch (e) {
       console.error(e);
       alert(t('agenda.cancelFailed'));
@@ -138,8 +139,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
 
   const toggleConfirm = async (b: Booking) => {
     try {
-      await api.toggleGuestConfirm(b.id);
-      refresh();
+      await actions.toggleGuestConfirm(b.id);
     } catch (e) {
       console.error(e);
     }
@@ -489,7 +489,7 @@ export const Agenda: React.FC<AgendaProps> = ({ setHoveredBookingId, date, setDa
             setDate={d => setDate(dayjs(d).format('YYYY-MM-DD'))}
             displayFormat="dd/MM/yyyy"
             className="h-12 text-[11px] font-black cursor-pointer bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-500/30 hover:shadow-md transition-all rounded-xl px-3 w-full min-w-0 dark:text-white"
-            modifiers={calculateAffluence(bookings)}
+            modifiers={affluenceMarks}
             modifiersClassNames={affluenceClassNames}
           />
         </div>

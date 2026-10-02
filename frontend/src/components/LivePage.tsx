@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { FloorPlan } from './FloorPlan';
@@ -6,14 +6,11 @@ import { ArrivalStrip } from './ArrivalStrip';
 import { Agenda } from './Agenda';
 import { ServiceMetrics } from './ServiceMetrics';
 import { HostSearchBar } from './HostSearchBar';
-import { HostHeader } from './HostHeader';
 import { AdminQuickReservation } from './AdminQuickReservation';
-import { TrialBanner } from './TrialBanner';
-import { useBookingsContext } from '../context/useBookingsContext';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { useBookingsForDate, useBookingsActions } from '../hooks/useBookings';
+import { useUiStore } from '../stores/uiStore';
 import { useHostShortcuts } from '../hooks/useHostShortcuts';
 import { matchesHostQuery, countArrivalsNow } from '../utils/bookingUtils';
-import { api } from '../services/api';
 
 /**
  * Host live workspace: full-width floor map. The arrivals list lives on
@@ -33,8 +30,10 @@ export const LivePage: React.FC = () => {
     const [split, setSplit] = useState(true);
     const [dragOverTableId, setDragOverTableId] = useState<string | null>(null);
     const dragOverRef = useRef<string | null>(null);
-    const { bookings, refresh } = useBookingsContext();
-    const { dark, toggle } = useDarkMode();
+    const bookings = useBookingsForDate(selectedDate);
+    const { updateAssignment, checkIn } = useBookingsActions();
+    const setHeaderConfig = useUiStore((s) => s.setHeader);
+    const openQuickRes = useCallback(() => setIsQuickResOpen(true), []);
 
     useHostShortcuts({
         onQuickRes: () => setIsQuickResOpen(true),
@@ -65,6 +64,11 @@ export const LivePage: React.FC = () => {
         setSearchParams(next, { replace: true });
     }, [selectedDate, placementBookingId, setSearchParams]);
 
+    // Publish to the single AppShell header (mounted once, never rebuilt).
+    useEffect(() => {
+        setHeaderConfig({ date: selectedDate, arrivalsNow, onQuickRes: openQuickRes });
+    }, [selectedDate, arrivalsNow, openQuickRes, setHeaderConfig]);
+
     const handleSearchSubmit = () => {
         if (queryMatches.length === 1) {
             const only = queryMatches[0];
@@ -74,22 +78,20 @@ export const LivePage: React.FC = () => {
     };
 
     const handlePlacementSave = async (bookingId: string, tableNames: string[], andCheckIn: boolean) => {
-        await api.updateAssignment(bookingId, tableNames);
+        await updateAssignment(bookingId, tableNames);
         if (andCheckIn) {
             try {
-                await api.checkIn(bookingId);
+                await checkIn(bookingId);
             } catch (e) {
                 console.error('Check-in after placement failed', e);
             }
         }
-        await refresh();
         setPlacementBookingId(null);
     };
 
     const handleAssignDrop = async (bookingId: string, tableId: string) => {
         try {
-            await api.updateAssignment(bookingId, [tableId]);
-            await refresh();
+            await updateAssignment(bookingId, [tableId]);
         } catch (e) {
             console.error('Drag-and-drop assign failed', e);
         } finally {
@@ -105,10 +107,7 @@ export const LivePage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 lg:p-4 h-screen overflow-hidden flex flex-col">
-            <div className="max-w-[1600px] mx-auto w-full flex flex-col h-full gap-4">
-                <HostHeader date={selectedDate} arrivalsNow={arrivalsNow} onQuickRes={() => setIsQuickResOpen(true)} dark={dark} onToggleDark={toggle} />
-                <TrialBanner />
+        <div className="flex flex-col h-full gap-4 min-h-0">
                 <div className="flex-none">
                     <HostSearchBar
                         value={hostQuery}
@@ -166,7 +165,6 @@ export const LivePage: React.FC = () => {
                         onHighlight={setHoveredBookingId}
                     />
                 </div>
-            </div>
 
             <AdminQuickReservation
                 isOpen={isQuickResOpen}

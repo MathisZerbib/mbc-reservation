@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2, Timer, CreditCard, DatabaseBackup, ShieldCheck, Clock } from 'lucide-react';
+import { Save, Euro, Image as ImageIcon, Map as MapIcon, Loader2, Timer, CreditCard, DatabaseBackup, ShieldCheck, Clock } from 'lucide-react';
 import { api, fileUrl } from '../services/api';
 import { useRestaurantSettings } from '../hooks/useFloorPlan';
 import { useUserRole } from '../hooks/useUserRole';
 import { TeamCard } from './TeamCard';
 import { FloorPlanImageDropzone } from './FloorPlanImageDropzone';
-import { HostHeader } from './HostHeader';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { SettingsField } from './SettingsField';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
+import { useUiStore } from '../stores/uiStore';
 import { StripeConnectBlock } from './StripeConnectBlock';
 import { isDemoSession } from '../utils/auth';
 import { useTranslation } from '../i18n/useTranslation';
@@ -17,8 +17,11 @@ import type { OpenHours } from '../types/index';
 
 export const SettingsPage: React.FC = () => {
     const { t, lang } = useTranslation();
-    const { dark, toggle } = useDarkMode();
     const today = dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD');
+    const setHeaderConfig = useUiStore((s) => s.setHeader);
+    useEffect(() => {
+        setHeaderConfig({ date: today, arrivalsNow: 0, onQuickRes: undefined });
+    }, [today, setHeaderConfig]);
     const { settings, loading, refresh } = useRestaurantSettings();
     const { role, loading: roleLoading } = useUserRole();
     const [avgTicket, setAvgTicket] = useState('');
@@ -205,30 +208,21 @@ export const SettingsPage: React.FC = () => {
     };
 
     // Staff sees live ops only — every control on this page is owner-level.
+    // Header stays the shared AppShell one; only the body differs.
     if (!roleLoading && role === 'STAFF') {
         return (
-            <div className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 lg:p-8">
-                <div className="max-w-[1600px] mx-auto flex flex-col gap-4">
-                    <div className="flex items-center gap-3">
-                        <Link to="/app/dashboard" className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
-                            <ChevronLeft className="w-5 h-5" />
-                        </Link>
-                        <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{t('settings.title')}</h1>
-                    </div>
+            <div className="flex flex-col gap-4">
                     <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-700/60 shadow-xl dark:shadow-none text-center">
                         <p className="text-sm font-black text-slate-700 dark:text-slate-200">{t('team.deniedTitle')}</p>
                         <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">{t('team.deniedMsg')}</p>
                     </div>
-                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 lg:p-8">
-            <div className="max-w-[1600px] mx-auto flex flex-col gap-4">
-                <HostHeader date={today} dark={dark} onToggleDark={toggle} />
-                <p className="text-slate-500 dark:text-slate-400 font-bold text-xs lg:text-sm -mt-2">{t('settings.subtitle')}</p>
+        <div className="flex flex-col gap-4">
+                <p className="text-slate-500 dark:text-slate-400 font-bold text-xs lg:text-sm">{t('settings.subtitle')}</p>
 
                 {message && (
                     <div className={cn(
@@ -255,55 +249,65 @@ export const SettingsPage: React.FC = () => {
                     {loading ? (
                         <div className="h-11 w-40 bg-slate-100 rounded-xl animate-pulse" />
                     ) : (
-                        <div className="flex flex-col gap-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <input
-                                    type="number"
-                                    min={1}
-                                    max={1000}
-                                    step={0.5}
-                                    value={avgTicket}
-                                    onChange={e => setAvgTicket(e.target.value)}
-                                    className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
-                                />
-                                <button
-                                    onClick={handleSaveTicket}
-                                    disabled={saving}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
-                                >
-                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    {saving ? t('common.saving') : t('common.save')}
-                                </button>
+                        <div className="flex flex-col gap-4">
+                            <SettingsField label={t('settings.ticketLabel')} unit="€" hint={t('settings.ticketHint')}>
+                                {(id) => (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <input
+                                            id={id}
+                                            aria-describedby={`${id}-hint`}
+                                            type="number"
+                                            min={1}
+                                            max={1000}
+                                            step={0.5}
+                                            value={avgTicket}
+                                            onChange={e => setAvgTicket(e.target.value)}
+                                            placeholder="45"
+                                            className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                                        />
+                                        <button
+                                            onClick={handleSaveTicket}
+                                            disabled={saving}
+                                            className="min-h-[44px] bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                                        >
+                                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                            {saving ? t('common.saving') : t('common.save')}
+                                        </button>
+                                    </div>
+                                )}
+                            </SettingsField>
+                            <div className="grid sm:grid-cols-2 gap-3">
+                                <SettingsField label={t('settings.ticketLunchLabel')} unit="€" hint={t('settings.ticketSplitMsg')}>
+                                    {(id) => (
+                                        <input
+                                            id={id}
+                                            type="number"
+                                            min={1}
+                                            max={1000}
+                                            step={0.5}
+                                            value={avgLunch}
+                                            onChange={e => setAvgLunch(e.target.value)}
+                                            placeholder="—"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                        />
+                                    )}
+                                </SettingsField>
+                                <SettingsField label={t('settings.ticketDinnerLabel')} unit="€" hint={t('settings.ticketSplitMsg')}>
+                                    {(id) => (
+                                        <input
+                                            id={id}
+                                            type="number"
+                                            min={1}
+                                            max={1000}
+                                            step={0.5}
+                                            value={avgDinner}
+                                            onChange={e => setAvgDinner(e.target.value)}
+                                            placeholder="—"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                        />
+                                    )}
+                                </SettingsField>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('settings.ticketLunch')}</span>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        max={1000}
-                                        step={0.5}
-                                        value={avgLunch}
-                                        onChange={e => setAvgLunch(e.target.value)}
-                                        placeholder="—"
-                                        className="w-20 bg-transparent text-sm font-black text-slate-900 focus:outline-none"
-                                    />
-                                </label>
-                                <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('settings.ticketDinner')}</span>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        max={1000}
-                                        step={0.5}
-                                        value={avgDinner}
-                                        onChange={e => setAvgDinner(e.target.value)}
-                                        placeholder="—"
-                                        className="w-20 bg-transparent text-sm font-black text-slate-900 focus:outline-none"
-                                    />
-                                </label>
-                            </div>
-                            <p className="text-[11px] text-slate-400 font-medium">{t('settings.ticketSplitMsg')}</p>
                         </div>
                     )}
                 </div>
@@ -338,39 +342,48 @@ export const SettingsPage: React.FC = () => {
                                 </span>
                                 <span className="text-sm font-black text-slate-900">{t('settings.autoCancelTitle')}</span>
                             </button>
-                            <div className="flex gap-2">
-                                <input
-                                    type="number"
-                                    min={0}
-                                    max={120}
-                                    step={1}
-                                    value={lateGrace}
-                                    onChange={e => setLateGrace(e.target.value)}
-                                    aria-label={t('settings.graceTitle')}
-                                    className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
-                                />
-                                <button
-                                    onClick={handleSaveGrace}
-                                    disabled={savingGrace}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
-                                >
-                                    {savingGrace ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    {savingGrace ? t('common.saving') : t('common.save')}
-                                </button>
-                            </div>
-                            <div className="flex gap-2 items-center mt-1">
-                                <input
-                                    type="number"
-                                    min={30}
-                                    max={300}
-                                    step={5}
-                                    value={turnover}
-                                    onChange={e => setTurnover(e.target.value)}
-                                    aria-label={t('settings.turnoverTitle')}
-                                    className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
-                                />
-                                <span className="text-xs font-bold text-slate-400">{t('settings.turnoverTitle')}</span>
-                            </div>
+                            <SettingsField label={t('settings.graceLabel')} unit="min" hint={t('settings.graceHint')}>
+                                {(id) => (
+                                    <div className="flex gap-2">
+                                        <input
+                                            id={id}
+                                            aria-describedby={`${id}-hint`}
+                                            type="number"
+                                            min={0}
+                                            max={120}
+                                            step={1}
+                                            value={lateGrace}
+                                            onChange={e => setLateGrace(e.target.value)}
+                                            placeholder="15"
+                                            className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
+                                        />
+                                        <button
+                                            onClick={handleSaveGrace}
+                                            disabled={savingGrace}
+                                            className="min-h-[44px] bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                                        >
+                                            {savingGrace ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                            {savingGrace ? t('common.saving') : t('common.save')}
+                                        </button>
+                                    </div>
+                                )}
+                            </SettingsField>
+                            <SettingsField label={t('settings.turnoverLabel')} unit="min" hint={t('settings.turnoverHint')}>
+                                {(id) => (
+                                    <input
+                                        id={id}
+                                        aria-describedby={`${id}-hint`}
+                                        type="number"
+                                        min={30}
+                                        max={300}
+                                        step={5}
+                                        value={turnover}
+                                        onChange={e => setTurnover(e.target.value)}
+                                        placeholder="105"
+                                        className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
+                                    />
+                                )}
+                            </SettingsField>
                         </div>
                     )}
                 </div>
@@ -405,33 +418,45 @@ export const SettingsPage: React.FC = () => {
                                 </span>
                                 <span className="text-sm font-black text-slate-900">{t('settings.depositToggle')}</span>
                             </button>
-                            <div className="flex gap-2 items-center">
-                                <input
-                                    type="number"
-                                    min={2}
-                                    max={100}
-                                    step={1}
-                                    value={depositMin}
-                                    onChange={e => setDepositMin(e.target.value)}
-                                    disabled={!depositOn}
-                                    aria-label={t('settings.depositMin')}
-                                    className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 disabled:opacity-50"
-                                />
-                                <input
-                                    type="number"
-                                    min={1}
-                                    max={500}
-                                    step={1}
-                                    value={depositAmount}
-                                    onChange={e => setDepositAmount(e.target.value)}
-                                    disabled={!depositOn}
-                                    aria-label={t('settings.depositAmount')}
-                                    className="w-28 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 disabled:opacity-50"
-                                />
+                            <div className="grid sm:grid-cols-2 gap-3">
+                                <SettingsField label={t('settings.depositMinLabel')} unit="guests" hint={t('settings.depositMinHint')}>
+                                    {(id) => (
+                                        <input
+                                            id={id}
+                                            type="number"
+                                            min={2}
+                                            max={100}
+                                            step={1}
+                                            value={depositMin}
+                                            onChange={e => setDepositMin(e.target.value)}
+                                            disabled={!depositOn}
+                                            placeholder="6"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 disabled:opacity-50"
+                                        />
+                                    )}
+                                </SettingsField>
+                                <SettingsField label={t('settings.depositAmountLabel')} unit="€" hint={t('settings.depositAmountHint')}>
+                                    {(id) => (
+                                        <input
+                                            id={id}
+                                            type="number"
+                                            min={1}
+                                            max={500}
+                                            step={1}
+                                            value={depositAmount}
+                                            onChange={e => setDepositAmount(e.target.value)}
+                                            disabled={!depositOn}
+                                            placeholder="20"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 disabled:opacity-50"
+                                        />
+                                    )}
+                                </SettingsField>
+                            </div>
+                            <div>
                                 <button
                                     onClick={handleSaveDeposit}
                                     disabled={savingRules}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                                    className="min-h-[44px] bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                                 >
                                     {savingRules ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                     {savingRules ? t('common.saving') : t('common.save')}
@@ -450,8 +475,11 @@ export const SettingsPage: React.FC = () => {
                         </div>
                         <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{t('settings.openHoursTitle')}</h2>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-4">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
                         {t('settings.openHoursMsg')}
+                    </p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mb-4">
+                        {t('settings.openHoursHint')}
                     </p>
                     {loading ? (
                         <div className="h-11 w-40 bg-slate-100 rounded-xl animate-pulse" />
@@ -550,25 +578,32 @@ export const SettingsPage: React.FC = () => {
                     {loading ? (
                         <div className="h-11 w-40 bg-slate-100 rounded-xl animate-pulse" />
                     ) : (
-                        <div className="flex gap-2 items-center">
-                            <input
-                                type="number"
-                                min={1}
-                                max={36}
-                                step={1}
-                                value={retention}
-                                onChange={e => setRetention(e.target.value)}
-                                className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500/50 focus:border-slate-500"
-                            />
-                            <button
-                                onClick={handleSaveRetention}
-                                disabled={savingRetention}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
-                            >
-                                {savingRetention ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                {savingRetention ? t('common.saving') : t('common.save')}
-                            </button>
-                        </div>
+                        <SettingsField label={t('settings.retentionLabel')} unit="months" hint={t('settings.retentionHint')}>
+                            {(id) => (
+                                <div className="flex gap-2 items-center">
+                                    <input
+                                        id={id}
+                                        aria-describedby={`${id}-hint`}
+                                        type="number"
+                                        min={1}
+                                        max={36}
+                                        step={1}
+                                        value={retention}
+                                        onChange={e => setRetention(e.target.value)}
+                                        placeholder="13"
+                                        className="w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500/50 focus:border-slate-500"
+                                    />
+                                    <button
+                                        onClick={handleSaveRetention}
+                                        disabled={savingRetention}
+                                        className="min-h-[44px] bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {savingRetention ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        {savingRetention ? t('common.saving') : t('common.save')}
+                                    </button>
+                                </div>
+                            )}
+                        </SettingsField>
                     )}
                 </div>
 
@@ -625,7 +660,6 @@ export const SettingsPage: React.FC = () => {
                         </button>
                     </div>
                 )}
-            </div>
         </div>
     );
 };

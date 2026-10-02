@@ -10,7 +10,7 @@ import {
 } from "./ui/popover";
 import { COUNTRIES } from '../utils/countries';
 import { cn } from '../lib/utils';
-import { useBookingsContext } from '../context/useBookingsContext';
+import { useBookingsForDate, useBookingsActions } from '../hooks/useBookings';
 import { useTenant, useLayoutTables } from '../hooks/useFloorPlan';
 import { useTranslation } from '../i18n/useTranslation';
 import { NumberField } from './NumberField';
@@ -39,7 +39,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
     initialTable = null,
     onCreated
 }) => {
-    const { bookings, refresh } = useBookingsContext();
+    const actions = useBookingsActions();
     const { t } = useTranslation();
     const { tenant } = useTenant();
     const { raw: layoutTables } = useLayoutTables();
@@ -60,6 +60,9 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
         birthdayDate: '',
         vipNote: '',
     });
+
+    // Day slice for the modal's date (shares the page's single fetch).
+    const bookings = useBookingsForDate(formData.date);
 
     const [availableTimes, setAvailableTimes] = useState<Record<string, boolean>>({});
 
@@ -153,7 +156,7 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 setLoading(false);
                 return;
             }
-            const created: Booking = await api.createBooking({
+            const created: Booking = await actions.createBooking({
                 name: sanitizedName,
                 phone: sanitizedPhone,
                 email: sanitizedEmail,
@@ -168,14 +171,11 @@ export const AdminQuickReservation: React.FC<AdminQuickReservationProps> = ({
                 source: 'WALKIN',
             }, tenant.slug);
             
-            await refresh(); // Force refresh of context data before proceeding
-
             // From the table sheet: seat the new booking at the tapped table.
             // Best-effort — the server auto-assignment stands on conflict.
             if (initialTable) {
                 try {
-                    await api.updateAssignment(created.id, [initialTable]);
-                    await refresh();
+                    await actions.updateAssignment(created.id, [initialTable]);
                 } catch (e) {
                     console.error('Seating new booking at table failed', e);
                 }

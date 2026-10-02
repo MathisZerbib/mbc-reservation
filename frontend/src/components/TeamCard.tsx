@@ -117,21 +117,29 @@ export const TeamCard: React.FC<{ flash: (kind: 'ok' | 'err', text: string) => v
                         </div>
                     ))}
                     <div className="flex flex-col sm:flex-row gap-2 mt-1">
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            placeholder={t('team.emailPh')}
-                            className="flex-1 min-h-[48px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                        />
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            placeholder={t('team.passwordPh')}
-                            autoComplete="new-password"
-                            className="flex-1 min-h-[48px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                        />
+                        <label className="flex-1 flex flex-col gap-1">
+                            <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Email — e.g. marie@bistro.fr</span>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                placeholder={t('team.emailPh')}
+                                aria-label={t('team.emailPh')}
+                                className="flex-1 min-h-[48px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            />
+                        </label>
+                        <label className="flex-1 flex flex-col gap-1">
+                            <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Password — 12+ chars</span>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                placeholder={t('team.passwordPh')}
+                                aria-label={t('team.passwordPh')}
+                                autoComplete="new-password"
+                                className="flex-1 min-h-[48px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            />
+                        </label>
                         <button
                             onClick={add}
                             disabled={adding}

@@ -1,11 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import dayjs, { RESTAURANT_TZ } from '../utils/dayjs';
 import { Analytics } from './Analytics';
 import { RangeAnalytics } from './RangeAnalytics';
-import { HostHeader } from './HostHeader';
-import { useDarkMode } from '../hooks/useDarkMode';
 import { useTranslation } from '../i18n/useTranslation';
+import { useUiStore } from '../stores/uiStore';
 import { cn } from '../lib/utils';
 
 type Period = 'day' | 'week' | 'month' | 'year';
@@ -17,10 +16,13 @@ type Period = 'day' | 'week' | 'month' | 'year';
  */
 export const AnalyticsPage: React.FC = () => {
     const { t } = useTranslation();
-    const { dark, toggle } = useDarkMode();
     const [searchParams] = useSearchParams();
     const date = searchParams.get('date') || dayjs.tz(undefined, RESTAURANT_TZ).format('YYYY-MM-DD');
     const [period, setPeriod] = useState<Period>('day');
+    const setHeaderConfig = useUiStore((s) => s.setHeader);
+    useEffect(() => {
+        setHeaderConfig({ date, arrivalsNow: 0, onQuickRes: undefined });
+    }, [date, setHeaderConfig]);
 
     const range = useMemo(() => {
         const to = date;
@@ -37,9 +39,7 @@ export const AnalyticsPage: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 lg:p-6 overflow-y-auto">
-            <div className="max-w-[1200px] mx-auto flex flex-col gap-4 pb-8">
-                <HostHeader date={date} dark={dark} onToggleDark={toggle} />
+        <div className="w-full max-w-[1200px] mx-auto flex flex-col gap-4">
                 <div className="flex gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-1.5 w-fit">
                     {tabs.map(tab => (
                         <button
@@ -61,7 +61,6 @@ export const AnalyticsPage: React.FC = () => {
                 ) : (
                     <RangeAnalytics from={range.from} to={range.to} />
                 )}
-            </div>
         </div>
     );
 };

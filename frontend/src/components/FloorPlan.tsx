@@ -5,7 +5,7 @@ import { useTranslation } from "../i18n/useTranslation";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { cn } from "../lib/utils";
-import { useBookingsContext } from "../context/useBookingsContext";
+import { useBookingsForDate } from "../hooks/useBookings";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { Maximize2, Minimize2, X, Check, Columns2 } from "lucide-react";
 import { TableSheet } from "./TableSheet";
@@ -57,7 +57,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({
   splitActive = false,
   onToggleSplit,
 }) => {
-  const { bookings: allBookings } = useBookingsContext();
+  const allBookings = useBookingsForDate(selectedDate);
   const { t } = useTranslation();
   const { tables: layoutTables } = useLayoutTables();
   const { dark } = useDarkMode();
