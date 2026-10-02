@@ -6,10 +6,9 @@
 CREATE TYPE "DepositStatus" AS ENUM ('NONE', 'PENDING', 'HELD', 'CAPTURED', 'RELEASED', 'EXPIRED', 'FAILED');
 
 ALTER TABLE "Booking" ALTER COLUMN "depositStatus" DROP DEFAULT;
-ALTER TABLE "Booking"
-  ALTER COLUMN "depositStatus" TYPE "DepositStatus" USING "depositStatus"::"DepositStatus",
-  ALTER COLUMN "depositStatus" SET DEFAULT 'NONE';
-  ADD COLUMN "depositExpiresAt" TIMESTAMP(3);
+ALTER TABLE "Booking" ALTER COLUMN "depositStatus" TYPE "DepositStatus" USING "depositStatus"::"DepositStatus";
+ALTER TABLE "Booking" ALTER COLUMN "depositStatus" SET DEFAULT 'NONE';
+ALTER TABLE "Booking" ADD COLUMN "depositExpiresAt" TIMESTAMP(3);
 
 CREATE INDEX "Booking_tenantId_depositStatus_startTime_idx"
   ON "Booking"("tenantId", "depositStatus", "startTime");
