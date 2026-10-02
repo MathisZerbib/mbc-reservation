@@ -26,14 +26,14 @@ describe('StripeConnectBlock', () => {
     beforeEach(() => vi.clearAllMocks());
 
     it('shows the connected state when onboarded', async () => {
-        stripeStatus.mockResolvedValue({ configured: true, accountId: 'acct_1', onboarded: true });
+        stripeStatus.mockResolvedValue({ configured: true, mode: 'test', accountId: 'acct_1', onboarded: true });
         renderBlock();
         await waitFor(() => expect(screen.getByText(/connected|connecté/i)).toBeInTheDocument());
         expect(stripeConnect).not.toHaveBeenCalled();
     });
 
     it('starts onboarding on click when not connected', async () => {
-        stripeStatus.mockResolvedValue({ configured: true, accountId: null, onboarded: false });
+        stripeStatus.mockResolvedValue({ configured: true, mode: 'test', accountId: null, onboarded: false });
         stripeConnect.mockResolvedValue({ url: 'https://stripe.test/onboard', accountId: 'acct_1' });
         renderBlock();
         const btn = await waitFor(() => screen.getByRole('button', { name: /connect/i }));

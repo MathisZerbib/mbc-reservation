@@ -52,3 +52,18 @@ describe('connectErrorResponse', () => {
         expect(res).toEqual({ status: 500, error: 'Failed to start Stripe onboarding' });
     });
 });
+
+describe('stripeMode', () => {
+    it('derives test/live/unconfigured from the key prefix', async () => {
+        const { stripeMode } = await import('./depositService');
+        const original = process.env.STRIPE_SECRET_KEY;
+        process.env.STRIPE_SECRET_KEY = 'rk_test_abc';
+        expect(stripeMode()).toBe('test');
+        process.env.STRIPE_SECRET_KEY = 'sk_live_abc';
+        expect(stripeMode()).toBe('live');
+        delete process.env.STRIPE_SECRET_KEY;
+        expect(stripeMode()).toBe('unconfigured');
+        if (original === undefined) delete process.env.STRIPE_SECRET_KEY;
+        else process.env.STRIPE_SECRET_KEY = original;
+    });
+});

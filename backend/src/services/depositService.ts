@@ -11,6 +11,18 @@ export function isStripeEnabled(): boolean {
     return !!process.env.STRIPE_SECRET_KEY;
 }
 
+/**
+ * Which Stripe mode the server key points at (derived from the key prefix).
+ * Surfaced in GET /stripe/status so a test/live mismatch between the key
+ * and the webhook secret is visible instead of silent.
+ */
+export function stripeMode(): 'test' | 'live' | 'unconfigured' {
+    const key = process.env.STRIPE_SECRET_KEY ?? '';
+    if (!key) return 'unconfigured';
+    if (key.startsWith('sk_test_') || key.startsWith('rk_test_')) return 'test';
+    return 'live';
+}
+
 function stripeClient(): any {
     // Lazy so the backend boots (and tests run) without the SDK/key.
     // eslint-disable-next-line @typescript-eslint/no-require-imports

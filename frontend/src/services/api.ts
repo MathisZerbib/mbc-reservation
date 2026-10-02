@@ -190,7 +190,7 @@ export const api = {
         client.post<{ url: string; accountId: string }>('/stripe/connect', { auth: true }),
 
     stripeStatus: () =>
-        client.get<{ configured: boolean; accountId: string | null; onboarded: boolean }>('/stripe/status', { auth: true }),
+        client.get<{ configured: boolean; mode: 'test' | 'live' | 'unconfigured'; accountId: string | null; onboarded: boolean }>('/stripe/status', { auth: true }),
 
     /**
      * Fail-safe holds — explicit staff triggers only (no auto-capture anywhere).

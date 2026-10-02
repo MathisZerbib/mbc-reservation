@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { isAuthenticated, requireTenant, requireActiveTrial, requireRole, AuthRequest } from '../middleware/isAuthenticated';
 import { prisma } from '../lib/prisma';
 import { getSettings } from '../services/settingsService';
-import { isStripeEnabled, createOnboardingLink, refreshOnboardingStatus, connectErrorResponse } from '../services/depositService';
+import { isStripeEnabled, createOnboardingLink, refreshOnboardingStatus, connectErrorResponse, stripeMode } from '../services/depositService';
 
 const router = Router();
 
@@ -87,6 +87,7 @@ router.get('/stripe/status', isAuthenticated, requireTenant, requireRole('OWNER'
         }
         res.json({
             configured: isStripeEnabled(),
+            mode: stripeMode(),
             accountId: settings.stripeAccountId,
             onboarded,
         });

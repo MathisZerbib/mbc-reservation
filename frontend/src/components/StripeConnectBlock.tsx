@@ -5,6 +5,7 @@ import { useTranslation } from '../i18n/useTranslation';
 
 interface Status {
     configured: boolean;
+    mode: 'test' | 'live' | 'unconfigured';
     accountId: string | null;
     onboarded: boolean;
 }
@@ -63,8 +64,13 @@ export const StripeConnectBlock: React.FC<{
                 <Landmark className="w-5 h-5 text-violet-600 shrink-0" />
             )}
             <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-slate-900">
+                <p className="text-xs font-black text-slate-900 flex items-center gap-1.5">
                     {status?.onboarded ? t('settings.stripeOn') : t('settings.stripeTitle')}
+                    {status && status.mode !== 'live' && (
+                        <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
+                            {t('settings.stripeTestMode')}
+                        </span>
+                    )}
                 </p>
                 <p className="text-[11px] text-slate-500 font-medium">
                     {status?.onboarded
