@@ -21,22 +21,19 @@ const router = Router();
  *     tags: [StripeConnectWebhook]
  *     responses:
  *       200:
- *         description: Event received (including idempotent replays and dropped mismatches)
+ *         description: Event received, replayed, or safely dropped
  *       400:
  *         description: Invalid signature or misconfigured secret
- *
- * Security contract:
- * - Verifies with the SINGLE STRIPE_CONNECT_WEBHOOK_SECRET (platform secret).
- *   No per-restaurant secrets, no fallbacks.
- * - Every event is bound to its tenant via event.account vs
- *   RestaurantSettings.stripeAccountId (see stripeConnectService).
- * - Always returns 200 for well-signed events (even duplicates/mismatches)
- *   so Stripe stops redelivering poisoned payloads; returns 400 ONLY for
- *   signature failures / misconfiguration.
- *
- * NOTE: mounted with express.raw({ type: 'application/json' }) in server.ts
- * BEFORE express.json(), otherwise signature verification always fails.
  */
+
+// Security contract (plain comment: swagger-jsdoc parses the block above as
+// YAML, so no prose, braces, or list markers may live inside it):
+// - Single STRIPE_CONNECT_WEBHOOK_SECRET, no per-restaurant secrets.
+// - Tenant binding via event.account vs RestaurantSettings.stripeAccountId.
+// - 200 for well-signed events (even duplicates/mismatches); 400 only for
+//   signature failures / misconfiguration.
+// NOTE: mounted with express.raw() in server.ts BEFORE express.json(),
+// otherwise signature verification always fails.
 router.post('/', async (req: Request, res: Response) => {
     const signature = req.headers['stripe-signature'] as string | undefined;
     try {
