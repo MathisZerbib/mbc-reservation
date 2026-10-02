@@ -41,7 +41,6 @@ export const ReconciliationView: React.FC<{
 
     useEffect(() => {
         // Fetch-on-mount: intentional data load, not derived state.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         void load();
     }, [load]);
 
