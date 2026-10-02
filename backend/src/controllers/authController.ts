@@ -160,25 +160,42 @@ export const authController = {
       const email = process.env.DEMO_EMAIL || 'demo@example.com';
       // Dedicated sandbox tenant FIRST: the demo email may already be taken
       // on a real restaurant (then demo sessions would run on production
-      // data). Never hijack that account — refuse with a clear message.
+      // data). One-click rule: if the address is claimed elsewhere, fall
+      // back to deterministic sandbox aliases on the SAME demo tenant
+      // (demo+sandbox@…), so the button never dead-ends with a 403.
+      // All aliases share the one sandbox tenant and its demo data.
       let demoTenant = await findTenantBySlug('demo');
       if (!demoTenant) demoTenant = await createTenant('Demo Restaurant', 365, 'demo');
-      let user = await findUserByEmail(email);
-      if (user && user.tenantId !== demoTenant.id) {
-        return res.status(403).json({
-          error: 'This demo address is already registered on another restaurant. Use a different DEMO_EMAIL.',
-        });
+      const [localPart, domainPart] = email.split('@');
+      const candidates = [email];
+      for (let i = 1; i <= 5; i++) {
+        candidates.push(`${localPart}+sandbox${i === 1 ? '' : i}@${domainPart}`);
+      }
+      let user: Awaited<ReturnType<typeof findUserByEmail>> = null;
+      for (const candidate of candidates) {
+        const existing = await findUserByEmail(candidate);
+        if (!existing) {
+          const { randomBytes } = await import('crypto');
+          user = await createUserByEmailAndPassword({
+            email: candidate,
+            password: randomBytes(32).toString('base64url'),
+            tenantId: demoTenant.id,
+          });
+          // Pre-verified: password login is disabled anyway, but the address
+          // is kept in a usable state for anyone inspecting the sandbox.
+          await markEmailVerified(user.id);
+          break;
+        }
+        if (existing.tenantId === demoTenant.id) {
+          user = existing;
+          break;
+        }
+        // Claimed on another tenant — try the next sandbox alias.
       }
       if (!user) {
-        const { randomBytes } = await import('crypto');
-        user = await createUserByEmailAndPassword({
-          email,
-          password: randomBytes(32).toString('base64url'),
-          tenantId: demoTenant.id,
+        return res.status(403).json({
+          error: 'Demo addresses are all taken. Set a different DEMO_EMAIL.',
         });
-        // Pre-verified: password login is disabled anyway, but the address is
-        // kept in a usable state for anyone inspecting the sandbox tenant.
-        await markEmailVerified(user.id);
       }
       // Sandbox account: pre-onboarded on every login, not just at creation.
       // The flag only lives on the tenant, so a tenant that predates the column
