@@ -3,6 +3,9 @@
 -- No data rewrite beyond casting the existing TEXT values into the enum —
 -- every legacy value (NONE|PENDING|HELD|CAPTURED|RELEASED|FAILED) is valid.
 
+-- Residue guard: earlier failed attempts (PG 42804/42601) left the enum type
+-- behind without converting the column. Drop it so this migration is clean.
+DROP TYPE IF EXISTS "DepositStatus";
 CREATE TYPE "DepositStatus" AS ENUM ('NONE', 'PENDING', 'HELD', 'CAPTURED', 'RELEASED', 'EXPIRED', 'FAILED');
 
 ALTER TABLE "Booking" ALTER COLUMN "depositStatus" DROP DEFAULT;
